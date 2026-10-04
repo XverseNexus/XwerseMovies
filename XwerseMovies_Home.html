@@ -710,10 +710,9 @@ function cwCardHTML(m) {
 async function playMovie(m, season, episode) {
   if (!currentUser) return;
 
-  // Increment views / history for DB movies
-  // Fixed: was `m.id && !m.tmdb_id` which skipped all admin-added movies
-  // that have both a DB id AND a tmdb_id. Correct check is simply m.id.
-  if (m.id) DB.incrementViews(m.id).catch(() => {});
+  // History is saved here; the VIEW COUNT is incremented only once, by
+  // XwerseMovies_Player.html when the player actually loads. (Counting it
+  // here as well made every watch from Home count twice.)
   if (m.id) DB.addToHistory(currentUser.id, m.id).catch(() => {});
 
   // ── AUTO EMBED LOGIC ──────────────────────────────────────────
