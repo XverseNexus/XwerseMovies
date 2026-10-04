@@ -404,7 +404,7 @@ nav{background:#111;border-bottom:1px solid var(--border);padding:0 22px;height:
         </div>
         <div class="fg">
           <div class="fw"><label>Language</label><select id="mLang"><option value="hi">Hindi</option><option value="en">English</option><option value="te">Telugu</option><option value="ta">Tamil</option><option value="kn">Kannada</option><option value="ml">Malayalam</option><option value="bn">Bengali</option><option value="ko">Korean</option><option value="ja">Japanese</option></select></div>
-          <div class="fw"><label>Quality</label><select id="mQuality"><option value="4K">4K Ultra HD</option><option value="1080p" selected>1080p Full HD</option><option value="720p">720p HD</option><option value="480p">480p</option></select></div>
+          <div class="fw"><label>Quality</label><select id="mQuality"><option value="1080p" selected>1080p Full HD</option><option value="720p">720p HD</option><option value="480p">480p</option></select></div>
         </div>
         <div class="fg c1"><div class="fw"><label>Overview / Description</label><textarea id="mOverview" placeholder="Movie ki short description..."></textarea></div></div>
         <div class="fw"><label>Genres (click to select)</label><div class="gtags" id="genreTags"></div></div>
@@ -2062,7 +2062,6 @@ function editMovie(id) {
       <div class="fw">
         <label>Quality</label>
         <select id="eQuality" class="fsel">
-          <option ${m.quality==='4K'?'selected':''}>4K</option>
           <option ${m.quality==='1080p'?'selected':''}>1080p</option>
           <option ${m.quality==='720p'?'selected':''}>720p</option>
           <option ${m.quality==='480p'?'selected':''}>480p</option>
