@@ -76,7 +76,7 @@ module.exports = async function handler(req, res) {
         preferred_language: preferred_language || null,
         preferred_audio: preferred_audio || 'original',
         preferred_subtitle: preferred_subtitle || null,
-        preferred_quality: preferred_quality || 'highest',
+        preferred_quality: ['highest','360p','480p','720p','1080p'].includes(preferred_quality) ? preferred_quality : 'highest', // max 1080p
         notes: notes || null,
         price,
         payment_status: 'pending',
