@@ -16,12 +16,8 @@
 //  Task 11's payment webhook — reused here, nothing new to add):
 //    SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 //
-//  NOTE: there's no admin-auth check in this file itself — the
-//  actual gate is that only XwerseMovies_Admin.html calls this,
-//  and that page already checks Auth.getProfile(...).is_admin
-//  before letting anyone add a movie in the first place. If this
-//  endpoint needs to be hardened further later (e.g. rate limiting
-//  against abuse), that's the natural next step.
+//  AUTH: the caller must send `Authorization: Bearer <supabase access
+//  token>` and be an admin/moderator (verified server-side below).
 // ═══════════════════════════════════════════════════════════
 
 module.exports = async function handler(req, res) {
@@ -38,6 +34,30 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    // ── AUTH: only a logged-in admin/moderator may broadcast ──────
+    // The caller must send its Supabase access token as
+    // `Authorization: Bearer <token>`. We verify it with Supabase Auth,
+    // then check the caller's role in `profiles` using the service key.
+    const authHeader = req.headers['authorization'] || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+    if (!token) return res.status(401).json({ error: 'Login required' });
+
+    const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: { 'apikey': supabaseServiceKey, 'Authorization': `Bearer ${token}` },
+    });
+    if (!userRes.ok) return res.status(401).json({ error: 'Invalid session' });
+    const caller = await userRes.json();
+    if (!caller || !caller.id) return res.status(401).json({ error: 'Invalid session' });
+
+    const roleRes = await fetch(
+      `${supabaseUrl}/rest/v1/profiles?id=eq.${encodeURIComponent(caller.id)}&select=is_admin,role`,
+      { headers: { 'apikey': supabaseServiceKey, 'Authorization': `Bearer ${supabaseServiceKey}` } }
+    );
+    const roleRows = roleRes.ok ? await roleRes.json() : [];
+    const me = Array.isArray(roleRows) ? roleRows[0] : null;
+    const allowed = me && (me.is_admin === true || me.role === 'admin' || me.role === 'moderator');
+    if (!allowed) return res.status(403).json({ error: 'Admins only' });
+
     const { title, type, image_url } = req.body || {};
     if (!title || typeof title !== 'string') {
       return res.status(400).json({ error: 'Missing movie/show title' });
