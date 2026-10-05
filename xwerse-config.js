@@ -290,6 +290,23 @@ const DB = {
   // requests the same title and gets his own access too" works without
   // needing a separate access-grants table — the requests table already
   // is the grant.
+  // Direct-stream link (Telegram stream-bot URL etc.) for ONE of the user's own
+  // requests. RLS already limits `requests` to the owner (and staff), and we
+  // additionally require paid + completed and an https URL.
+  async getMyDirectStream(uid, requestId) {
+    if (!uid || !requestId) return null;
+    const { data, error } = await getSB()
+      .from('requests')
+      .select('direct_url, payment_status, status')
+      .eq('id', requestId)
+      .eq('user_id', uid)
+      .maybeSingle();
+    if (error || !data) return null;
+    if (data.payment_status !== 'paid' || data.status !== 'completed') return null;
+    const u = String(data.direct_url || '').trim();
+    return /^https:\/\//i.test(u) ? u : null;
+  },
+
   async getMyRequestOverride(uid, tmdbId, mediaType, seasonNumber) {
     if (!uid || !tmdbId) return null;
     const { data, error } = await getSB()
