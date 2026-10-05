@@ -1855,6 +1855,13 @@ function reqCardHTML(r) {
         </div>
       </div>
       <div class="fw" style="width:100%">
+        <label style="font-size:.68rem">🎬 Direct video URL (Telegram stream link, https:// only — plays in the built-in player, only for this requester)</label>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="reqDirect-${r.id}" value="${escAttr(r.direct_url||'')}" placeholder="https://your-stream-bot.example/stream/123?hash=..." style="flex:1">
+          <button type="button" class="btn-add" style="padding:0 14px" onclick="testDirectUrl('${r.id}')">▶ Test</button>
+        </div>
+      </div>
+      <div class="fw" style="width:100%">
         <label style="font-size:.68rem">Admin Notes (internal, not shown to user's requests list beyond status)</label>
         <textarea id="reqNotes-${r.id}" placeholder="Internal notes...">${escHtml(r.admin_notes||'')}</textarea>
       </div>
@@ -1869,14 +1876,28 @@ async function setReqStatus(id, status) {
   loadRequests();
 }
 
+function testDirectUrl(id) {
+  const u = document.getElementById(`reqDirect-${id}`).value.trim();
+  if (!/^https:\/\/[^\s]+$/i.test(u)) { showToast('❌ Enter a valid https:// link first'); return; }
+  window.open(u, '_blank', 'noopener');
+}
+
 async function saveReqDetails(id) {
   const watch_url    = document.getElementById(`reqWatch-${id}`).value.trim();
   const download_url = document.getElementById(`reqDownload-${id}`).value.trim();
   const admin_notes  = document.getElementById(`reqNotes-${id}`).value.trim();
+  const direct_url   = document.getElementById(`reqDirect-${id}`).value.trim();
+
+  // Direct stream links must be https (browsers block http video on an https site).
+  if (direct_url && !/^https:\/\/[^\s]+$/i.test(direct_url)) {
+    showToast('❌ Direct video URL must start with https://');
+    return;
+  }
 
   const { error } = await DB.updateRequestFull(id, {
     watch_url: watch_url || null,
     download_url: download_url || null,
+    direct_url: direct_url || null,
     admin_notes: admin_notes || null,
   });
   if (error) { showToast('❌ Could not save changes'); return; }
