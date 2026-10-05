@@ -241,8 +241,12 @@ function reqCardHTML(r) {
     if (r.season_number) playParams.set('season', r.season_number);
     if (r.poster_url) playParams.set('poster', r.poster_url);
 
+    // Direct-stream requests open the built-in player by request id; the
+    // Player re-checks ownership + payment itself, nothing sensitive is in the URL.
+    if (r.direct_url) playParams.set('req', r.id);
+
     actions = `<div class="req-actions">`;
-    if (r.watch_url) {
+    if (r.direct_url || r.watch_url) {
       actions += `<a class="req-btn" href="XwerseMovies_Player.html?${playParams.toString()}">▶ Watch Now</a>`;
     }
     if (r.download_url) {
