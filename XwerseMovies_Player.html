@@ -127,6 +127,16 @@ html,body{
   transition:none;
 }
 
+/* ── DIRECT STREAM (Plyr / HTML5 <video>) ───────────────── */
+#dvWrap{
+  position:absolute; inset:0; z-index:2; display:none; background:#000;
+  --plyr-color-main:#E50914;
+}
+#dvWrap .plyr{ width:100%; height:100%; }
+#dvWrap video{ width:100%; height:100%; object-fit:contain; background:#000; }
+body.dv-mode #bottomBar,
+body.dv-mode #desktopBadge{ display:none !important; }
+
 /* ── LOADING ────────────────────────────────────────────── */
 #loadScreen{
   position:absolute;
@@ -490,6 +500,7 @@ html,body{
 }
 @keyframes fadeInUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 </style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.css">
 </head>
 
 <body>
@@ -508,6 +519,11 @@ html,body{
        FIX #1: expanded allow attribute covers all APIs embedded players use
        FIX #2: width/height/transform overridden by setIframeScale() on mobile
        ═══════════════════════════════════════════════════════ -->
+  <!-- DIRECT STREAM: plain HTML5 video (Plyr) — used when a request has a direct_url -->
+  <div id="dvWrap">
+    <video id="dvVideo" playsinline preload="metadata" controlsList="nodownload"></video>
+  </div>
+
   <iframe
     id="stFrame"
     allowfullscreen
@@ -582,6 +598,7 @@ html,body{
 
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.polyfilled.min.js"></script>
 <script>
 'use strict';
 
@@ -710,6 +727,16 @@ window.addEventListener('orientationchange', function() {
     if (myOverride) movie.embed_url = myOverride;
   }
 
+  // Direct-stream request (opened from My Requests): ownership + payment are
+  // re-checked here via RLS-protected query; the link itself is never in the URL.
+  const reqParam = p.get('req');
+  if (reqParam) {
+    movie._reqId = reqParam;
+    const direct = await DB.getMyDirectStream(currentUser.id, reqParam);
+    if (direct) movie.direct_url = direct;
+    else movie._directDenied = true;
+  }
+
   loadVideo(movie);
 
   if (movie.id) {
@@ -720,6 +747,74 @@ window.addEventListener('orientationchange', function() {
   watchStart = Date.now();
   syncTimer  = setInterval(syncProgress, 30000);
 })();
+
+/* ─────────────────────────────────────────────────────────
+   DIRECT STREAM — video bytes go straight from the host
+   (e.g. Telegram stream bot) to the viewer's browser. Our own
+   server / Vercel never touches the video, so no bandwidth cost.
+───────────────────────────────────────────────────────── */
+let _plyr = null;
+
+function loadDirect(m) {
+  const msg  = document.getElementById('ldMsg');
+  const fail = (html) => { msg.innerHTML = html; msg.style.color = '#ff6b6b'; };
+
+  if (!m.direct_url) {
+    fail('🔒 This video is only available to the account that requested it,<br>' +
+         '<span style="font-size:.72rem;color:#888">once the request is paid and completed.</span>');
+    return;
+  }
+
+  document.body.classList.add('dv-mode');
+  document.getElementById('dvWrap').style.display = 'block';
+  const v = document.getElementById('dvVideo');
+
+  const posKey = 'xv_pos_' + (m._reqId || m.direct_url.slice(-40));
+  let startAt = 0;
+  try { startAt = parseFloat(localStorage.getItem(posKey)) || 0; } catch (e) {}
+
+  if (typeof Plyr !== 'undefined') {
+    _plyr = new Plyr(v, {
+      controls: ['play-large','play','progress','current-time','duration','mute','volume','settings','pip','airplay','fullscreen'],
+      settings: ['speed'],
+      speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 2] },
+      fullscreen: { enabled: true, iosNative: true, container: '#playerWrap' },
+      keyboard: { focused: true, global: true },
+      tooltips: { controls: true, seek: true },
+      clickToPlay: true,
+      iconUrl: 'https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.svg', // same CDN as the script, no 2nd host
+    });
+  } else {
+    v.controls = true; // Plyr CDN blocked → still works with native controls
+  }
+
+  let lastSaved = 0;
+  v.addEventListener('loadedmetadata', () => {
+    if (startAt > 5 && v.duration && startAt < v.duration - 15) v.currentTime = startAt;
+  }, { once: true });
+  v.addEventListener('canplay', () => {
+    document.getElementById('loadScreen').style.display = 'none';
+  }, { once: true });
+  v.addEventListener('timeupdate', () => {
+    const now = Date.now();
+    if (now - lastSaved < 5000) return;
+    lastSaved = now;
+    try { localStorage.setItem(posKey, String(v.currentTime)); } catch (e) {}
+  });
+  v.addEventListener('ended', () => { try { localStorage.removeItem(posKey); } catch (e) {} });
+  let failed = false;
+  v.addEventListener('error', () => {
+    failed = true;
+    document.getElementById('loadScreen').style.display = 'flex';
+    fail('⚠️ Could not load this video.<br>' +
+         '<span style="font-size:.72rem;color:#888">The stream link may have expired — please contact support from the Contact page.</span>');
+  });
+
+  v.src = m.direct_url;
+  // Safety net: if canplay never fires (slow host), still show the player.
+  setTimeout(() => { if (!failed) document.getElementById('loadScreen').style.display = 'none'; }, 8000);
+  openMenu();
+}
 
 /* ─────────────────────────────────────────────────────────
    LOAD VIDEO
@@ -742,6 +837,9 @@ function loadVideo(m) {
   document.title = isTV
     ? m.title + ' S' + season + 'E' + episode + ' — XwerseMovies'
     : m.title + ' — XwerseMovies';
+
+  // Direct-stream request → built-in HTML5 player, no iframe at all
+  if (m.direct_url || m._directDenied) { loadDirect(m); return; }
 
   // Embed URL priority — DIFFERS for movies vs TV shows:
   //
