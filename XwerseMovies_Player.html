@@ -132,7 +132,25 @@ html,body{
   position:absolute; inset:0; z-index:2; display:none; background:#000;
   --plyr-color-main:#E50914;
 }
-#dvWrap .plyr{ width:100%; height:100%; }
+#dvWrap .plyr{
+  width:100%; height:100%;
+  --plyr-font-family:'Barlow',system-ui,sans-serif;
+  --plyr-control-radius:4px;
+  --plyr-control-icon-size:20px;
+  --plyr-range-thumb-background:#E50914;
+  --plyr-video-control-background-hover:rgba(229,9,20,.9);
+  --plyr-video-controls-background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.85));
+  --plyr-menu-background:rgba(20,20,20,.96);
+  --plyr-menu-color:#fff;
+  --plyr-menu-radius:6px;
+  --plyr-tooltip-background:#141414;
+  --plyr-tooltip-color:#fff;
+  --plyr-audio-progress-buffered-background:rgba(255,255,255,.25);
+  --plyr-video-progress-buffered-background:rgba(255,255,255,.3);
+}
+#dvWrap .plyr--video .plyr__control--overlaid{ background:rgba(229,9,20,.92); }
+#dvWrap .plyr--video .plyr__control--overlaid:hover{ background:#E50914; }
+#dvWrap .plyr__badge{ background:#E50914; color:#fff; }
 #dvWrap video{ width:100%; height:100%; object-fit:contain; background:#000; }
 body.dv-mode #bottomBar,
 body.dv-mode #desktopBadge{ display:none !important; }
@@ -754,6 +772,20 @@ window.addEventListener('orientationchange', function() {
    server / Vercel never touches the video, so no bandwidth cost.
 ───────────────────────────────────────────────────────── */
 let _plyr = null;
+let _hls  = null;
+
+const HLS_JS_URL = 'https://cdn.jsdelivr.net/npm/hls.js@1.6.15/dist/hls.min.js';
+
+function loadScriptOnce(src) {
+  return new Promise((resolve, reject) => {
+    if (window.Hls) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = src; s.async = true;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('script blocked: ' + src));
+    document.head.appendChild(s);
+  });
+}
 
 function loadDirect(m) {
   const msg  = document.getElementById('ldMsg');
@@ -769,25 +801,66 @@ function loadDirect(m) {
   document.getElementById('dvWrap').style.display = 'block';
   const v = document.getElementById('dvVideo');
 
-  const posKey = 'xv_pos_' + (m._reqId || m.direct_url.slice(-40));
+  const posKey = 'xv_pos_' + (m._reqId || (m.id ? 'm' + m.id : m.direct_url.slice(-40)));
   let startAt = 0;
   try { startAt = parseFloat(localStorage.getItem(posKey)) || 0; } catch (e) {}
 
-  if (typeof Plyr !== 'undefined') {
-    _plyr = new Plyr(v, {
-      controls: ['play-large','play','progress','current-time','duration','mute','volume','settings','pip','airplay','fullscreen'],
-      settings: ['speed'],
+  const isHls = /\.m3u8(\?|#|$)/i.test(m.direct_url);
+  let failed = false;
+
+  const showError = () => {
+    failed = true;
+    document.getElementById('loadScreen').style.display = 'flex';
+    fail('⚠️ Could not load this video.<br>' +
+         '<span style="font-size:.72rem;color:#888">Please refresh. If it keeps happening, contact support from the Contact page.</span>');
+  };
+
+  // ── Plyr (Netflix-style control bar) ─────────────────────
+  // qualities: array of heights (e.g. [1080,720,480]) → adds Auto + manual menu
+  function buildPlayer(qualities) {
+    if (typeof Plyr === 'undefined') { v.controls = true; return; } // CDN blocked → native controls
+    const opts = {
+      controls: ['play-large','rewind','play','fast-forward','progress','current-time','duration',
+                 'mute','volume','settings','pip','airplay','fullscreen'],
+      settings: qualities && qualities.length ? ['quality','speed'] : ['speed'],
+      seekTime: 10,
       speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 2] },
       fullscreen: { enabled: true, iosNative: true, container: '#playerWrap' },
       keyboard: { focused: true, global: true },
       tooltips: { controls: true, seek: true },
       clickToPlay: true,
+      i18n: { rewind: 'Back 10s', fastForward: 'Forward 10s', qualityLabel: { 0: 'Auto' } },
       iconUrl: 'https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.svg', // same CDN as the script, no 2nd host
-    });
-  } else {
-    v.controls = true; // Plyr CDN blocked → still works with native controls
+    };
+    if (qualities && qualities.length) {
+      opts.quality = {
+        default: 0,
+        options: [0].concat(qualities),
+        forced: true,
+        onChange: (q) => {
+          if (!_hls) return;
+          if (q === 0) { _hls.currentLevel = -1; return; }     // Auto (adaptive)
+          const idx = _hls.levels.findIndex(l => l.height === q);
+          if (idx >= 0) _hls.currentLevel = idx;
+        },
+      };
+    }
+    _plyr = new Plyr(v, opts);
+
+    // "Auto" shows the quality it is currently playing, e.g. Auto · 720p
+    if (_hls && qualities && qualities.length) {
+      _hls.on(Hls.Events.LEVEL_SWITCHED, (_e, d) => {
+        try {
+          if (!_hls.autoLevelEnabled) return;
+          const h = _hls.levels[d.level] && _hls.levels[d.level].height;
+          const el = document.querySelector('#dvWrap [data-plyr="quality"][value="0"] span');
+          if (el && h) el.textContent = 'Auto · ' + h + 'p';
+        } catch (e) {}
+      });
+    }
   }
 
+  // ── common <video> listeners ─────────────────────────────
   let lastSaved = 0;
   v.addEventListener('loadedmetadata', () => {
     if (startAt > 5 && v.duration && startAt < v.duration - 15) v.currentTime = startAt;
@@ -802,15 +875,46 @@ function loadDirect(m) {
     try { localStorage.setItem(posKey, String(v.currentTime)); } catch (e) {}
   });
   v.addEventListener('ended', () => { try { localStorage.removeItem(posKey); } catch (e) {} });
-  let failed = false;
-  v.addEventListener('error', () => {
-    failed = true;
-    document.getElementById('loadScreen').style.display = 'flex';
-    fail('⚠️ Could not load this video.<br>' +
-         '<span style="font-size:.72rem;color:#888">The stream link may have expired — please contact support from the Contact page.</span>');
-  });
+  v.addEventListener('error', () => { if (!isHls) showError(); });
 
-  v.src = m.direct_url;
+  // ── source ───────────────────────────────────────────────
+  if (!isHls) {
+    buildPlayer(null);
+    v.src = m.direct_url;
+  } else {
+    loadScriptOnce(HLS_JS_URL).then(() => {
+      if (window.Hls && Hls.isSupported()) {
+        _hls = new Hls({
+          capLevelToPlayerSize: true,   // don't pull 1080p into a small window
+          maxBufferLength: 30,
+          startLevel: -1,
+        });
+        _hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          const hs = Array.from(new Set(_hls.levels.map(l => l.height).filter(Boolean))).sort((a, b) => b - a);
+          buildPlayer(hs);
+        });
+        // Fatal errors: retry a few times (flaky network), then show the message.
+        let netTry = 0, mediaTry = 0;
+        _hls.on(Hls.Events.FRAG_LOADED, () => { netTry = 0; });
+        _hls.on(Hls.Events.ERROR, (_e, d) => {
+          if (!d.fatal) return;
+          if (d.type === Hls.ErrorTypes.NETWORK_ERROR && d.details !== 'manifestLoadError' && ++netTry <= 4) {
+            setTimeout(() => _hls && _hls.startLoad(), 1000 * netTry);
+          } else if (d.type === Hls.ErrorTypes.MEDIA_ERROR && ++mediaTry <= 2) {
+            _hls.recoverMediaError();
+          } else { _hls.destroy(); _hls = null; showError(); }
+        });
+        _hls.loadSource(m.direct_url);
+        _hls.attachMedia(v);
+      } else if (v.canPlayType('application/vnd.apple.mpegurl')) {
+        buildPlayer(null);            // iPhone Safari: native HLS (auto quality)
+        v.src = m.direct_url;
+      } else {
+        showError();
+      }
+    }).catch(showError);
+  }
+
   // Safety net: if canplay never fires (slow host), still show the player.
   setTimeout(() => { if (!failed) document.getElementById('loadScreen').style.display = 'none'; }, 8000);
   openMenu();
@@ -876,6 +980,14 @@ function loadVideo(m) {
         embedUrl = 'https://vidsrc.to/embed/movie/' + tid;
       }
     }
+  }
+
+  // A movie whose custom URL is a direct video file / HLS playlist plays in the
+  // built-in Netflix-style player (no iframe). Anything else stays an embed.
+  if (!isTV && embedUrl && /\.(m3u8|mp4|webm)(\?|#|$)/i.test(embedUrl)) {
+    m.direct_url = embedUrl;
+    loadDirect(m);
+    return;
   }
 
   if (m.embed_working === false && !m.manual_embed) {
