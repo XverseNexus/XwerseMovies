@@ -3,7 +3,7 @@
 //  Handles: offline support, app shell caching, background sync
 // ═══════════════════════════════════════════════════════════
 
-const CACHE_NAME    = 'xwerse-v37';
+const CACHE_NAME    = 'xwerse-v38';
 const SHELL_TIMEOUT = 3000; // ms before falling back to cache
 
 // App shell — these files are cached on install
@@ -66,6 +66,15 @@ self.addEventListener('activate', event => {
 // ─────────────────────────────────────────
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
+
+  // 0. Video streams (HLS playlists/segments, mp4/webm, any Range request) are
+  //    NEVER touched by the service worker: caching them would fill the viewer's
+  //    disk, serve stale playlists, and 206 partial responses can't be cached anyway.
+  if (/\.(m3u8|ts|m4s|mp4|webm|vtt)$/i.test(url.pathname) ||
+      url.hostname.startsWith('stream.') ||
+      event.request.headers.has('range')) {
+    return; // browser handles it directly
+  }
 
   // 1. Network-only for API / video domains
   if (NETWORK_ONLY.some(d => url.hostname.includes(d))) {
