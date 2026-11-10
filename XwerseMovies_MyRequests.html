@@ -85,6 +85,9 @@ main{padding:88px var(--content-pad) 60px;max-width:960px;margin:0 auto}
 .req-btn:hover{background:#f40612}
 .req-btn.secondary{background:rgba(255,255,255,.09);color:#fff}
 .req-btn.secondary:hover{background:rgba(255,255,255,.16)}
+.ep-chips{display:flex;flex-wrap:wrap;gap:6px;width:100%;margin-top:8px}
+.ep-chip{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;padding:5px 11px;border-radius:4px;font-size:.72rem;font-weight:600;text-decoration:none;transition:.2s}
+.ep-chip:hover{background:var(--red);border-color:var(--red)}
 @media(max-width:640px){
   .nav-links{display:none}
   main{padding-bottom:calc(72px + env(safe-area-inset-bottom,0px))!important}
@@ -248,6 +251,20 @@ function reqCardHTML(r) {
     actions = `<div class="req-actions">`;
     if (r.direct_url || r.watch_url) {
       actions += `<a class="req-btn" href="XwerseMovies_Player.html?${playParams.toString()}">▶ Watch Now</a>`;
+    }
+    // Season / Series requests: one chip per uploaded episode so the user can jump straight to it.
+    const epLinks = (r.request_type !== 'movie' && r.watch_url) ? Xwerse.parseEpisodeLinks(r.watch_url).eps : [];
+    if (epLinks.length) {
+      const chips = epLinks
+        .slice().sort((a, b) => ((a.season || r.season_number || 1) - (b.season || r.season_number || 1)) || (a.ep - b.ep))
+        .map(e => {
+          const s = e.season || r.season_number || 1;
+          const q = new URLSearchParams(playParams);
+          q.set('season', s); q.set('episode', e.ep);
+          const label = r.request_type === 'series' ? `S${s} E${e.ep}` : `E${e.ep}`;
+          return `<a class="ep-chip" href="XwerseMovies_Player.html?${q.toString()}">${label}</a>`;
+        }).join('');
+      actions += `<div class="ep-chips">${chips}</div>`;
     }
     if (r.download_url) {
       actions += `<a class="req-btn secondary" href="${escHtml(r.download_url)}" target="_blank" rel="noopener">⬇ Download</a>`;
