@@ -38,93 +38,29 @@
 <script src="xwerse-config.js"></script>
 
 <style>
-:root{
-  /* Brand */
-  --red: #E50914;
-  --red-dark: #B00710;
-  --green: #46d369;
-  /* Backgrounds — player uses pure black by design (immersive playback) */
-  --bg: #000;
-  --bg2: #0a0a0a;
-  --card: #1c1c1c;
-  --card2: #242424;
-  /* Text / Border */
-  --text: #e5e5e5;
-  --muted: #808080;
-  --border: rgba(255,255,255,.08);
-  /* Spacing scale */
-  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px;
-  --sp-4: 16px; --sp-5: 24px; --sp-6: 32px;
-  /* Radius scale */
-  --r-sm: 4px; --r-md: 6px; --r-lg: 10px; --r-full: 50%;
-  /* Shadows */
-  --shadow-card: 0 8px 32px rgba(0,0,0,.7);
-  --shadow-sm: 0 2px 8px rgba(0,0,0,.4);
-      /* Breakpoint scale (Task 6) — reference values used consistently across
-         @media queries site-wide. CSS vars can't be used inside @media
-         conditions, so this is the documented source of truth: use these
-         literal px values in @media rules instead of ad-hoc numbers.
-           --bp-xs   480px  → small phones
-           --bp-sm   640px  → phones / mobile nav switch
-           --bp-md  1024px  → tablets (portrait/landscape)
-           --bp-lg  1440px  → laptops / small desktops
-           --bp-xl  1920px  → large desktop
-         */
-      /* Site-wide content gutter — caps main content width on ultra-wide
-         monitors (~1900px, like Netflix) instead of stretching edge-to-edge.
-         Below that width it behaves exactly like the old flat 4% padding. */
-      --content-max: 1900px;
-      --content-pad: max(4%, calc((100% - var(--content-max)) / 2));
-}
-*,*::before,*::after{
-  margin:0;
-  padding:0;
-  box-sizing:border-box;
-  -webkit-tap-highlight-color:transparent; /* remove tap flash on mobile */
-}
+:root{ --red:#E50914; }
+*,*::before,*::after{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 
 html,body{
-  width:100%;
-  height:100%;
-  /* height:100dvh for mobile browsers with dynamic toolbar */
-  height:100dvh;
-  background:#000;
-  overflow:hidden;
-  font-family:'Barlow',sans-serif;
-  color:#fff;
-  /* Prevent iOS bounce scroll */
-  position:fixed;
-  overscroll-behavior:none;
+  width:100%; height:100%; height:100dvh;
+  background:#000; overflow:hidden;
+  font-family:'Barlow',sans-serif; color:#fff;
+  position:fixed; overscroll-behavior:none;
 }
 
 /* ── PLAYER WRAPPER ─────────────────────────────────────── */
 #playerWrap{
-  position:relative;
-  width:100vw;
-  height:100vh;
-  height:100dvh;
-  background:#000;
-  /* IMPORTANT: overflow:hidden clips the scaled-up iframe to viewport bounds */
-  overflow:hidden;
-  /* GPU compositing layer — improves transform performance on mobile */
-  will-change:transform;
+  position:relative; width:100vw; height:100vh; height:100dvh;
+  background:#000; overflow:hidden;
 }
 
-/* ── IFRAME ─────────────────────────────────────────────── */
-/* FIX #2 (primary): JS will override width/height/transform on mobile.
-   These are the desktop defaults. */
+/* ── EMBED IFRAME (Voe / Filemoon / VidSrc) ─────────────────
+   Full screen, no scaling tricks: the host's own player is
+   responsive and owns every control (seek, volume, quality,
+   subtitles, fullscreen). We just stay out of its way.        */
 #stFrame{
-  position:absolute;
-  top:0;
-  left:0;
-  width:100%;
-  height:100%;
-  border:none;
-  z-index:1;
-  display:none;
-  background:#000;
-  /* Smooth scale transitions on orientation change */
-  transition:none;
+  position:absolute; inset:0; width:100%; height:100%;
+  border:none; z-index:1; display:none; background:#000;
 }
 
 /* ── DIRECT STREAM (Plyr / HTML5 <video>) ───────────────── */
@@ -145,378 +81,81 @@ html,body{
   --plyr-menu-radius:6px;
   --plyr-tooltip-background:#141414;
   --plyr-tooltip-color:#fff;
-  --plyr-audio-progress-buffered-background:rgba(255,255,255,.25);
   --plyr-video-progress-buffered-background:rgba(255,255,255,.3);
 }
 #dvWrap .plyr--video .plyr__control--overlaid{ background:rgba(229,9,20,.92); }
 #dvWrap .plyr--video .plyr__control--overlaid:hover{ background:#E50914; }
 #dvWrap .plyr__badge{ background:#E50914; color:#fff; }
 #dvWrap video{ width:100%; height:100%; object-fit:contain; background:#000; }
-body.dv-mode #bottomBar,
-body.dv-mode #desktopBadge{ display:none !important; }
 
-/* ── LOADING ────────────────────────────────────────────── */
+/* ── LOADING SCREEN ─────────────────────────────────────── */
 #loadScreen{
-  position:absolute;
-  inset:0;
-  z-index:20;
-  background:#000;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  gap:16px;
+  position:absolute; inset:0; z-index:20; background:#000;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;
+  transition:opacity .35s ease;
 }
-
-.ld-logo{
-  font-family:'Bebas Neue',cursive;
-  font-size:2.8rem;
-  color:#E50914;
-  letter-spacing:2px;
-}
-
+#loadScreen.hide{ opacity:0; pointer-events:none; }
+.ld-logo{ font-family:'Bebas Neue',cursive; font-size:2.8rem; color:#E50914; letter-spacing:2px; }
 .ld-logo span{ color:#fff; }
-
-.ld-bar{
-  width:220px;
-  height:3px;
-  background:#222;
-  overflow:hidden;
-  border-radius:3px;
+.ld-bar{ width:220px; height:3px; background:#222; overflow:hidden; border-radius:3px; }
+.ld-fill{ width:40%; height:100%; background:#E50914; animation:ldSlide 1.2s ease-in-out infinite; }
+@keyframes ldSlide{ from{ transform:translateX(-100%); } to{ transform:translateX(250%); } }
+.ld-msg{ color:#777; font-size:.8rem; text-align:center; padding:0 20px; line-height:1.5; }
+#ldActions{ display:none; gap:10px; margin-top:4px; }
+#ldActions.show{ display:flex; }
+.ld-btn{
+  background:#E50914; color:#fff; border:none; border-radius:4px;
+  padding:10px 20px; font:700 .85rem 'Barlow',sans-serif; cursor:pointer;
 }
+.ld-btn.ghost{ background:rgba(255,255,255,.12); }
+.ld-btn:hover{ filter:brightness(1.15); }
 
-.ld-fill{
-  width:0;
-  height:100%;
-  background:#E50914;
-  animation:loadAnim 2s ease forwards;
-}
-
-@keyframes loadAnim{ from{width:0} to{width:100%} }
-
-.ld-msg{ color:#666; font-size:.8rem; text-align:center; padding:0 20px; }
-
-/* ── TAP ZONE (FIX #3 + #5) ───────────────────────────── */
-/* Transparent layer between iframe and overlay bars.
-/* ── MENU TOGGLE — the ONLY way to show the overlay ────── */
-/* A small persistent button that is always visible.
-   Pressing it is the sole trigger for showing the overlay.
-   Hides when overlay is visible (topBar's back + ✕ take over).
-   z-index 20 keeps it above everything at all times.           */
-#menuToggle{
-  position:absolute;
-  top:max(14px, env(safe-area-inset-top));
-  left:max(14px, env(safe-area-inset-left));
-  z-index:20;
-  width:44px;
-  height:44px;
-  background:rgba(0,0,0,.55);
-  border:1px solid rgba(255,255,255,.18);
-  color:rgba(255,255,255,.82);
-  border-radius:8px;
-  cursor:pointer;
-  font-size:1.15rem;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  transition:opacity .25s ease, background .15s ease;
-  -webkit-tap-highlight-color:transparent;
-}
-
-#menuToggle:hover{
-  background:rgba(255,255,255,.14);
-  color:#fff;
-}
-
-/* Fade out when overlay becomes visible —
-   topBar's ← back button occupies the same corner. */
-#playerWrap.ui-on #menuToggle{
-  opacity:0;
+/* ── TOP OVERLAY: back button, title, next episode ──────────
+   The container never captures clicks; only the buttons do, so
+   the embedded player receives every other tap/click.
+   Buttons idle at low opacity; title + gradient show on load
+   (and with Plyr's controls) then fade away.                  */
+#topUI{
+  position:absolute; top:0; left:0; right:0; z-index:30;
+  display:flex; align-items:center; gap:12px;
+  padding:max(12px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) 12px max(14px, env(safe-area-inset-left));
   pointer-events:none;
 }
+#topUI::before{
+  content:''; position:absolute; inset:0 0 -26px 0; z-index:-1;
+  background:linear-gradient(to bottom, rgba(0,0,0,.78), transparent);
+  opacity:0; transition:opacity .3s; pointer-events:none;
+}
+#playerWrap.ui-on #topUI::before{ opacity:1; }
 
-/* ── TOP BAR ────────────────────────────────────────────── */
-#topBar{
-  position:absolute;
-  top:0;
-  left:0;
-  right:0;
-  z-index:10;
-  /* env() provides notch/Dynamic Island safe area on iOS */
-  padding: max(18px, calc(14px + env(safe-area-inset-top))) 
-           max(20px, env(safe-area-inset-right))
-           14px
-           max(20px, env(safe-area-inset-left));
-  display:flex;
-  align-items:center;
-  gap:14px;
-  background:linear-gradient(to bottom, rgba(0,0,0,.88) 0%, transparent 100%);
-  transform:translateY(-100%);
-  transition:transform .3s ease;
-  pointer-events:none;
+.ui-btn{
+  pointer-events:auto; flex-shrink:0;
+  background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.22); color:#fff;
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  opacity:.4; transition:opacity .25s, background .15s;
+}
+.ui-btn:hover, .ui-btn:focus-visible, #playerWrap.ui-on .ui-btn{ opacity:1; }
+.ui-btn:hover{ background:rgba(255,255,255,.16); }
+
+#backBtn{ width:42px; height:42px; border-radius:50%; font-size:1.15rem; }
+#nextEpBtn{
+  display:none; height:38px; padding:0 14px; border-radius:6px;
+  font:700 .8rem 'Barlow',sans-serif; gap:6px; white-space:nowrap;
 }
 
-#playerWrap.ui-on #topBar{
-  transform:translateY(0);
-  pointer-events:auto;
-}
+#titleBox{ flex:1; min-width:0; opacity:0; transition:opacity .3s; pointer-events:none; }
+#playerWrap.ui-on #titleBox{ opacity:1; }
+.top-title{ font-size:1rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-shadow:0 1px 4px rgba(0,0,0,.8); }
+.top-sub{ font-size:.72rem; color:rgba(255,255,255,.65); text-shadow:0 1px 4px rgba(0,0,0,.8); }
 
-/* ── BOTTOM BAR ─────────────────────────────────────────── */
-#bottomBar{
-  position:absolute;
-  bottom:0;
-  left:0;
-  right:0;
-  z-index:10;
-  /* env() provides home-bar safe area on iPhone */
-  padding: 14px
-           max(20px, env(safe-area-inset-right))
-           max(22px, calc(16px + env(safe-area-inset-bottom)))
-           max(20px, env(safe-area-inset-left));
-  background:linear-gradient(to top, rgba(0,0,0,.92) 0%, transparent 100%);
-  transform:translateY(100%);
-  transition:transform .3s ease;
-  pointer-events:none;
+/* ── ROTATE HINT (phones in portrait, embed mode) ───────── */
+#hint{
+  position:absolute; left:50%; bottom:max(28px, env(safe-area-inset-bottom)); transform:translateX(-50%);
+  z-index:31; background:rgba(0,0,0,.78); border:1px solid rgba(255,255,255,.14);
+  color:rgba(255,255,255,.85); padding:8px 16px; border-radius:20px;
+  font-size:.74rem; white-space:nowrap; opacity:0; transition:opacity .4s; pointer-events:none;
 }
-
-#playerWrap.ui-on #bottomBar{
-  transform:translateY(0);
-  pointer-events:auto;
-}
-
-/* ── BUTTONS ────────────────────────────────────────────── */
-.back-btn,.top-btn,.ctrl-btn{
-  background:rgba(0,0,0,.5);
-  border:1px solid rgba(255,255,255,.2);
-  color:#fff;
-  cursor:pointer;
-  transition:.2s;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  flex-shrink:0;
-  /* FIX: minimum 44px touch target on mobile (Apple HIG / Material guidelines) */
-  min-width:44px;
-  min-height:44px;
-}
-
-.back-btn:hover,.top-btn:hover,.ctrl-btn:hover{
-  background:rgba(255,255,255,.15);
-}
-
-.back-btn{
-  width:44px;
-  height:44px;
-  border-radius:50%;
-  font-size:1.1rem;
-}
-
-.top-btn{
-  width:40px;
-  height:40px;
-  border-radius:50%;
-  font-size:.95rem;
-}
-
-.ctrl-btn{
-  width:44px;
-  height:44px;
-  border-radius:8px;
-  font-size:1rem;
-}
-
-/* Desktop: tighter buttons */
-@media(min-width:768px){
-  .back-btn{ width:38px; height:38px; min-width:unset; min-height:unset; font-size:1rem; }
-  .top-btn { width:34px; height:34px; min-width:unset; min-height:unset; }
-  .ctrl-btn{ width:36px; height:36px; min-width:unset; min-height:unset; }
-}
-
-.top-info{
-  flex:1;
-  min-width:0;
-}
-
-.top-title{
-  font-size:1rem;
-  font-weight:700;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-
-.top-sub{
-  font-size:.72rem;
-  color:rgba(255,255,255,.55);
-}
-
-.movie-meta{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  margin-bottom:10px;
-  flex-wrap:wrap;
-}
-
-.meta-badge{
-  background:rgba(70,211,105,.12);
-  border:1px solid rgba(70,211,105,.2);
-  color:var(--green);
-  font-size:.65rem;
-  font-weight:700;
-  padding:3px 8px;
-  border-radius:4px;
-}
-
-.meta-text{
-  color:rgba(255,255,255,.55);
-  font-size:.74rem;
-}
-
-.ctrl-row{
-  display:flex;
-  align-items:center;
-  gap:10px;
-}
-
-.ctrl-spacer{ flex:1; }
-
-.ctrl-hint{
-  font-size:.7rem;
-  color:#666;
-}
-
-@media(max-width:480px){
-  /* On small phones, hide the hint text to save space */
-  .ctrl-hint{ display:none; }
-}
-
-.ml-btn{
-  background:rgba(0,0,0,.5);
-  border:1px solid rgba(255,255,255,.2);
-  color:#fff;
-  padding:9px 16px;
-  border-radius:4px;
-  cursor:pointer;
-  font-size:.75rem;
-  font-family:'Barlow',sans-serif;
-  transition:.2s;
-  min-height:44px;
-  display:flex;
-  align-items:center;
-}
-
-.ml-btn.added{
-  border-color:var(--green);
-  color:var(--green);
-}
-
-/* Desktop mode indicator badge */
-#desktopBadge{
-  background:rgba(70,130,255,.15);
-  border:1px solid rgba(70,130,255,.3);
-  color:rgba(70,130,255,.9);
-  font-size:.58rem;
-  font-weight:700;
-  padding:2px 7px;
-  border-radius:4px;
-  display:none;
-  white-space:nowrap;
-  letter-spacing:.3px;
-}
-
-#desktopBadge.show{ display:inline-flex; }
-
-/* ── SYNC DOT ───────────────────────────────────────────── */
-#syncDot{
-  position:absolute;
-  top:16px;
-  left:50%;
-  transform:translateX(-50%);
-  z-index:30;
-  background:rgba(70,211,105,.15);
-  border:1px solid rgba(70,211,105,.25);
-  color:var(--green);
-  padding:4px 10px;
-  border-radius:20px;
-  font-size:.65rem;
-  opacity:0;
-  transition:.3s;
-  white-space:nowrap;
-  pointer-events:none;
-}
-
-#syncDot.show{ opacity:1; }
-
-/* ── MOBILE DESKTOP-MODE NOTICE ─────────────────────────── */
-#mobileNotice{
-  position:absolute;
-  bottom:80px;
-  left:50%;
-  transform:translateX(-50%);
-  z-index:11;
-  background:rgba(0,0,0,.75);
-  border:1px solid rgba(255,255,255,.12);
-  color:rgba(255,255,255,.7);
-  padding:6px 14px;
-  border-radius:20px;
-  font-size:.68rem;
-  white-space:nowrap;
-  opacity:0;
-  transition:opacity .4s;
-  pointer-events:none;
-}
-
-#mobileNotice.show{
-  opacity:1;
-}
-
-
-/* ── NEXT EPISODE PANEL ────────────────────────────────
-   TV shows only. 10-second countdown then auto-plays.   */
-#nextEpPanel{
-  position:absolute;bottom:90px;right:24px;z-index:40;
-  display:none;
-  background:rgba(14,14,14,.97);
-  border:1px solid rgba(255,255,255,.14);
-  border-radius:10px;padding:16px 18px;
-  min-width:250px;
-  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-  box-shadow:0 8px 32px rgba(0,0,0,.8);
-  animation:fadeInUp .35s ease;
-}
-#nextEpPanel.show{display:flex;align-items:center;gap:14px}
-.nep-info{flex:1;min-width:0}
-.nep-lbl{font-size:.6rem;font-weight:800;letter-spacing:1.2px;
-  color:rgba(255,255,255,.45);text-transform:uppercase;margin-bottom:4px}
-.nep-title{font-size:.88rem;font-weight:600;color:#fff;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.nep-sub{font-size:.72rem;color:rgba(255,255,255,.4);margin-top:2px}
-.nep-btns{display:flex;align-items:center;gap:8px;flex-shrink:0}
-.nep-play{
-  background:#fff;color:#000;border:none;
-  padding:9px 14px;border-radius:5px;
-  font-family:'Barlow',sans-serif;font-size:.82rem;font-weight:800;
-  cursor:pointer;display:flex;align-items:center;gap:6px;
-  transition:.18s;white-space:nowrap;
-}
-.nep-play:hover{background:rgba(255,255,255,.85)}
-.nep-dismiss{
-  background:none;border:1px solid rgba(255,255,255,.25);
-  color:rgba(255,255,255,.6);
-  width:30px;height:30px;border-radius:50%;
-  cursor:pointer;font-size:.75rem;
-  display:flex;align-items:center;justify-content:center;
-  transition:.18s;flex-shrink:0;
-}
-.nep-dismiss:hover{background:rgba(255,255,255,.1);color:#fff}
-.nep-cd{
-  display:inline-flex;align-items:center;justify-content:center;
-  width:20px;height:20px;border-radius:50%;
-  background:#E50914;color:#fff;
-  font-size:.65rem;font-weight:800;flex-shrink:0;
-}
-@keyframes fadeInUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+#hint.show{ opacity:1; }
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.css">
 </head>
@@ -529,91 +168,40 @@ body.dv-mode #desktopBadge{ display:none !important; }
     <div class="ld-logo">Xwerse<span>Movies</span></div>
     <div class="ld-bar"><div class="ld-fill"></div></div>
     <div class="ld-msg" id="ldMsg">Loading video...</div>
+    <div id="ldActions">
+      <button class="ld-btn" onclick="retryLoad()">Retry</button>
+      <button class="ld-btn ghost" onclick="goBack()">Go back</button>
+    </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════
-       IFRAME
-       FIX #1: webkit-allowfullscreen + mozallowfullscreen for iOS/Firefox
-       FIX #1: expanded allow attribute covers all APIs embedded players use
-       FIX #2: width/height/transform overridden by setIframeScale() on mobile
-       ═══════════════════════════════════════════════════════ -->
-  <!-- DIRECT STREAM: plain HTML5 video (Plyr) — used when a request has a direct_url -->
+  <!-- DIRECT STREAM: plain HTML5 video (Plyr) — only for .m3u8/.mp4/.webm links -->
   <div id="dvWrap">
     <video id="dvVideo" playsinline preload="metadata" controlsList="nodownload"></video>
   </div>
 
+  <!-- EMBED: Voe / Filemoon / VidSrc. Their player = their controls. -->
   <iframe
     id="stFrame"
     allowfullscreen
     webkit-allowfullscreen
     mozallowfullscreen
-    allow="autoplay; fullscreen; encrypted-media; picture-in-picture; web-share;
-           accelerometer; gyroscope; magnetometer; screen-wake-lock;
-           display-capture; clipboard-write"
+    allow="autoplay; fullscreen; encrypted-media; picture-in-picture; screen-wake-lock"
     referrerpolicy="no-referrer-when-downgrade"
     scrolling="no"
     frameborder="0"
   ></iframe>
 
-  <!-- SYNC -->
-  <div id="syncDot">✓ Progress synced</div>
-
-  <!-- Mobile desktop-mode notice (fades out after 3s) -->
-  <div id="mobileNotice">🖥 Desktop player mode — full controls visible</div>
-
-  <!-- ≡ MENU TOGGLE — always visible, the only trigger for the overlay.
-       Positioned top-left. Fades when overlay opens (topBar takes over). -->
-  <button id="menuToggle" onclick="openMenu()" aria-label="Show controls" title="Show controls">≡</button>
-
-  <!-- TOP BAR -->
-  <div id="topBar">
-    <button class="back-btn" onclick="goBack()" aria-label="Go back">←</button>
-    <div class="top-info">
+  <!-- TOP OVERLAY -->
+  <div id="topUI">
+    <button class="ui-btn" id="backBtn" onclick="goBack()" aria-label="Go back" title="Back">←</button>
+    <div id="titleBox">
       <div class="top-title" id="topTitle">Loading...</div>
       <div class="top-sub" id="topSub"></div>
     </div>
-    <span id="desktopBadge" title="Desktop mode active — all player controls visible">🖥 Desktop</span>
-    <button id="nextEpBtn" class="top-btn" onclick="doPlayNextEp()" title="Next Episode" style="display:none;align-items:center;gap:5px;width:auto;padding:0 12px;font-size:.78rem;font-weight:700">Next Ep &#9654;</button>
-    <a href="XwerseMovies_Search.html" title="Search" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:6px;color:rgba(255,255,255,.8);text-decoration:none;font-size:1.05rem;transition:.2s" onmouseover="this.style.background='rgba(255,255,255,.1)'" onmouseout="this.style.background=''">&#x1F50D;</a>
-    <button class="top-btn" onclick="reqFS()" aria-label="Fullscreen">⛶</button>
-    <!-- ✕ hides overlay. Embedded player regains full control instantly. -->
-    <button class="top-btn" onclick="closeMenu()" aria-label="Hide controls" title="Hide controls">✕</button>
+    <button class="ui-btn" id="nextEpBtn" onclick="doPlayNextEp()" title="Next Episode">Next Ep &#9654;</button>
   </div>
 
-  <!-- BOTTOM BAR -->
-  <div id="bottomBar">
-    <div class="movie-meta">
-      <span class="meta-badge" id="qualBadge">HD</span>
-      <span class="meta-text" id="yearBadge"></span>
-      <span class="meta-text" id="ageBadge"></span>
-      <span class="meta-text" id="durBadge"></span>
-      <button class="ml-btn" id="mlBtn" onclick="toggleML()">＋ My List</button>
-      <span id="thumbsSlot"></span>
-    </div>
-    <div class="ctrl-row">
-      <button class="ctrl-btn" onclick="goBack()" aria-label="Home">🏠</button>
-      <div class="ctrl-spacer"></div>
-      <span class="ctrl-hint">≡ to show controls · ✕ to hide</span>
-      <button class="ctrl-btn" onclick="reqFS()" aria-label="Fullscreen">⛶</button>
-    </div>
-  </div>
-
-
-  <!-- NEXT EPISODE PANEL (TV shows, near episode end) -->
-  <div id="nextEpPanel">
-    <div class="nep-info">
-      <div class="nep-lbl">Next Episode</div>
-      <div class="nep-title" id="nepTitle">Episode</div>
-      <div class="nep-sub" id="nepSub"></div>
-    </div>
-    <div class="nep-btns">
-      <button class="nep-play" onclick="doPlayNextEp()">
-        &#9654; Play&nbsp;<span class="nep-cd" id="nepCd">10</span>
-      </button>
-      <button class="nep-dismiss" onclick="doDismissNextEp()" title="Dismiss">&#10005;</button>
-    </div>
-  </div>
-
+  <div id="hint">↻ Rotate your phone for the best view</div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.polyfilled.min.js"></script>
@@ -622,78 +210,14 @@ body.dv-mode #desktopBadge{ display:none !important; }
 
 let currentUser = null;
 let movieData   = null;
-// isInML removed — use ML.has(movieData.id) instead
 let uiTimer     = null;
 let syncTimer   = null;
-let watchStart  = null;
+let _isDirect   = false;   // true once the built-in (Plyr) player is in use
+let _dv         = null;    // the <video> element in direct mode
+let _plyr       = null;
+let _hls        = null;
 
-/* ─────────────────────────────────────────────────────────
-   FIX #2 — IFRAME SCALE TRICK (PRIMARY FIX)
-
-   Root cause: Embedded players (VidSrc, etc.) detect the
-   iframe's internal window.innerWidth to decide which UI
-   to render. On a 360px mobile screen, width < 768px →
-   simplified native controls, quality/subtitle/settings
-   menus all hidden.
-
-   Fix: Set iframe width to DESKTOP_W (960px), then apply
-   CSS transform scale(vw / 960) so it visually fills the
-   screen. Inside the iframe, window.innerWidth = 960px →
-   embedded player renders full desktop UI with all controls.
-
-   overflow:hidden on #playerWrap clips the layout box to
-   the visible viewport, so nothing bleeds outside.
-───────────────────────────────────────────────────────── */
-const DESKTOP_W = 960; // px — player shows full controls at this width
-let   _isMobile = false;
-
-function setIframeScale() {
-  const frame = document.getElementById('stFrame');
-  if (!frame) return;
-
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-
-  if (vw < DESKTOP_W) {
-    _isMobile = true;
-    const scale     = vw / DESKTOP_W;
-    const scaledH   = Math.ceil(vh / scale);
-
-    frame.style.width           = DESKTOP_W + 'px';
-    frame.style.height          = scaledH   + 'px';
-    frame.style.transform       = 'scale(' + scale + ')';
-    frame.style.transformOrigin = '0 0';
-    frame.style.position        = 'absolute';
-    frame.style.top             = '0';
-    frame.style.left            = '0';
-
-    // Show the desktop-mode badge in top bar
-    const badge = document.getElementById('desktopBadge');
-    if (badge) badge.classList.add('show');
-
-  } else {
-    _isMobile = false;
-
-    // Desktop: reset to 100% × 100%
-    frame.style.width           = '100%';
-    frame.style.height          = '100%';
-    frame.style.transform       = 'none';
-    frame.style.transformOrigin = '';
-    frame.style.position        = 'absolute';
-    frame.style.top             = '0';
-    frame.style.left            = '0';
-
-    const badge = document.getElementById('desktopBadge');
-    if (badge) badge.classList.remove('show');
-  }
-}
-
-// Recalculate on resize and orientation change
-window.addEventListener('resize', setIframeScale);
-window.addEventListener('orientationchange', function() {
-  // Short delay lets the browser finish rotating before we read dimensions
-  setTimeout(setIframeScale, 350);
-});
+const $ = (id) => document.getElementById(id);
 
 /* ─────────────────────────────────────────────────────────
    INIT
@@ -730,15 +254,7 @@ window.addEventListener('orientationchange', function() {
   movie._episode = urlEpisode;
   movieData = movie;
 
-  if (movie.id) {
-    await ML.init(currentUser.id);   // loads full list; ML.has() used by updateMLBtn
-    updateMLBtn();
-  }
   if (movie.tmdb_id) {
-    Ratings.injectStyles();
-    await Ratings.init(currentUser.id);
-    document.getElementById('thumbsSlot').innerHTML = Ratings.thumbsHTML(movie.tmdb_id, movie.type, 'sm');
-
     // Personal fulfilled-request override (see xwerse-config.js:
     // DB.getMyRequestOverride for how this stays scoped to just this user).
     const myOverride = await DB.getMyRequestOverride(currentUser.id, movie.tmdb_id, movie.type, urlSeason);
@@ -757,23 +273,83 @@ window.addEventListener('orientationchange', function() {
 
   loadVideo(movie);
 
-  if (movie.id) {
+  if (movie.id && !movie._directDenied) {
     DB.addToHistory(currentUser.id, movie.id).catch(() => {});
     DB.incrementViews(movie.id).catch(() => {});
+    // Embed mode: we cannot read the host player's position, so just record
+    // "started watching" once. Direct mode reports real progress (see below).
+    if (!_isDirect) syncProgress();
   }
-
-  watchStart = Date.now();
-  syncTimer  = setInterval(syncProgress, 30000);
 })();
 
 /* ─────────────────────────────────────────────────────────
-   DIRECT STREAM — video bytes go straight from the host
-   (e.g. Telegram stream bot) to the viewer's browser. Our own
-   server / Vercel never touches the video, so no bandwidth cost.
+   TOP OVERLAY (title + gradient): show, then fade after 4s.
+   In direct mode it follows Plyr's own controls instead.
 ───────────────────────────────────────────────────────── */
-let _plyr = null;
-let _hls  = null;
+function openMenu() {
+  $('playerWrap').classList.add('ui-on');
+  clearTimeout(uiTimer);
+  if (!_plyr) uiTimer = setTimeout(closeMenu, 4000);
+}
+function closeMenu() {
+  clearTimeout(uiTimer);
+  $('playerWrap').classList.remove('ui-on');
+}
+$('backBtn').addEventListener('mouseenter', openMenu);
 
+/* ─────────────────────────────────────────────────────────
+   LOADING SCREEN helpers
+───────────────────────────────────────────────────────── */
+let _loadStart = Date.now();
+let _slowT = null, _hardT = null;
+
+function hideLoader() {
+  clearTimeout(_slowT); clearTimeout(_hardT);
+  const wait = Math.max(0, 700 - (Date.now() - _loadStart));   // avoid a flash
+  setTimeout(() => {
+    const ls = $('loadScreen');
+    ls.classList.add('hide');
+    setTimeout(() => { ls.style.display = 'none'; }, 400);
+    openMenu();
+  }, wait);
+}
+
+function showLoaderError(html, color) {
+  clearTimeout(_slowT); clearTimeout(_hardT);
+  const ls = $('loadScreen');
+  ls.style.display = 'flex';
+  ls.classList.remove('hide');
+  const msg = $('ldMsg');
+  msg.innerHTML = html;
+  msg.style.color = color || '#ff6b6b';
+  document.querySelector('.ld-bar').style.display = 'none';
+}
+
+function retryLoad() {
+  const f = $('stFrame');
+  $('ldActions').classList.remove('show');
+  $('ldMsg').textContent = 'Loading video...';
+  $('ldMsg').style.color = '';
+  _loadStart = Date.now();
+  watchEmbed(f, f.src);
+}
+
+// Wait for the embed to actually load; offer Retry / Back if it is slow.
+function watchEmbed(frame, url) {
+  clearTimeout(_slowT); clearTimeout(_hardT);
+  frame.addEventListener('load', hideLoader, { once: true });
+  frame.src = url;
+  _slowT = setTimeout(() => {
+    $('ldMsg').textContent = 'Taking longer than usual…';
+    $('ldActions').classList.add('show');
+  }, 10000);
+  _hardT = setTimeout(hideLoader, 25000);   // never leave the user stuck behind the loader
+}
+
+/* ─────────────────────────────────────────────────────────
+   DIRECT STREAM — video bytes go straight from the host to the
+   viewer's browser. Plyr gives the Netflix-style control bar.
+───────────────────────────────────────────────────────── */
 const HLS_JS_URL = 'https://cdn.jsdelivr.net/npm/hls.js@1.6.15/dist/hls.min.js';
 
 function loadScriptOnce(src) {
@@ -788,18 +364,16 @@ function loadScriptOnce(src) {
 }
 
 function loadDirect(m) {
-  const msg  = document.getElementById('ldMsg');
-  const fail = (html) => { msg.innerHTML = html; msg.style.color = '#ff6b6b'; };
-
   if (!m.direct_url) {
-    fail('🔒 This video is only available to the account that requested it,<br>' +
+    showLoaderError('🔒 This video is only available to the account that requested it,<br>' +
          '<span style="font-size:.72rem;color:#888">once the request is paid and completed.</span>');
     return;
   }
 
-  document.body.classList.add('dv-mode');
-  document.getElementById('dvWrap').style.display = 'block';
-  const v = document.getElementById('dvVideo');
+  _isDirect = true;
+  $('dvWrap').style.display = 'block';
+  const v = $('dvVideo');
+  _dv = v;
 
   const posKey = 'xv_pos_' + (m._reqId || (m.id ? 'm' + m.id : m.direct_url.slice(-40)));
   let startAt = 0;
@@ -810,12 +384,11 @@ function loadDirect(m) {
 
   const showError = () => {
     failed = true;
-    document.getElementById('loadScreen').style.display = 'flex';
-    fail('⚠️ Could not load this video.<br>' +
+    showLoaderError('⚠️ Could not load this video.<br>' +
          '<span style="font-size:.72rem;color:#888">Please refresh. If it keeps happening, contact support from the Contact page.</span>');
+    $('ldActions').classList.add('show');
   };
 
-  // ── Plyr (Netflix-style control bar) ─────────────────────
   // qualities: array of heights (e.g. [1080,720,480]) → adds Auto + manual menu
   function buildPlayer(qualities) {
     if (typeof Plyr === 'undefined') { v.controls = true; return; } // CDN blocked → native controls
@@ -830,7 +403,7 @@ function loadDirect(m) {
       tooltips: { controls: true, seek: true },
       clickToPlay: true,
       i18n: { rewind: 'Back 10s', fastForward: 'Forward 10s', qualityLabel: { 0: 'Auto' } },
-      iconUrl: 'https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.svg', // same CDN as the script, no 2nd host
+      iconUrl: 'https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.svg',
     };
     if (qualities && qualities.length) {
       opts.quality = {
@@ -846,6 +419,11 @@ function loadDirect(m) {
       };
     }
     _plyr = new Plyr(v, opts);
+
+    // Title + back button follow Plyr's control bar (Netflix behaviour)
+    _plyr.on('controlsshown',  () => $('playerWrap').classList.add('ui-on'));
+    _plyr.on('controlshidden', () => $('playerWrap').classList.remove('ui-on'));
+    $('playerWrap').classList.add('ui-on');
 
     // "Auto" shows the quality it is currently playing, e.g. Auto · 720p
     if (_hls && qualities && qualities.length) {
@@ -865,17 +443,22 @@ function loadDirect(m) {
   v.addEventListener('loadedmetadata', () => {
     if (startAt > 5 && v.duration && startAt < v.duration - 15) v.currentTime = startAt;
   }, { once: true });
-  v.addEventListener('canplay', () => {
-    document.getElementById('loadScreen').style.display = 'none';
-  }, { once: true });
+  v.addEventListener('canplay', hideLoader, { once: true });
   v.addEventListener('timeupdate', () => {
     const now = Date.now();
     if (now - lastSaved < 5000) return;
     lastSaved = now;
     try { localStorage.setItem(posKey, String(v.currentTime)); } catch (e) {}
   });
-  v.addEventListener('ended', () => { try { localStorage.removeItem(posKey); } catch (e) {} });
+  v.addEventListener('pause', () => syncProgress());
+  v.addEventListener('ended', () => {
+    try { localStorage.removeItem(posKey); } catch (e) {}
+    syncProgress();
+  });
   v.addEventListener('error', () => { if (!isHls) showError(); });
+
+  // Real progress → Continue Watching (every 15s while playing)
+  syncTimer = setInterval(() => { if (!v.paused) syncProgress(); }, 15000);
 
   // ── source ───────────────────────────────────────────────
   if (!isHls) {
@@ -915,9 +498,8 @@ function loadDirect(m) {
     }).catch(showError);
   }
 
-  // Safety net: if canplay never fires (slow host), still show the player.
-  setTimeout(() => { if (!failed) document.getElementById('loadScreen').style.display = 'none'; }, 8000);
-  openMenu();
+  // Safety net: if canplay never fires (slow host), still reveal the player.
+  setTimeout(() => { if (!failed) hideLoader(); }, 8000);
 }
 
 /* ─────────────────────────────────────────────────────────
@@ -928,43 +510,30 @@ function loadVideo(m) {
   const episode = m._episode || 1;
   const isTV    = m.type === 'tv';
 
-  document.getElementById('topTitle').textContent = m.title;
-  document.getElementById('topSub').textContent   = isTV
-    ? 'Season ' + season + ' · Episode ' + episode
-    : (m.year || '');
-
-  document.getElementById('qualBadge').textContent = m.quality || 'HD';
-  document.getElementById('yearBadge').textContent = m.year || '';
-  document.getElementById('ageBadge').textContent  = m.age_rating || '';
-  document.getElementById('durBadge').textContent  = m.duration || '';
+  $('topTitle').textContent = m.title;
+  $('topSub').textContent   = isTV ? 'Season ' + season + ' · Episode ' + episode : (m.year || '');
 
   document.title = isTV
     ? m.title + ' S' + season + 'E' + episode + ' — XwerseMovies'
     : m.title + ' — XwerseMovies';
+
+  // TV shows get a manual "Next Ep" button (we can't know when an embed ends,
+  // so there is no auto-jump).
+  $('nextEpBtn').style.display = isTV ? 'flex' : 'none';
 
   // Direct-stream request → built-in HTML5 player, no iframe at all
   if (m.direct_url || m._directDenied) { loadDirect(m); return; }
 
   // Embed URL priority — DIFFERS for movies vs TV shows:
   //
-  // MOVIES: DB override → URL param → auto-build from TMDB
-  //   (no episodes, one fixed embed_url is always correct)
-  //
-  // TV SHOWS: ALWAYS auto-build from tmdb_id + season + episode
-  //   BUG FIX: previously dbEmbed (a single static URL, usually
-  //   saved from testing S1E1 in admin panel) took priority over
-  //   season/episode — so "Next Episode" changed the URL params
-  //   and UI text, but the iframe kept loading the SAME fixed
-  //   episode every time. A single embed_url field cannot
-  //   represent more than one episode, so for TV it must never
-  //   override the per-episode auto-build.
+  // MOVIES: DB override → URL param → auto-build from TMDB (VidSrc)
+  // TV SHOWS: ALWAYS auto-build from tmdb_id + season + episode, because one
+  //   static embed_url can't represent more than one episode.
   const dbEmbed  = (m.embed_url && m.embed_url.trim()) ? m.embed_url.trim() : null;
   const urlEmbed = (m.embedUrl  && m.embedUrl.trim())  ? m.embedUrl.trim()  : null;
   let   embedUrl = null;
 
   if (isTV) {
-    // TV: build fresh per-episode URL first; only fall back to a
-    // static DB/URL embed if there's no tmdb_id to auto-build from.
     const tid = m.tmdb_id || null;
     if (tid && m.auto_embed !== false) {
       embedUrl = 'https://vidsrc.to/embed/tv/' + tid + '/' + season + '/' + episode;
@@ -972,7 +541,6 @@ function loadVideo(m) {
       embedUrl = dbEmbed || urlEmbed;
     }
   } else {
-    // Movies: static override still makes sense (no episodes)
     embedUrl = dbEmbed || urlEmbed;
     if (!embedUrl) {
       const tid = m.tmdb_id || null;
@@ -991,165 +559,35 @@ function loadVideo(m) {
   }
 
   if (m.embed_working === false && !m.manual_embed) {
-    document.getElementById('ldMsg').innerHTML =
+    $('ldMsg').innerHTML =
       '⚠️ This video may be unavailable.<br>' +
       '<span style="font-size:.72rem;color:#888">Set a custom embed in the admin panel.</span>';
-    document.getElementById('ldMsg').style.color = '#f5c518';
+    $('ldMsg').style.color = '#f5c518';
     if (!embedUrl) return;
   }
 
   if (!embedUrl) {
-    document.getElementById('ldMsg').innerHTML =
-      '⚠️ Video URL not found.<br>' +
-      '<span style="font-size:.72rem;color:#888">Set the embed URL in the admin panel.</span>';
-    document.getElementById('ldMsg').style.color = '#ff6b6b';
+    showLoaderError('⚠️ Video URL not found.<br>' +
+      '<span style="font-size:.72rem;color:#888">Set the embed URL in the admin panel.</span>');
     return;
   }
 
-  const frame = document.getElementById('stFrame');
-  frame.src   = embedUrl;
+  const frame = $('stFrame');
   frame.style.display = 'block';
+  _loadStart = Date.now();
+  watchEmbed(frame, embedUrl);
 
-  // FIX #2: Apply scale immediately after iframe is made visible
-  setIframeScale();
-
-  // Show brief mobile desktop-mode notice
-  if (window.innerWidth < DESKTOP_W) {
-    const notice = document.getElementById('mobileNotice');
-    if (notice) {
-      notice.classList.add('show');
-      setTimeout(() => notice.classList.remove('show'), 3000);
+  // Phones held upright: suggest landscape once per session.
+  try {
+    if (window.innerWidth < 768 && window.innerHeight > window.innerWidth && !sessionStorage.getItem('xv_rot')) {
+      sessionStorage.setItem('xv_rot', '1');
+      setTimeout(() => {
+        const h = $('hint');
+        h.classList.add('show');
+        setTimeout(() => h.classList.remove('show'), 3500);
+      }, 1500);
     }
-  }
-
-  setTimeout(() => {
-    document.getElementById('loadScreen').style.display = 'none';
-    openMenu(); // Show controls once on load so user discovers the ≡ button
-  }, 2500);
-
-  // PHASE 3: Start episode timers (Skip Intro + Next Episode)
-  startEpisodeTimers(m);
-}
-
-/* ─────────────────────────────────────────────────────────
-   OVERLAY INTERACTION — EXPLICIT CONTROL ARCHITECTURE
-
-   The overlay has exactly TWO triggers:
-     openMenu()  ← called by the ≡ button (and on initial load)
-     closeMenu() ← called by the ✕ button
-
-   No document.addEventListener('mousemove', ...)
-   No document.addEventListener('click', ...)
-   No document.addEventListener('touchstart', ...)
-   No tapZone layer.
-
-   The embedded player (VidSrc) receives ALL pointer events by
-   default. The overlay only interrupts the player during the
-   5-second window after the user deliberately presses ≡.
-   Pressing ✕ returns full control to the embedded player
-   immediately and the overlay stays hidden until ≡ is pressed.
-───────────────────────────────────────────────────────── */
-function openMenu() {
-  document.getElementById('playerWrap').classList.add('ui-on');
-  clearTimeout(uiTimer);
-  uiTimer = setTimeout(closeMenu, 5000);
-}
-
-function closeMenu() {
-  clearTimeout(uiTimer);
-  document.getElementById('playerWrap').classList.remove('ui-on');
-}
-
-// Internal aliases — keeps the rest of the codebase unchanged
-function showUI() { openMenu(); }
-function hideUI()  { closeMenu(); }
-
-// ── NO global listeners that steal events from the iframe ──
-
-/* ─────────────────────────────────────────────────────────
-   FULLSCREEN  (FIX #4)
-
-   Cross-browser fullscreen chain:
-   1. Standard Fullscreen API (Chrome, Firefox, Edge, Android)
-   2. webkit prefix (older Safari, older Chrome on iOS WKWebView)
-   3. Fallback: try the iframe element itself (iOS Safari)
-      → frame.webkitEnterFullscreen() is the only method that
-        triggers true native fullscreen on iOS Safari
-───────────────────────────────────────────────────────── */
-function reqFS() {
-  const wrap  = document.getElementById('playerWrap');
-  const frame = document.getElementById('stFrame');
-
-  // Already in fullscreen → exit
-  const inFS = document.fullscreenElement
-             || document.webkitFullscreenElement
-             || document.mozFullScreenElement;
-
-  if (inFS) {
-    const exit = document.exitFullscreen
-               || document.webkitExitFullscreen
-               || document.mozCancelFullScreen;
-    if (exit) exit.call(document);
-    return;
-  }
-
-  // Try wrapper div first (best experience — keeps our overlay)
-  const requestFS = wrap.requestFullscreen
-                  || wrap.webkitRequestFullscreen
-                  || wrap.mozRequestFullScreen;
-
-  if (requestFS) {
-    requestFS.call(wrap).catch(() => {
-      // Wrapper FS failed (common on iOS) → try iframe directly
-      tryIframeFS(frame);
-    });
-  } else {
-    tryIframeFS(frame);
-  }
-}
-
-function tryIframeFS(frame) {
-  // webkitEnterFullscreen works on iOS Safari for <video> inside iframe
-  // For the iframe element itself on iOS:
-  const iFS = frame.requestFullscreen
-            || frame.webkitRequestFullscreen
-            || frame.webkitEnterFullscreen  // iOS Safari-specific
-            || frame.mozRequestFullScreen;
-
-  if (iFS) iFS.call(frame).catch(() => {});
-}
-
-/* ─────────────────────────────────────────────────────────
-   MY LIST
-───────────────────────────────────────────────────────── */
-async function toggleML() {
-  if (!currentUser || !movieData?.id) {
-    showToast('ℹ️ This title is not yet in the library');
-    return;
-  }
-  const result = await ML.toggle(movieData);
-  if (result !== null) updateMLBtn();
-}
-
-function updateMLBtn() {
-  const btn    = document.getElementById('mlBtn');
-  const inList = movieData?.id ? ML.has(movieData.id) : false;
-  if (inList) {
-    btn.textContent = '✓ In My List';
-    btn.classList.add('added');
-  } else {
-    btn.textContent = '＋ My List';
-    btn.classList.remove('added');
-  }
-}
-
-/* ─────────────────────────────────────────────────────────
-   SHARE
-───────────────────────────────────────────────────────── */
-function shareMovie() {
-  if (navigator.share) {
-    navigator.share({ title: movieData?.title, url: location.href });
-  }
+  } catch (e) {}
 }
 
 /* ─────────────────────────────────────────────────────────
@@ -1157,7 +595,7 @@ function shareMovie() {
 ───────────────────────────────────────────────────────── */
 async function goBack() {
   clearInterval(syncTimer);
-  await syncProgress();
+  if (_isDirect) { try { await syncProgress(); } catch (e) {} }
   if (document.referrer && document.referrer.includes('XwerseMovies')) {
     history.back();
   } else {
@@ -1166,158 +604,69 @@ async function goBack() {
 }
 
 /* ─────────────────────────────────────────────────────────
-   PROGRESS SYNC
+   PROGRESS → Continue Watching
+   Direct mode : real currentTime / duration.
+   Embed mode  : cross-origin, so only a "started" marker (1s).
 ───────────────────────────────────────────────────────── */
+function durMins(d) {
+  if (!d) return 0;
+  const s = String(d);
+  const h = /(\d+)\s*h/i.exec(s), mm = /(\d+)\s*m/i.exec(s);
+  if (h || mm) return (h ? +h[1] * 60 : 0) + (mm ? +mm[1] : 0);
+  const n = parseInt(s);
+  return n > 0 ? n : 0;
+}
+
 async function syncProgress() {
-  if (!currentUser || !movieData?.id || !watchStart) return;
+  if (!currentUser || !movieData?.id) return;
 
-  const watched = Math.floor((Date.now() - watchStart) / 1000);
-  const dur     = movieData.duration
-                  ? parseInt(movieData.duration) * 60
-                  : 5400;
+  let prog, dur;
+  if (_isDirect) {
+    if (!_dv || !isFinite(_dv.duration) || _dv.duration <= 0) return;
+    prog = Math.floor(_dv.currentTime);
+    dur  = Math.floor(_dv.duration);
+  } else {
+    prog = 1;
+    dur  = (durMins(movieData.duration) || 90) * 60;
+  }
 
-  const extraData = movieData.type === 'tv'
+  const extra = movieData.type === 'tv'
     ? { season: movieData._season || 1, episode: movieData._episode || 1 }
     : {};
 
-  await DB.upsertContinueWatching(
-    currentUser.id, movieData.id, watched, dur, extraData
-  );
-
-  const dot = document.getElementById('syncDot');
-  dot.classList.add('show');
-  setTimeout(() => dot.classList.remove('show'), 2000);
+  try { await DB.upsertContinueWatching(currentUser.id, movieData.id, prog, dur, extra); } catch (e) {}
 }
 
 /* ─────────────────────────────────────────────────────────
-   KEYBOARD SHORTCUTS (desktop)
-   M / m   → open overlay menu   (explicit, matches new architecture)
-   F / f   → fullscreen toggle
-   Escape  → go back
-   No showUI() on every keypress — that violated the explicit-only rule.
+   NEXT EPISODE (TV only) — manual button, always reliable
 ───────────────────────────────────────────────────────── */
-
-/* ═════════════════════════════════════════════════════════
-   PHASE 3 — SKIP INTRO + NEXT EPISODE
-   ═════════════════════════════════════════════════════════
-
-   Skip Intro:
-   • Appears 20s after video loads (TV only)
-   • Disappears at 80s automatically
-   • Click → just dismisses (VidSrc iframe can't be seeked)
-   • VidSrc's OWN skip intro button still works inside player
-
-   Next Episode:
-   • Appears at 85% of episode duration (default 42 min)
-   • 10-second countdown then auto-navigates to next episode
-   • User can dismiss or click Play immediately
-   ═════════════════════════════════════════════════════════ */
-
-/* ═════════════════════════════════════════════════════════
-   NEXT EPISODE  (TV shows only)
-   ═════════════════════════════════════════════════════════
-   Honest constraint: VidSrc/Dailymotion iframes are cross-origin.
-   We cannot read currentTime, detect play/pause, or know when
-   the video actually ends. So "Skip Intro" was removed entirely —
-   it did nothing except hide a button, which is misleading UI.
-
-   What IS reliable and kept:
-   1. Manual "Next Episode" button in the top bar — always visible
-      for TV shows, works instantly via URL navigation. 100% real.
-   2. "Up Next" suggestion panel — a best-effort ESTIMATE based on
-      admin-set duration (default 42 min), shown at ~85% of that
-      estimate. Clearly optional — user can dismiss or ignore it,
-      and the reliable manual button is always available too.
-   ═════════════════════════════════════════════════════════ */
-
-let _nepT = null;   // "Up Next" suggestion show timer
-let _nepI = null;   // countdown interval
-let _nepN = 10;      // countdown value
-
-function startEpisodeTimers(m) {
-  clearTimeout(_nepT); clearInterval(_nepI);
-  const np = document.getElementById('nextEpPanel');
-  if (np) np.classList.remove('show');
-
-  const nextBtn = document.getElementById('nextEpBtn');
-  if (nextBtn) nextBtn.style.display = (m.type === 'tv') ? 'flex' : 'none';
-
-  if (m.type !== 'tv') return; // Movies: no next-episode features
-
-  const season  = m._season  || 1;
-  const episode = m._episode || 1;
-
-  // Best-effort "Up Next" suggestion at ~85% of estimated duration
-  const epMins   = Math.max(30, movieData?.duration ? parseInt(movieData.duration) : 42);
-  const showAtMs = epMins * 60 * 1000 * 0.85;
-
-  _nepT = setTimeout(() => {
-    showNextEpPanel(season, episode + 1);
-  }, showAtMs);
-}
-
-function showNextEpPanel(season, nextEp) {
-  const panel = document.getElementById('nextEpPanel');
-  const title = document.getElementById('nepTitle');
-  const sub   = document.getElementById('nepSub');
-  const cd    = document.getElementById('nepCd');
-  if (!panel) return;
-
-  title.textContent = 'S' + season + ' E' + nextEp;
-  sub.textContent   = movieData?.title || '';
-  _nepN = 10;
-  cd.textContent = '10';
-  panel.classList.add('show');
-
-  clearInterval(_nepI);
-  _nepI = setInterval(() => {
-    _nepN--;
-    cd.textContent = _nepN;
-    if (_nepN <= 0) {
-      clearInterval(_nepI);
-      doPlayNextEp();
-    }
-  }, 1000);
-}
-
-function doDismissNextEp() {
-  clearInterval(_nepI);
-  clearTimeout(_nepT);
-  const p = document.getElementById('nextEpPanel');
-  if (p) p.classList.remove('show');
-}
-
-// Reliable manual trigger — always works, no timer dependency.
-// Called by: the "Up Next" panel's Play button, OR the persistent
-// Next Episode button in the top bar.
 function doPlayNextEp() {
-  doDismissNextEp();
   if (!movieData) return;
-  const nextEp = (movieData._episode || 1) + 1;
-  const season = movieData._season  || 1;
   const params = new URLSearchParams(location.search);
-  params.set('episode', nextEp);
-  params.set('season',  season);
-  params.delete('embed'); // Force auto-build embed for new episode
+  params.set('episode', (movieData._episode || 1) + 1);
+  params.set('season',  movieData._season || 1);
+  params.delete('embed');   // force auto-build embed for the new episode
   location.href = 'XwerseMovies_Player.html?' + params.toString();
 }
 
-
+/* ─────────────────────────────────────────────────────────
+   KEYBOARD: Esc = back (but not when Esc was just closing fullscreen)
+───────────────────────────────────────────────────────── */
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape')            goBack();
-  if (e.key === 'f' || e.key === 'F') reqFS();
-  if (e.key === 'm' || e.key === 'M') openMenu();
+  if (e.key !== 'Escape') return;
+  if (document.fullscreenElement || document.webkitFullscreenElement) return;
+  goBack();
 });
 
 /* ─────────────────────────────────────────────────────────
    CLEANUP
 ───────────────────────────────────────────────────────── */
-window.addEventListener('beforeunload', () => {
+window.addEventListener('pagehide', () => {
   clearInterval(syncTimer);
-  clearTimeout(_skiT1); clearTimeout(_skiT2);
-  clearTimeout(_nepT); clearInterval(_nepI);
+  clearTimeout(uiTimer); clearTimeout(_slowT); clearTimeout(_hardT);
+  if (_isDirect) syncProgress();
+  if (_hls) { try { _hls.destroy(); } catch (e) {} }
 });
-
 </script>
 
 <!-- Service Worker registration -->
