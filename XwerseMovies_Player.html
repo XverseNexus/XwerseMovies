@@ -258,7 +258,10 @@ const $ = (id) => document.getElementById(id);
     // Personal fulfilled-request override (see xwerse-config.js:
     // DB.getMyRequestOverride for how this stays scoped to just this user).
     const myOverride = await DB.getMyRequestOverride(currentUser.id, movie.tmdb_id, movie.type, urlSeason);
-    if (myOverride) movie.embed_url = myOverride;
+    if (myOverride) {
+      if (movie.type === 'tv') movie._myLinks = myOverride;      // per-episode links (see Xwerse.pickEpisodeLink)
+      else movie.embed_url = myOverride;
+    }
   }
 
   // Direct-stream request (opened from My Requests): ownership + payment are
@@ -375,7 +378,8 @@ function loadDirect(m) {
   const v = $('dvVideo');
   _dv = v;
 
-  const posKey = 'xv_pos_' + (m._reqId || (m.id ? 'm' + m.id : m.direct_url.slice(-40)));
+  const posKey = 'xv_pos_' + (m._reqId || (m.id ? 'm' + m.id : m.direct_url.slice(-40)))
+                 + (m.type === 'tv' ? '_s' + (m._season || 1) + 'e' + (m._episode || 1) : '');
   let startAt = 0;
   try { startAt = parseFloat(localStorage.getItem(posKey)) || 0; } catch (e) {}
 
@@ -533,7 +537,12 @@ function loadVideo(m) {
   const urlEmbed = (m.embedUrl  && m.embedUrl.trim())  ? m.embedUrl.trim()  : null;
   let   embedUrl = null;
 
-  if (isTV) {
+  // Paid Season/Series request: this user's own link for THIS episode wins.
+  const myEp = (isTV && m._myLinks) ? Xwerse.pickEpisodeLink(m._myLinks, season, episode) : null;
+
+  if (myEp) {
+    embedUrl = myEp;
+  } else if (isTV) {
     const tid = m.tmdb_id || null;
     if (tid && m.auto_embed !== false) {
       embedUrl = 'https://vidsrc.to/embed/tv/' + tid + '/' + season + '/' + episode;
@@ -552,7 +561,7 @@ function loadVideo(m) {
 
   // A movie whose custom URL is a direct video file / HLS playlist plays in the
   // built-in Netflix-style player (no iframe). Anything else stays an embed.
-  if (!isTV && embedUrl && /\.(m3u8|mp4|webm)(\?|#|$)/i.test(embedUrl)) {
+  if ((!isTV || myEp) && embedUrl && /\.(m3u8|mp4|webm)(\?|#|$)/i.test(embedUrl)) {
     m.direct_url = embedUrl;
     loadDirect(m);
     return;
