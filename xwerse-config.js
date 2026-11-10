@@ -30,6 +30,37 @@ const Xwerse = {
     series: { label: 'Complete Web Series Request', price: 59, priceLabel: '₹59' },
   },
 
+  // ── EPISODE LINKS (paid Season / Series requests) ─────────
+  // A request's `watch_url` can hold ONE link (movies) or several lines,
+  // one per episode, written by the admin:
+  //     S1E1 https://filemoon.../e/abc     (series request: season + episode)
+  //     E3   https://voe.sx/e/xyz          (season request: episode only)
+  //     2    https://...                   (same as E2)
+  //     https://...                        (plain link, used for any episode)
+  // No database change needed — it is still the same text column.
+  parseEpisodeLinks(text) {
+    const out = { eps: [], fallback: null, bad: [] };
+    String(text || '').split(/\r?\n/).forEach((raw, i) => {
+      const line = raw.trim();
+      if (!line) return;
+      let m = line.match(/^(https?:\/\/\S+)$/i);
+      if (m) { if (!out.fallback) out.fallback = m[1]; return; }
+      m = line.match(/^(?:S(\d+)\s*[ ._-]?)?E?(\d+)\s*[:=\s-]\s*(https?:\/\/\S+)$/i);
+      if (m) { out.eps.push({ season: m[1] ? +m[1] : null, ep: +m[2], url: m[3] }); return; }
+      out.bad.push(i + 1);
+    });
+    return out;
+  },
+
+  // Link for one episode: exact season match first, then season-less line,
+  // then the plain fallback link. Returns null when nothing fits.
+  pickEpisodeLink(text, season, episode) {
+    const p = this.parseEpisodeLinks(text);
+    const exact = p.eps.find(e => e.ep === episode && e.season === season)
+               || p.eps.find(e => e.ep === episode && e.season == null);
+    return exact ? exact.url : p.fallback;
+  },
+
   // Shared status metadata so "My Requests" and the Admin panel always
   // show the same label/color/order for a given status.
   REQUEST_STATUS: {
@@ -321,15 +352,21 @@ const DB = {
     if (error) { console.error('getMyRequestOverride:', error); return null; }
     if (!data?.length) return null;
 
-    const match = data.find(r => {
+    const fits = (r) => {
       if (mediaType === 'tv') {
         if (r.request_type === 'series') return true;
         if (r.request_type === 'season') return r.season_number === seasonNumber;
         return false;
       }
       return r.request_type === 'movie';
-    });
-    return match?.watch_url || null;
+    };
+    // TV: join every matching request's links (e.g. a Season 1 request AND a
+    // Series request) so the player can pick the right episode from any of them.
+    if (mediaType === 'tv') {
+      const all = data.filter(fits).map(r => r.watch_url).filter(Boolean);
+      return all.length ? all.join('\n') : null;
+    }
+    return data.find(fits)?.watch_url || null;
   },
 
   // ── ADMIN: REQUESTS ───────────────────────────────────
