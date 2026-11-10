@@ -1849,7 +1849,7 @@ function reqCardHTML(r) {
       </div>
 
       <div class="fg" style="width:100%;margin-bottom:0">
-        <div class="fw"><label style="font-size:.68rem">Watch URL (becomes this user's personal embed for this title site-wide — others still see the normal version)</label><input type="text" id="reqWatch-${r.id}" value="${escAttr(r.watch_url||'')}" placeholder="https://...">
+        <div class="fw"><label style="font-size:.68rem">Watch URL(s) — this user's personal embed for this title (others still see the normal version).<br>Movie: one link. Season request: one line per episode → <code>E1 https://...</code>. Series request: <code>S1E1 https://...</code>. A plain link on its own line works for any episode.</label><textarea id="reqWatch-${r.id}" rows="${r.request_type==='movie'?1:5}" placeholder="${r.request_type==='series'?'S1E1 https://...&#10;S1E2 https://...':(r.request_type==='season'?'E1 https://...&#10;E2 https://...':'https://...')}" style="font-family:monospace;font-size:.74rem">${escHtml(r.watch_url||'')}</textarea>
         </div>
         <div class="fw"><label style="font-size:.68rem">Download URL</label><input type="text" id="reqDownload-${r.id}" value="${escAttr(r.download_url||'')}" placeholder="https://...">
         </div>
@@ -1883,7 +1883,16 @@ function testDirectUrl(id) {
 }
 
 async function saveReqDetails(id) {
-  const watch_url    = document.getElementById(`reqWatch-${id}`).value.trim();
+  const watch_url    = document.getElementById(`reqWatch-${id}`).value.split(/\r?\n/).map(l => l.trim()).filter(Boolean).join('\n');
+  const wl = Xwerse.parseEpisodeLinks(watch_url);
+  if (wl.bad.length) {
+    showToast('❌ Watch URL line ' + wl.bad.join(', ') + ' is not valid. Use: E1 https://... or S1E1 https://...');
+    return;
+  }
+  if (/(^|\s)http:\/\//i.test(watch_url)) {
+    showToast('❌ Watch URL must start with https:// (http is blocked on an https site)');
+    return;
+  }
   const download_url = document.getElementById(`reqDownload-${id}`).value.trim();
   const admin_notes  = document.getElementById(`reqNotes-${id}`).value.trim();
   const direct_url   = document.getElementById(`reqDirect-${id}`).value.trim();
