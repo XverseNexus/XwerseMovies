@@ -411,27 +411,6 @@ const DB = {
     return getSB().from('requests').update(patch).eq('id', id);
   },
 
-  // Pending/unmatched payments — rows the Cashfree Payment Forms webhook
-  // couldn't auto-correlate (e.g. user paid with a different email than
-  // their site login) and are stuck at payment_status='pending' forever.
-  // Not covered by getAllRequests() since that only ever shows paid rows.
-  async getPendingPaymentRequests() {
-    const { data, error } = await getSB()
-      .from('requests')
-      .select('*')
-      .eq('payment_status', 'pending')
-      .order('created_at', { ascending: false });
-    if (error) { console.error('getPendingPaymentRequests:', error); return []; }
-    return data || [];
-  },
-
-  // Manual override for the case above — admin has confirmed (e.g. via
-  // Cashfree dashboard transaction logs) that this request's payment did
-  // go through, so flip it to 'paid' by hand.
-  async markRequestPaid(id) {
-    return getSB().from('requests').update({ payment_status: 'paid' }).eq('id', id);
-  },
-
   // ── WATCH HISTORY ────────────────────────────────────
   async getHistory(uid, limit = 50) {
     const { data } = await getSB()
