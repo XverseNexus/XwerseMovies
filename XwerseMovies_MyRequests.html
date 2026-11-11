@@ -196,7 +196,7 @@ let reqFilter   = 'all';
 // are payment_status-derived and shown instead of the workflow status
 // until payment_status becomes 'paid'.
 const PAYMENT_BADGE = {
-  pending: { label: '⏳ Payment Pending', color: '#f5c518' },
+  pending: { label: '⏳ Verifying Payment', color: '#f5c518' },
   failed:  { label: '❌ Payment Failed',  color: '#E50914' },
 };
 
@@ -228,7 +228,7 @@ function reqCardHTML(r) {
 
   let note = '';
   if (vs === 'awaiting_payment') {
-    note = `<div class="req-note">⏳ Waiting for payment confirmation. If you've already paid, this can take a few minutes to update — no need to pay again.</div>`;
+    note = `<div class="req-note">⏳ Waiting for payment confirmation. If you've already paid, this updates automatically within a minute or two — no need to pay again. Paid with a different email than your login? Contact us with your payment reference and we'll fix it.</div>`;
   } else if (vs === 'payment_failed') {
     note = `<div class="req-note">❌ This payment didn't go through. No amount was charged. You can submit a fresh request whenever you're ready.</div>`;
   } else if (r.status !== 'completed' && r.admin_notes) {
@@ -327,6 +327,22 @@ async function loadMyRequests() {
     return;
   }
   renderReqList();
+  startPendingPoll();
+}
+
+// Right after paying, the webhook may take a few seconds. While a request created in the
+// last 20 minutes is still "pending", quietly refresh every 4s (max ~3 min) so it flips to Paid on its own.
+let _pollRuns = 0;
+function startPendingPoll() {
+  const recentPending = (r) => r.payment_status === 'pending' && Date.now() - new Date(r.created_at).getTime() < 20 * 60 * 1000;
+  if (!reqData.some(recentPending)) return;
+  const sig = (list) => list.map(r => r.id + ':' + r.payment_status + ':' + r.status).join('|');
+  const timer = setInterval(async () => {
+    if (++_pollRuns > 45) { clearInterval(timer); return; }
+    const fresh = await DB.getUserRequests(currentUser.id);
+    if (sig(fresh) !== sig(reqData)) { reqData = fresh; renderReqList(); }
+    if (!fresh.some(recentPending)) clearInterval(timer);
+  }, 4000);
 }
 
 // ─────────────────────────────────────────
