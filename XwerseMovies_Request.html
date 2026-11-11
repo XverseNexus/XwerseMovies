@@ -20,11 +20,6 @@
 <meta name="apple-mobile-web-app-title" content="XwerseMovies">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="xwerse-config.js"></script>
-<!-- Vercel Web Analytics -->
-<script>
-  window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
-</script>
-<script defer src="/_vercel/insights/script.js"></script>
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -126,6 +121,8 @@ textarea.ftxt{resize:vertical;min-height:72px;line-height:1.5;cursor:text}
 .copy-btn:hover{filter:brightness(.88)}
 .copy-btn.done{background:var(--green);color:#000}
 .email-help{font-size:.72rem;color:rgba(255,255,255,.62);margin-top:9px;line-height:1.6}
+.dup-banner{margin-top:16px;padding:14px;border:1px solid rgba(70,211,105,.4);background:rgba(70,211,105,.08);border-radius:8px;font-size:.84rem;line-height:1.6;color:#fff}
+.dup-banner a{display:inline-block;margin-top:8px;background:#fff;color:#000;font-weight:700;font-size:.8rem;padding:8px 16px;border-radius:5px;text-decoration:none}
 .gate-hint{text-align:center;font-size:.72rem;color:#f5c518;margin-top:8px}
 .stub-note{text-align:center;font-size:.72rem;color:rgba(245,197,24,.85);margin-top:10px;line-height:1.6}
 
@@ -144,6 +141,8 @@ textarea.ftxt{resize:vertical;min-height:72px;line-height:1.5;cursor:text}
   #pageWrap{padding-bottom:calc(72px + env(safe-area-inset-bottom,0px))}
 }
 </style>
+<script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
+<script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
 
@@ -192,7 +191,7 @@ textarea.ftxt{resize:vertical;min-height:72px;line-height:1.5;cursor:text}
     <div class="rt-pills" id="rtPills"></div>
     <div class="fwrap full" id="seasonPickWrap" style="display:none;margin-top:14px">
       <label class="flbl">Which Season?</label>
-      <select class="fsel" id="seasonPick"></select>
+      <select class="fsel" id="seasonPick" onchange="checkDuplicate()"></select>
     </div>
   </div>
 
@@ -253,6 +252,10 @@ textarea.ftxt{resize:vertical;min-height:72px;line-height:1.5;cursor:text}
       <span class="inc-chip">✓ Subtitles</span>
       <span class="inc-chip">✓ Your chosen quality</span>
       <span class="inc-chip">✓ Download support</span>
+    </div>
+    <div class="dup-banner" id="dupBanner" style="display:none">
+      <span id="dupText">✅ You have already requested this.</span><br>
+      <a href="XwerseMovies_MyRequests.html">View in My Requests →</a>
     </div>
     <div class="email-gate" id="emailGate">
       <div class="gate-title">📧 STEP 1 — COPY YOUR PAYMENT EMAIL</div>
@@ -458,6 +461,43 @@ async function selType(t, el) {
   updatePriceCard();
   resetEmailGate();
   document.getElementById('priceCard').style.display = 'block';
+  await loadExistingRequests();
+  checkDuplicate();
+}
+
+// ── DUPLICATE CHECK ───────────────────────────────────────
+// A paid, not-rejected request for the same thing blocks a second one (the server enforces
+// this too). A rejected (refunded) request can be requested again.
+let existingRequests = [];
+async function loadExistingRequests() {
+  try { existingRequests = await DB.getUserRequests(currentUser.id); } catch (e) { existingRequests = []; }
+}
+function findDuplicate() {
+  if (!selectedTitle || !requestType) return null;
+  const season = requestType === 'season' ? (parseInt(document.getElementById('seasonPick').value, 10) || 1) : null;
+  const same = (r) => selectedTitle.tmdb_id ? String(r.tmdb_id) === String(selectedTitle.tmdb_id)
+                                            : (!r.tmdb_id && r.title === selectedTitle.title);
+  return existingRequests.find(r => r.payment_status === 'paid' && r.status !== 'rejected' && same(r) && (
+    requestType === 'movie'  ? r.request_type === 'movie' :
+    requestType === 'series' ? r.request_type === 'series' :
+    (r.request_type === 'series' || (r.request_type === 'season' && Number(r.season_number) === season))
+  )) || null;
+}
+let _wasDup = false;
+function checkDuplicate() {
+  const dup = findDuplicate();
+  const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? 'block' : 'none'; };
+  if (dup) {
+    document.getElementById('dupText').textContent = dup.status === 'completed'
+      ? '✅ You have already requested this — it is ready in My Requests.'
+      : '✅ You have already requested and paid for this. It is being processed — we will give you access within 24 hours.';
+  }
+  show('dupBanner', !!dup);
+  show('emailGate', !dup);
+  show('submitBtn', !dup);
+  if (dup) show('gateHint', false);
+  else if (_wasDup) resetEmailGate();   // coming back from a duplicate → ask for the copy step again
+  _wasDup = !!dup;
 }
 
 // ── EMAIL GATE ────────────────────────────────────────────
@@ -570,6 +610,12 @@ async function submitRequest() {
     });
     const data = await res.json();
 
+    if (res.status === 409) {                       // already requested & paid (server-side check)
+      showToast('✅ ' + (data.error || 'You have already requested this.'));
+      await loadExistingRequests(); checkDuplicate();
+      btn.disabled = false; btn.textContent = 'Proceed to Payment →';
+      return;
+    }
     if (!res.ok || !data.success) {
       showToast('⚙️ ' + (data.error || 'Could not create request — please try again'));
       btn.disabled = false; btn.textContent = 'Proceed to Payment →';
