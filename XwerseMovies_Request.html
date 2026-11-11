@@ -113,6 +113,15 @@ textarea.ftxt{resize:vertical;min-height:72px;line-height:1.5;cursor:text}
 .submit-btn{width:100%;background:var(--red);color:#fff;border:none;padding:14px;border-radius:6px;font-size:.95rem;font-weight:700;cursor:pointer;font-family:'Barlow',sans-serif;transition:background .2s;margin-top:6px}
 .submit-btn:hover{background:var(--red-dark)}
 .submit-btn:disabled{background:#333;color:rgba(255,255,255,.3);cursor:not-allowed}
+.email-gate{margin:16px 0 12px;padding:14px;border:1px solid rgba(245,197,24,.35);background:rgba(245,197,24,.06);border-radius:8px}
+.email-gate .gate-title{font-size:.78rem;font-weight:700;color:#f5c518;margin-bottom:8px;letter-spacing:.3px}
+.email-row{display:flex;gap:8px}
+.email-row input{flex:1;min-width:0;background:#141414;border:1px solid rgba(255,255,255,.18);color:#fff;border-radius:6px;padding:11px 12px;font-size:.9rem;font-family:'Barlow',sans-serif}
+.copy-btn{flex-shrink:0;background:#fff;color:#000;border:none;border-radius:6px;padding:0 16px;font-weight:700;font-size:.82rem;cursor:pointer;font-family:'Barlow',sans-serif;transition:.2s}
+.copy-btn:hover{filter:brightness(.88)}
+.copy-btn.done{background:var(--green);color:#000}
+.email-help{font-size:.72rem;color:rgba(255,255,255,.62);margin-top:9px;line-height:1.6}
+.gate-hint{text-align:center;font-size:.72rem;color:#f5c518;margin-top:8px}
 .stub-note{text-align:center;font-size:.72rem;color:rgba(245,197,24,.85);margin-top:10px;line-height:1.6}
 
 .empty-state{text-align:center;padding:40px 20px;color:var(--muted);font-size:.86rem}
@@ -240,7 +249,16 @@ textarea.ftxt{resize:vertical;min-height:72px;line-height:1.5;cursor:text}
       <span class="inc-chip">✓ Your chosen quality</span>
       <span class="inc-chip">✓ Download support</span>
     </div>
-    <button class="submit-btn" id="submitBtn" onclick="submitRequest()">Proceed to Payment →</button>
+    <div class="email-gate" id="emailGate">
+      <div class="gate-title">📧 STEP 1 — COPY YOUR PAYMENT EMAIL</div>
+      <div class="email-row">
+        <input type="text" id="payEmail" readonly aria-label="Your login email">
+        <button type="button" class="copy-btn" id="copyBtn" onclick="copyPayEmail()">📋 Copy</button>
+      </div>
+      <p class="email-help">Paste this exact email in the <b>Email</b> field on the payment form. If you use any other email, we cannot verify your payment and your request will not be activated.</p>
+    </div>
+    <button class="submit-btn" id="submitBtn" onclick="submitRequest()" disabled>Proceed to Payment →</button>
+    <p class="gate-hint" id="gateHint">👆 Copy your email above to unlock the payment button</p>
     <p class="stub-note" style="color:rgba(255,255,255,.4)">🔒 Secure checkout powered by Cashfree Payments. You'll be redirected to complete payment.</p>
     <p class="stub-note" style="color:rgba(255,255,255,.4)">Your request is created only after payment is confirmed — see our <a href="XwerseMovies_Refund.html" style="color:inherit">Refund Policy</a>.</p>
   </div>
@@ -433,7 +451,44 @@ async function selType(t, el) {
 
   document.getElementById('prefCard').style.display = 'block';
   updatePriceCard();
+  resetEmailGate();
   document.getElementById('priceCard').style.display = 'block';
+}
+
+// ── EMAIL GATE ────────────────────────────────────────────
+// The payment form is hosted by Cashfree and cannot be pre-filled, and we
+// match a payment to its request by (email + amount). So the Proceed button
+// stays locked until the user has copied their login email.
+function resetEmailGate() {
+  document.getElementById('payEmail').value = currentUser?.email || '';
+  const cb = document.getElementById('copyBtn');
+  cb.textContent = '📋 Copy'; cb.classList.remove('done');
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('gateHint').style.display = 'block';
+}
+
+async function copyPayEmail() {
+  const email = currentUser?.email || '';
+  const input = document.getElementById('payEmail');
+  let ok = false;
+  try { await navigator.clipboard.writeText(email); ok = true; } catch (e) {}
+  if (!ok) {
+    try {                                    // older browsers / blocked clipboard API
+      input.removeAttribute('readonly'); input.focus(); input.select(); input.setSelectionRange(0, 999);
+      ok = document.execCommand('copy');
+      input.setAttribute('readonly', '');
+    } catch (e) { input.setAttribute('readonly', ''); }
+  }
+  const cb = document.getElementById('copyBtn');
+  if (ok) {
+    cb.textContent = '✓ Copied'; cb.classList.add('done');
+  } else {
+    input.focus(); input.select();
+    showToast('Could not copy automatically — please long-press the email above, copy it, and use it on the payment page.');
+    cb.textContent = 'Copy again';
+  }
+  document.getElementById('submitBtn').disabled = false;   // never block a user whose browser refuses clipboard access
+  document.getElementById('gateHint').style.display = 'none';
 }
 
 async function populateSeasonPicker() {
@@ -500,9 +555,12 @@ async function submitRequest() {
       notes:              document.getElementById('prefNotes').value.trim() || null,
     };
 
+    const { data: { session } } = await getSB().auth.getSession();
+    if (!session) { showToast('⚠️ Please sign in again'); location.href = 'index.html'; return; }
+
     const res = await fetch('/api/create-request-pending', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
       body: JSON.stringify(payload),
     });
     const data = await res.json();
@@ -527,12 +585,11 @@ async function submitRequest() {
     const formUrlWithEmail = `${formUrl}&email=${emailEnc}&customer_email=${emailEnc}`;
 
     btn.textContent = 'Redirecting to payment…';
-    showToast(`⚠️ Important: use ${currentUser.email} on the payment page — must match your login email`);
+    showToast(`Opening payment page — paste ${currentUser.email} in the Email field`);
 
-    // Short delay so the toast is actually readable before we navigate away.
     setTimeout(() => {
       window.location.href = formUrlWithEmail;
-    }, 2200);
+    }, 1200);
   } catch (err) {
     console.error('submitRequest error:', err);
     showToast('❌ Could not create request, please try again');
