@@ -17,13 +17,21 @@
 // the Orders API does, so we can't match a webhook to a `requests` row by
 // ID directly. Instead we correlate by:
 //
-//   (customer_email + payment_amount → request_type + payment_status='pending',
-//    most recently created)
+//   (customer_email + payment_amount → request_type, newest matching row)
 //
 // This relies on the user paying with the SAME email they used to log
-// into the site (the Request page tells them this before redirecting).
-// Matching only against rows still in 'pending' also makes this
-// naturally idempotent if Cashfree retries the webhook.
+// into the site (the Request page makes them copy it before redirecting).
+// Matching rules:
+//   * Email is compared case-insensitively; for Gmail, dots and "+tags" are
+//     ignored too (they all reach the same mailbox).
+//   * A SUCCESS payment matches the newest 'pending' row, else the newest
+//     'failed' row — so a user whose first attempt failed/dropped and who then
+//     retried successfully on the same form is still activated.
+//   * USER_DROPPED events are ignored (the user may simply retry); only a real
+//     FAILED event marks a pending row failed.
+//   * Idempotent: a payment id (cf_payment_id) that is already stored on a row
+//     is never applied twice, so Cashfree webhook retries can't activate a
+//     second request.
 //
 // Configure in Cashfree Dashboard → Developers → Webhooks, subscribed to
 // PAYMENT_SUCCESS_WEBHOOK, PAYMENT_FAILED_WEBHOOK, and
@@ -39,6 +47,19 @@ const PRICE_TO_TYPE = {
   29: 'season',
   59: 'series',
 };
+
+// Lower-case + trim; for Gmail also drop dots and the "+tag" part.
+function normalizeEmail(e) {
+  const v = String(e || '').trim().toLowerCase();
+  const at = v.lastIndexOf('@');
+  if (at < 1) return v;
+  let local = v.slice(0, at), domain = v.slice(at + 1);
+  if (domain === 'gmail.com' || domain === 'googlemail.com') {
+    local = local.split('+')[0].replace(/\./g, '');
+    domain = 'gmail.com';
+  }
+  return local + '@' + domain;
+}
 
 function getRawBody(req) {
   return new Promise((resolve, reject) => {
@@ -133,6 +154,14 @@ async function handler(req, res) {
     return;
   }
 
+  if (body.type === 'PAYMENT_USER_DROPPED_WEBHOOK') {
+    // The customer closed the payment page; they may well retry and succeed.
+    // Don't touch the request (and don't notify) — just acknowledge.
+    console.log('cashfree-payment-form-webhook: user dropped — no state change');
+    res.status(200).json({ received: true, note: 'user dropped, ignored' });
+    return;
+  }
+
   const payment         = body.data?.payment || {};
   const orderInfo        = body.data?.order || {};
   const customerDetails = body.data?.customer_details || {}; // top-level under data, NOT nested in order
@@ -175,10 +204,10 @@ async function handler(req, res) {
   }
 
   const isSuccess = paymentStatus === 'SUCCESS';
-  const isFailure = paymentStatus === 'FAILED' || paymentStatus === 'USER_DROPPED';
+  const isFailure = paymentStatus === 'FAILED';
 
   if (!isSuccess && !isFailure) {
-    // Shouldn't happen given VALID_TYPES check above, but stay defensive.
+    // Defensive: anything else (e.g. PENDING) is not actionable.
     res.status(200).json({ received: true, note: `ignored payment_status ${paymentStatus}` });
     return;
   }
@@ -190,31 +219,47 @@ async function handler(req, res) {
   };
 
   try {
-    // Find the most recent still-pending request for this email + price.
-    // Filtering on payment_status=eq.pending here is what makes this
-    // idempotent against Cashfree webhook retries.
+    // Idempotency: if this exact payment was already applied to a request,
+    // acknowledge and stop (Cashfree retries webhooks).
+    if (isSuccess && cfPaymentId) {
+      const dupRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/requests?cashfree_payment_id=eq.${encodeURIComponent(cfPaymentId)}&select=id&limit=1`,
+        { headers: restHeaders }
+      );
+      const dupRows = dupRes.ok ? await dupRes.json() : [];
+      if (Array.isArray(dupRows) && dupRows.length) {
+        console.log('cashfree-payment-form-webhook: payment already applied, ignoring retry', { cfPaymentId, requestId: dupRows[0].id });
+        res.status(200).json({ received: true, note: 'already processed' });
+        return;
+      }
+    }
+
+    // Candidate rows for this amount. Email is compared in JS (normalised), not in
+    // the query, so "User@Gmail.com" / "u.ser@gmail.com" still match.
+    const statusFilter = isSuccess ? 'in.(pending,failed)' : 'eq.pending';
     const findUrl = `${SUPABASE_URL}/rest/v1/requests`
-      + `?user_email=eq.${encodeURIComponent(customerEmail)}`
-      + `&price=eq.${dbPrice}`
-      + `&payment_status=eq.pending`
+      + `?price=eq.${dbPrice}`
+      + `&payment_status=${statusFilter}`
       + `&order=created_at.desc`
-      + `&limit=1&select=*`;
+      + `&limit=200&select=*`;
 
     const getRes = await fetch(findUrl, { headers: restHeaders });
     const rows = await getRes.json();
-    const row = Array.isArray(rows) ? rows[0] : null;
-    console.log('cashfree-payment-form-webhook: correlation query result', {
-      findUrl, matchedCount: Array.isArray(rows) ? rows.length : 'ERROR', matchedId: row?.id,
+    const wanted = normalizeEmail(customerEmail);
+    const matches = Array.isArray(rows) ? rows.filter(r => normalizeEmail(r.user_email) === wanted) : [];
+    // Prefer a still-pending row; fall back to the newest failed one (retry-after-failure case).
+    const row = matches.find(r => r.payment_status === 'pending') || matches[0] || null;
+    console.log('cashfree-payment-form-webhook: correlation result', {
+      candidates: Array.isArray(rows) ? rows.length : 'ERROR', matched: matches.length, matchedId: row?.id,
     });
 
     if (!row) {
-      // No matching pending row — most likely the user paid with a
-      // different email than their site login. Log for manual admin
-      // reconciliation rather than silently dropping the payment.
-      console.error('cashfree-payment-form-webhook: no matching pending request', {
-        customerEmail, paymentAmount, requestType, cfPaymentId,
+      // No matching row — most likely the user paid with a different email than their
+      // site login (or paid without creating a request). Log for manual reconciliation.
+      console.error('cashfree-payment-form-webhook: no matching request', {
+        customerEmail, paymentAmount, requestType, cfPaymentId, paymentStatus,
       });
-      res.status(200).json({ received: true, note: 'no matching pending request found' });
+      res.status(200).json({ received: true, note: 'no matching request found' });
       return;
     }
 
