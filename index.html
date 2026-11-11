@@ -161,7 +161,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:cen
 <!-- LANDING -->
 <div class="page" id="page-landing">
   <h1 class="land-title">Movies, Shows & More<br>Without Limits</h1>
-  <p class="land-sub">Watch anywhere. Cancel anytime.</p>
+  <p class="land-sub">Watch anywhere. Free to join.</p>
   <div class="land-form">
     <input class="land-email" id="landEmail" type="email" placeholder="Your email address" onkeydown="if(event.key==='Enter')handleGetStarted()">
     <button class="btn-red" onclick="handleGetStarted()">Get Started ›</button>
@@ -179,6 +179,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:cen
   <div class="box">
     <h2 class="box-title">Sign In</h2>
     <div class="msg err" id="loginMsg"></div>
+    <button class="link-btn" id="resendBtn" style="display:none;margin:-4px 0 10px" onclick="resendConfirm()">Resend confirmation email</button>
     <div class="field"><input type="email" id="liEmail" placeholder="e" autocomplete="email"><label>Email address</label></div>
     <div class="field"><input type="password" id="liPass" placeholder="p" autocomplete="current-password" onkeydown="if(event.key==='Enter')emailLogin()"><label>Password</label></div>
     <button class="btn-red" style="width:100%;margin-top:4px" id="loginBtn" onclick="emailLogin()">Sign In</button>
@@ -224,6 +225,18 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:cen
   </div>
 </div>
 
+<!-- SET NEW PASSWORD (reached from the reset-password email link) -->
+<div class="page" id="page-recover">
+  <div class="box">
+    <h2 class="box-title">Set New Password</h2>
+    <p style="font-size:.78rem;color:var(--muted);margin-bottom:18px">Choose a new password for your account.</p>
+    <div class="msg err" id="rcMsg"></div>
+    <div class="field"><input type="password" id="rcPass" placeholder="p" autocomplete="new-password"><label>New password (min 6 chars)</label></div>
+    <div class="field"><input type="password" id="rcPass2" placeholder="p" autocomplete="new-password" onkeydown="if(event.key==='Enter')submitNewPassword()"><label>Confirm new password</label></div>
+    <button class="btn-red" style="width:100%;margin-top:4px" id="rcBtn" onclick="submitNewPassword()">Update Password</button>
+  </div>
+</div>
+
 <!-- PROFILE SELECT -->
 <div class="page" id="page-profiles">
   <div style="font-family:'Bebas Neue',cursive;font-size:2.5rem;color:#fff;letter-spacing:2px;text-align:center;margin-bottom:32px">Who's Watching?</div>
@@ -243,6 +256,9 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:cen
 <script>
 let signupData   = {};
 let _inSignupFlow = false; // prevents handleSession from interfering during signup
+// True when the page was opened from a "reset password" email link. Checked synchronously,
+// before supabase-js consumes the URL, so we never auto-login a user who still has to set a new password.
+let _recoveryMode = /(^|[#&?])type=recovery/.test(location.hash + location.search) || /[?&]reset=1/.test(location.search);
 
 // ── CINEMATIC BACKGROUND ─────────────────────────────
 // Netflix-style login backdrop: crossfades between a few trending
@@ -284,16 +300,31 @@ PwdMeter.attach(document.getElementById('suPass'));
 
 // ── INIT ──────────────────────────────────────────
 (async () => {
+  // Expired / already-used email links come back with an error in the URL hash.
+  const hp = new URLSearchParams(location.hash.replace(/^#/, ''));
+  const linkErr = hp.get('error_description') || hp.get('error');
+
   const { data: { session } } = await getSB().auth.getSession();
-  if (session) {
+
+  if (!session && (linkErr || _recoveryMode)) {
+    _recoveryMode = false;
+    hideLoader(); showPage('login');
+    showMsg('loginMsg', '⚠️ This email link has expired or was already used. Use "Forgot password?" to get a new reset link, or resend the confirmation email.');
+    document.getElementById('resendBtn').style.display = 'inline-block';
+    history.replaceState(null, '', location.pathname);
+  } else if (session && _recoveryMode) {
+    hideLoader(); showPage('recover');                 // reset link → ask for a new password, do NOT auto-login
+    history.replaceState(null, '', location.pathname);
+  } else if (session) {
     await handleSession(session);
   } else {
     hideLoader(); showPage('landing');
   }
 
   getSB().auth.onAuthStateChange(async (event, session) => {
-    // Don't interfere while suStep3 is actively creating the account
-    if (_inSignupFlow) return;
+    if (event === 'PASSWORD_RECOVERY') { _recoveryMode = true; hideLoader(); showPage('recover'); return; }
+    // Don't interfere while suStep3 is creating the account, or while the user is setting a new password
+    if (_inSignupFlow || _recoveryMode) return;
     if (event === 'SIGNED_IN' && session) await handleSession(session);
   });
 })();
@@ -375,7 +406,38 @@ async function emailLogin() {
   const btn = document.getElementById('loginBtn');
   btn.textContent='Signing in...'; btn.disabled=true;
   const { error } = await Auth.signIn(email, pass);
-  if (error) { showMsg('loginMsg', errText(error.message)); btn.textContent='Sign In'; btn.disabled=false; }
+  if (error) {
+    showMsg('loginMsg', errText(error.message));
+    // Not confirmed yet → let them ask for a fresh confirmation email
+    document.getElementById('resendBtn').style.display = /not confirmed/i.test(error.message) ? 'inline-block' : 'none';
+    btn.textContent='Sign In'; btn.disabled=false;
+  }
+}
+
+async function resendConfirm() {
+  const email = document.getElementById('liEmail').value.trim();
+  if (!email) { showMsg('loginMsg','Please enter your email first'); return; }
+  const btn = document.getElementById('resendBtn');
+  btn.disabled = true;
+  const { error } = await Auth.resendConfirmation(email);
+  if (error) showMsg('loginMsg', errText(error.message));
+  else showMsg('loginMsg', '✅ Confirmation email sent to ' + email + '. Check Inbox and Spam/Promotions.', true);
+  setTimeout(() => { btn.disabled = false; }, 60000);   // Supabase allows one email per minute
+}
+
+async function submitNewPassword() {
+  const p1 = document.getElementById('rcPass').value;
+  const p2 = document.getElementById('rcPass2').value;
+  if (p1.length < 6) { showMsg('rcMsg','Password must be at least 6 characters'); return; }
+  if (p1 !== p2)     { showMsg('rcMsg','Passwords do not match'); return; }
+  const btn = document.getElementById('rcBtn');
+  btn.textContent = 'Updating...'; btn.disabled = true;
+  const { error } = await getSB().auth.updateUser({ password: p1 });
+  if (error) { showMsg('rcMsg', errText(error.message)); btn.textContent = 'Update Password'; btn.disabled = false; return; }
+  showMsg('rcMsg', '✅ Password updated! Signing you in…', true);
+  _recoveryMode = false;
+  const { data: { session } } = await getSB().auth.getSession();
+  setTimeout(() => { if (session) handleSession(session); else showPage('login'); }, 900);
 }
 
 // ── FORGOT ────────────────────────────────────────
@@ -383,8 +445,8 @@ async function forgotPass() {
   const email = document.getElementById('liEmail').value.trim();
   if (!email) { showMsg('loginMsg','Please enter your email first'); return; }
   const { error } = await Auth.resetPassword(email);
-  if (error) showMsg('loginMsg', error.message);
-  else showMsg('loginMsg','✅ Reset email sent!', true);
+  if (error) showMsg('loginMsg', errText(error.message));
+  else showMsg('loginMsg','✅ If this email is registered, a reset link is on its way. Check Inbox and Spam/Promotions.', true);
 }
 
 // ── SIGNUP ────────────────────────────────────────
@@ -413,11 +475,26 @@ async function suStep3() {
       btn.textContent = 'Start Watching →'; btn.disabled = false;
       jumpStep(1); return;
     }
+    // Supabase hides "email already registered" (anti-enumeration): it returns a user with NO identities
+    // and sends no email. Without this check the user is told "account created" and waits for a mail that never comes.
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      _inSignupFlow = false;
+      btn.textContent = 'Start Watching →'; btn.disabled = false;
+      jumpStep(1);
+      document.getElementById('liEmail').value = signupData.email;
+      showPage('login');
+      showMsg('loginMsg', '⚠️ This email is already registered. Please sign in, or use "Forgot password?".');
+      return;
+    }
     uid = data.user?.id;
     if (!data.session) {
       _inSignupFlow = false;
+      btn.textContent = 'Start Watching →'; btn.disabled = false;
+      jumpStep(1);
+      document.getElementById('liEmail').value = signupData.email;
       showPage('login');
-      showMsg('loginMsg', '✅ Account created! Please confirm your email, then sign in.', true);
+      showMsg('loginMsg', '✅ Account created! We sent a confirmation link to ' + signupData.email + '. Check Inbox and Spam/Promotions, confirm, then sign in.', true);
+      document.getElementById('resendBtn').style.display = 'inline-block';
       return;
     }
   }
@@ -489,6 +566,12 @@ function errText(m) {
     'signup_disabled':                        '⚠️ Registration is currently disabled',
     'over_request_rate_limit':                '⏳ Too many requests — please wait a moment',
     'Network request failed':                 '🌐 Please check your internet connection',
+    'only request this after':                '⏳ Please wait a minute before requesting another email',
+    'rate limit':                             '⏳ Too many emails requested — please try again later',
+    'not authorized':                         '⚠️ We could not send the email right now. Please try again later or contact support.',
+    'error sending':                          '⚠️ We could not send the email right now. Please try again later or contact support.',
+    'should be different from the old':       '⚠️ Please choose a password different from your old one',
+    'session missing':                        '⚠️ This reset link has expired. Please request a new one.',
   };
   for (const [k, v] of Object.entries(map)) {
     if (m.toLowerCase().includes(k.toLowerCase())) return v;
