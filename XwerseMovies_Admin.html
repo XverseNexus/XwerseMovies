@@ -29,11 +29,6 @@
 <meta name="apple-mobile-web-app-title" content="XwerseMovies">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="xwerse-config.js"></script>
-<!-- Vercel Web Analytics -->
-<script>
-  window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
-</script>
-<script defer src="/_vercel/insights/script.js"></script>
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -282,7 +277,6 @@ nav{background:#111;border-bottom:1px solid var(--border);padding:0 22px;height:
     <button class="sbtn" id="sbModBtn" onclick="nav('moderators',this)" style="display:none"><span class="sbico">🛡️</span> Moderators</button>
     <div class="sblbl">Requests</div>
     <button class="sbtn" onclick="nav('requests',this)"><span class="sbico">📋</span> Manage Requests <span class="sbcnt" id="sbReqCnt">0</span></button>
-    <button class="sbtn" onclick="nav('pendingpayments',this)"><span class="sbico">⚠️</span> Pending Payments <span class="sbcnt" id="sbPendPayCnt">0</span></button>
   </aside>
 
   <main class="main">
@@ -575,14 +569,15 @@ nav{background:#111;border-bottom:1px solid var(--border);padding:0 22px;height:
     <!-- REQUESTS -->
     <div class="panel" id="panel-requests">
       <div class="ptit">Manage Requests</div>
-      <div class="psub">Review, fulfill, and track user Pay-Per-Request submissions</div>
+      <div class="psub">Only paid requests appear here. Paste the watch link and tap <b>Give Access</b> — the user is notified automatically.</div>
 
       <div class="fc" style="margin-bottom:16px">
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
           <input type="text" id="reqSearch" class="fi" placeholder="Search by title, name or email..."
             style="flex:2;min-width:200px" onkeydown="if(event.key==='Enter')loadRequests()">
           <select id="reqStatusFilter" class="fsel" style="flex:1;min-width:150px" onchange="loadRequests()">
-            <option value="">All Statuses</option>
+            <option value="todo" selected>Needs access (default)</option>
+            <option value="">All Paid Requests</option>
             <option value="pending">Pending</option>
             <option value="accepted">Accepted</option>
             <option value="processing">Processing</option>
@@ -595,20 +590,6 @@ nav{background:#111;border-bottom:1px solid var(--border);padding:0 22px;height:
       </div>
 
       <div id="reqList">
-        <div style="font-size:.8rem;color:var(--muted)">Loading...</div>
-      </div>
-    </div>
-
-    <!-- PENDING / UNMATCHED PAYMENTS -->
-    <div class="panel" id="panel-pendingpayments">
-      <div class="ptit">Pending Payments</div>
-      <div class="psub">Requests stuck at payment_status='pending' — usually because the user paid on the Cashfree Payment Form with a different email than their site login, so the webhook couldn't auto-match it. Check the Cashfree dashboard's transaction logs (by amount/time) to confirm a payment actually went through before marking one as paid here.</div>
-
-      <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
-        <button class="btn-add" onclick="loadPendingPayments()">🔄 Refresh</button>
-      </div>
-
-      <div id="pendingPaymentsList">
         <div style="font-size:.8rem;color:var(--muted)">Loading...</div>
       </div>
     </div>
@@ -763,7 +744,6 @@ function nav(name, btn) {
   if (name === 'export')      loadExportCount();
   if (name === 'moderators')  loadModerators();
   if (name === 'requests')    loadRequests();
-  if (name === 'pendingpayments') loadPendingPayments();
   if (name === 'unavailable') { document.getElementById('unavailableResults').innerHTML=''; document.getElementById('checkStatus').textContent=''; document.getElementById('checkProgress').style.display='none'; }
 }
 
@@ -1810,17 +1790,19 @@ async function loadRequests() {
 
   const status = document.getElementById('reqStatusFilter').value;
   const search = document.getElementById('reqSearch').value.trim();
-  const items  = await DB.getAllRequests({ status: status || null, search });
+  // "todo" = paid requests still waiting for you to give access
+  let items = await DB.getAllRequests({ status: (status && status !== 'todo') ? status : null, search });
+  if (status === 'todo') items = items.filter(r => r.status !== 'completed' && r.status !== 'rejected');
 
   const cntEl = document.getElementById('sbReqCnt');
   if (cntEl) {
-    const pendingCount = items.filter(r => r.status === 'pending').length;
+    const pendingCount = items.filter(r => r.status !== 'completed' && r.status !== 'rejected').length;
     cntEl.textContent = pendingCount;
     cntEl.style.display = pendingCount ? 'inline-block' : 'none';
   }
 
   if (!items.length) {
-    el.innerHTML = `<div class="empty"><div class="empty-ico">📋</div><div style="font-size:.84rem;color:var(--muted)">No requests found</div></div>`;
+    el.innerHTML = `<div class="empty"><div class="empty-ico">📋</div><div style="font-size:.84rem;color:var(--muted)">No paid requests waiting for you 🎉</div></div>`;
     return;
   }
 
@@ -1834,14 +1816,20 @@ function reqCardHTML(r) {
     : (Xwerse.REQUEST_PRICES[r.request_type]?.label || r.request_type);
   const date = new Date(r.created_at).toLocaleString('en-IN', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
   const statuses = ['pending','accepted','processing','uploading','completed','rejected'];
+  const done = r.status === 'completed', rejected = r.status === 'rejected';
+  const hint = r.request_type === 'movie'
+    ? 'Paste the Voe / Filemoon embed link (one link).'
+    : (r.request_type === 'series'
+        ? 'One line per episode: <code>S1E1 https://…</code> then <code>S1E2 https://…</code>'
+        : 'One line per episode: <code>E1 https://…</code> then <code>E2 https://…</code>');
 
   return `
-    <div class="unavail-row" style="align-items:flex-start;flex-direction:column;gap:10px" id="reqCard-${r.id}">
+    <div class="unavail-row" style="align-items:flex-start;flex-direction:column;gap:12px" id="reqCard-${r.id}">
       <div style="display:flex;gap:12px;width:100%;flex-wrap:wrap">
         <img src="${escAttr(r.poster_url||'')}" onerror="this.style.visibility='hidden'" style="width:52px;height:78px;object-fit:cover;border-radius:5px;background:#2a2a2a;flex-shrink:0">
         <div style="flex:1;min-width:180px">
           <div style="font-weight:700;color:#fff;font-size:.92rem">${escHtml(r.title)}</div>
-          <div style="font-size:.72rem;color:var(--muted);margin-top:3px">${escHtml(typeLabel)} · ₹${r.price} · ${escHtml(r.preferred_language||'—')} · ${r.preferred_quality==='highest'?'⭐ Highest':escHtml(r.preferred_quality||'—')}</div>
+          <div style="font-size:.72rem;color:var(--muted);margin-top:3px">${escHtml(typeLabel)} · ₹${r.price} paid · ${escHtml(r.preferred_language||'—')} · ${r.preferred_quality==='highest'?'⭐ Highest':escHtml(r.preferred_quality||'—')}</div>
           <div style="font-size:.72rem;color:var(--muted);margin-top:2px">👤 ${escHtml(r.user_name||'Unknown')} (${escHtml(r.user_email||'')})</div>
           <div style="font-size:.68rem;color:rgba(255,255,255,.35);margin-top:2px">${date}</div>
           ${r.notes ? `<div style="font-size:.72rem;color:rgba(255,255,255,.5);margin-top:4px;font-style:italic">"${escHtml(r.notes)}"</div>` : ''}
@@ -1849,29 +1837,67 @@ function reqCardHTML(r) {
         <span class="esrc" style="background:${st.color}22;border-color:${st.color}55;color:${st.color};align-self:flex-start">● ${escHtml(st.label)}</span>
       </div>
 
-      <div style="display:flex;gap:6px;flex-wrap:wrap;width:100%">
-        ${statuses.map(s => `<button onclick="setReqStatus('${r.id}','${s}')" style="background:${r.status===s?Xwerse.REQUEST_STATUS[s].color+'33':'rgba(255,255,255,.05)'};border:1px solid ${r.status===s?Xwerse.REQUEST_STATUS[s].color+'88':'rgba(255,255,255,.12)'};color:${r.status===s?Xwerse.REQUEST_STATUS[s].color:'rgba(255,255,255,.6)'};padding:5px 11px;border-radius:5px;cursor:pointer;font-size:.7rem;font-weight:600;font-family:'Barlow',sans-serif">${Xwerse.REQUEST_STATUS[s].label}</button>`).join('')}
+      ${rejected ? '' : `
+      <div class="fw" style="width:100%">
+        <label style="font-size:.7rem">🎬 Watch link(s) — ${hint}</label>
+        <textarea id="reqWatch-${r.id}" rows="${r.request_type==='movie'?1:4}" placeholder="https://..." style="font-family:monospace;font-size:.76rem">${escHtml(r.watch_url||'')}</textarea>
       </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;width:100%">
+        ${done ? '' : `<button onclick="rejectReq('${r.id}')" style="background:rgba(229,9,20,.12);border:1px solid rgba(229,9,20,.4);color:#ff6b6b;padding:9px 16px;border-radius:5px;font-weight:600;font-size:.8rem;cursor:pointer">❌ Reject &amp; refund</button>`}
+        <button class="btn-add" onclick="grantAccess('${r.id}')">${done ? '💾 Update link' : '✅ Give Access'}</button>
+      </div>`}
 
-      <div class="fg" style="width:100%;margin-bottom:0">
-        <div class="fw"><label style="font-size:.68rem">Watch URL(s) — this user's personal embed for this title (others still see the normal version).<br>Movie: one link. Season request: one line per episode → <code>E1 https://...</code>. Series request: <code>S1E1 https://...</code>. A plain link on its own line works for any episode.</label><textarea id="reqWatch-${r.id}" rows="${r.request_type==='movie'?1:5}" placeholder="${r.request_type==='series'?'S1E1 https://...&#10;S1E2 https://...':(r.request_type==='season'?'E1 https://...&#10;E2 https://...':'https://...')}" style="font-family:monospace;font-size:.74rem">${escHtml(r.watch_url||'')}</textarea>
+      <details style="width:100%;border-top:1px solid rgba(255,255,255,.07);padding-top:8px">
+        <summary style="font-size:.72rem;color:var(--muted);cursor:pointer">More options</summary>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${statuses.map(s2 => `<button onclick="setReqStatus('${r.id}','${s2}')" style="background:${r.status===s2?Xwerse.REQUEST_STATUS[s2].color+'33':'rgba(255,255,255,.05)'};border:1px solid ${r.status===s2?Xwerse.REQUEST_STATUS[s2].color+'88':'rgba(255,255,255,.1)'};color:${r.status===s2?Xwerse.REQUEST_STATUS[s2].color:'rgba(255,255,255,.55)'};padding:5px 11px;border-radius:4px;font-size:.7rem;font-weight:600;cursor:pointer">${escHtml(Xwerse.REQUEST_STATUS[s2].label)}</button>`).join('')}
+          </div>
+          ${rejected ? `<div class="fw"><label style="font-size:.68rem">Watch link(s)</label><textarea id="reqWatch-${r.id}" rows="2">${escHtml(r.watch_url||'')}</textarea></div>` : ''}
+          <div class="fw"><label style="font-size:.68rem">Download URL</label><input type="text" id="reqDownload-${r.id}" value="${escAttr(r.download_url||'')}" placeholder="https://..."></div>
+          <div class="fw"><label style="font-size:.68rem">Direct video URL (https only, plays in the built-in player)</label>
+            <div style="display:flex;gap:8px"><input type="text" id="reqDirect-${r.id}" value="${escAttr(r.direct_url||'')}" placeholder="https://..." style="flex:1"><button type="button" class="btn-add" style="padding:0 14px" onclick="testDirectUrl('${r.id}')">▶ Test</button></div></div>
+          <div class="fw"><label style="font-size:.68rem">Admin notes (internal)</label><textarea id="reqNotes-${r.id}" placeholder="Internal notes...">${escHtml(r.admin_notes||'')}</textarea></div>
+          <button class="btn-add" onclick="saveReqDetails('${r.id}')" style="align-self:flex-end">💾 Save these</button>
         </div>
-        <div class="fw"><label style="font-size:.68rem">Download URL</label><input type="text" id="reqDownload-${r.id}" value="${escAttr(r.download_url||'')}" placeholder="https://...">
-        </div>
-      </div>
-      <div class="fw" style="width:100%">
-        <label style="font-size:.68rem">🎬 Direct video URL (Telegram stream link, https:// only — plays in the built-in player, only for this requester)</label>
-        <div style="display:flex;gap:8px">
-          <input type="text" id="reqDirect-${r.id}" value="${escAttr(r.direct_url||'')}" placeholder="https://your-stream-bot.example/stream/123?hash=..." style="flex:1">
-          <button type="button" class="btn-add" style="padding:0 14px" onclick="testDirectUrl('${r.id}')">▶ Test</button>
-        </div>
-      </div>
-      <div class="fw" style="width:100%">
-        <label style="font-size:.68rem">Admin Notes (internal, not shown to user's requests list beyond status)</label>
-        <textarea id="reqNotes-${r.id}" placeholder="Internal notes...">${escHtml(r.admin_notes||'')}</textarea>
-      </div>
-      <button class="btn-add" onclick="saveReqDetails('${r.id}')" style="align-self:flex-end">💾 Save Links &amp; Notes</button>
+      </details>
     </div>`;
+}
+
+// ── One-tap actions (server-side: saves link, sets status, notifies the user) ──
+async function callRequestApi(payload) {
+  const { data: sess } = await getSB().auth.getSession();
+  const token = sess?.session?.access_token;
+  if (!token) { showToast('❌ Please sign in again'); return null; }
+  try {
+    const res = await fetch('/api/grant-request-access', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { showToast('❌ ' + (data.error || 'Something went wrong')); return null; }
+    return data;
+  } catch (e) { showToast('❌ Network error — try again'); return null; }
+}
+
+async function grantAccess(id) {
+  const links = document.getElementById(`reqWatch-${id}`).value.split(/\r?\n/).map(l => l.trim()).filter(Boolean).join('\n');
+  if (!links) { showToast('❌ Paste the watch link first'); return; }
+  const wl = Xwerse.parseEpisodeLinks(links);
+  if (wl.bad.length) { showToast('❌ Line ' + wl.bad.join(', ') + ' is not valid. Use: E1 https://… or S1E1 https://…'); return; }
+  const out = await callRequestApi({ id, action: 'grant', watch_url: links });
+  if (!out) return;
+  showToast('✅ Access given — the user has been notified');
+  loadRequests();
+}
+
+async function rejectReq(id) {
+  if (!confirm('Reject this request? The user will be told a refund is coming. Refund the payment from the Cashfree dashboard (Transactions → Refund).')) return;
+  const out = await callRequestApi({ id, action: 'reject' });
+  if (!out) return;
+  showToast('✅ Rejected — now refund it in Cashfree');
+  loadRequests();
 }
 
 async function setReqStatus(id, status) {
@@ -1916,62 +1942,6 @@ async function saveReqDetails(id) {
   });
   if (error) { showToast('❌ Could not save changes'); return; }
   showToast('✅ Saved');
-}
-
-// ─────────────────────────────────────────
-//  PENDING / UNMATCHED PAYMENTS (manual reconciliation fallback for
-//  when the Cashfree Payment Forms webhook can't auto-match a payment —
-//  e.g. user paid with a different email than their site login)
-// ─────────────────────────────────────────
-async function loadPendingPayments() {
-  const el = document.getElementById('pendingPaymentsList');
-  el.innerHTML = `<div class="sk" style="height:200px;border-radius:6px"></div>`;
-
-  const items = await DB.getPendingPaymentRequests();
-
-  const cntEl = document.getElementById('sbPendPayCnt');
-  if (cntEl) {
-    cntEl.textContent = items.length;
-    cntEl.style.display = items.length ? 'inline-block' : 'none';
-  }
-
-  if (!items.length) {
-    el.innerHTML = `<div class="empty"><div class="empty-ico">✅</div><div style="font-size:.84rem;color:var(--muted)">No pending/unmatched payments</div></div>`;
-    return;
-  }
-
-  el.innerHTML = items.map(r => pendingPayCardHTML(r)).join('');
-}
-
-function pendingPayCardHTML(r) {
-  const typeLabel = r.request_type === 'season'
-    ? `Season ${r.season_number || ''}`.trim()
-    : (Xwerse.REQUEST_PRICES[r.request_type]?.label || r.request_type);
-  const date = new Date(r.created_at).toLocaleString('en-IN', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
-
-  return `
-    <div class="unavail-row" style="align-items:flex-start;flex-direction:column;gap:10px" id="pendPayCard-${r.id}">
-      <div style="display:flex;gap:12px;width:100%;flex-wrap:wrap">
-        <img src="${escAttr(r.poster_url||'')}" onerror="this.style.visibility='hidden'" style="width:52px;height:78px;object-fit:cover;border-radius:5px;background:#2a2a2a;flex-shrink:0">
-        <div style="flex:1;min-width:180px">
-          <div style="font-weight:700;color:#fff;font-size:.92rem">${escHtml(r.title)}</div>
-          <div style="font-size:.72rem;color:var(--muted);margin-top:3px">${escHtml(typeLabel)} · ₹${r.price}</div>
-          <div style="font-size:.72rem;color:var(--muted);margin-top:2px">👤 ${escHtml(r.user_name||'Unknown')} (${escHtml(r.user_email||'')})</div>
-          <div style="font-size:.68rem;color:rgba(255,255,255,.35);margin-top:2px">Created ${date}</div>
-        </div>
-        <span class="esrc" style="background:#f5c51822;border-color:#f5c51855;color:#f5c518;align-self:flex-start">● Pending</span>
-      </div>
-      <button class="btn-add" onclick="markAsPaidManual('${r.id}','${escAttr(r.title).replace(/'/g,"\\'")}')" style="align-self:flex-end">✅ Mark as Paid</button>
-    </div>`;
-}
-
-async function markAsPaidManual(id, title) {
-  if (!confirm(`Confirm: has "${title}"'s payment actually been received in Cashfree? This will mark it paid and make it show up in Manage Requests / My Requests.`)) return;
-
-  const { error } = await DB.markRequestPaid(id);
-  if (error) { showToast('❌ Could not update payment status'); return; }
-  showToast('✅ Marked as paid');
-  loadPendingPayments();
 }
 
 function escHtml(s) {
