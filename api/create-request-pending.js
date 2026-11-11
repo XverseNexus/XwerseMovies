@@ -101,6 +101,41 @@ module.exports = async function handler(req, res) {
   };
 
   try {
+    // ── Housekeeping: unpaid/failed attempts older than 48h are just clutter ──
+    // (best-effort; never blocks the request)
+    const cutoff = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
+    fetch(`${SUPABASE_URL}/rest/v1/requests?payment_status=in.(pending,failed)&created_at=lt.${encodeURIComponent(cutoff)}`, {
+      method: 'DELETE', headers: restHeaders,
+    }).catch(() => {});
+
+    // ── Already requested & paid? Block a second request for the same thing ──
+    // Active = paid and not rejected. A rejected request (refunded) may be requested again.
+    const paidRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/requests?user_id=eq.${encodeURIComponent(user.id)}`
+      + `&payment_status=eq.paid&status=neq.rejected&select=id,request_type,season_number,tmdb_id,title,status`,
+      { headers: restHeaders }
+    );
+    const paidRows = paidRes.ok ? await paidRes.json() : [];
+    const sameTitle = (r) => tmdb_id ? String(r.tmdb_id) === String(tmdb_id) : (!r.tmdb_id && r.title === title);
+    const dup = (Array.isArray(paidRows) ? paidRows : []).find(r => {
+      if (!sameTitle(r)) return false;
+      if (request_type === 'movie')  return r.request_type === 'movie';
+      if (request_type === 'series') return r.request_type === 'series';
+      // season: duplicate if that same season, or the complete series, is already paid
+      return r.request_type === 'series'
+          || (r.request_type === 'season' && Number(r.season_number) === Number(season_number || 1));
+    });
+    if (dup) {
+      res.status(409).json({
+        error: dup.status === 'completed'
+          ? 'You have already requested this — it is ready in My Requests.'
+          : 'You have already requested this and paid for it. It is being processed — see My Requests.',
+        already_requested: true,
+        request_id: dup.id,
+      });
+      return;
+    }
+
     // ── Reuse an existing pending row for the same thing ──
     let q = `${SUPABASE_URL}/rest/v1/requests`
       + `?user_id=eq.${encodeURIComponent(user.id)}`
