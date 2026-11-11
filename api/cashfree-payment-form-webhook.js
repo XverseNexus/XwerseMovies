@@ -28,7 +28,7 @@
 // Configure in Cashfree Dashboard → Developers → Webhooks, subscribed to
 // PAYMENT_SUCCESS_WEBHOOK, PAYMENT_FAILED_WEBHOOK, and
 // PAYMENT_USER_DROPPED_WEBHOOK, pointing at:
-//   https://xwerse-movies.vercel.app/api/cashfree-payment-form-webhook
+//   https://xwersemovies.bond/api/cashfree-payment-form-webhook
 
 const crypto = require('crypto');
 
