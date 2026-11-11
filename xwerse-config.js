@@ -129,7 +129,18 @@ const Auth = {
   async signUp(email, password, name) {
     return getSB().auth.signUp({
       email, password,
-      options: { data: { full_name: name } }
+      options: {
+        data: { full_name: name },
+        emailRedirectTo: window.location.origin + '/index.html'   // confirmation link lands back on the sign-in page
+      }
+    });
+  },
+
+  // Re-send the signup confirmation email
+  async resendConfirmation(email) {
+    return getSB().auth.resend({
+      type: 'signup', email,
+      options: { emailRedirectTo: window.location.origin + '/index.html' }
     });
   },
 
