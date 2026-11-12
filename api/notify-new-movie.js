@@ -85,7 +85,7 @@ module.exports = async function handler(req, res) {
     const label = type === 'tv' ? 'show' : 'movie';
     const rows = profiles.map((p) => ({
       user_id: p.id,
-      title: '🎬 New on XwerseMovies',
+      title: 'New on XwerseMovies',
       body: `${title} — naya ${label} ab available hai, abhi dekho!`,
       image_url: image_url || null,
       is_read: false,
