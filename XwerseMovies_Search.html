@@ -29,16 +29,6 @@
 <script>if('serviceWorker'in navigator){var _xvR=false;navigator.serviceWorker.addEventListener('controllerchange',function(){if(!_xvR){_xvR=true;location.reload();}});}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="xwerse-config.js"></script>
-<!-- Vercel Web Analytics -->
-<script>
-  window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
-</script>
-<script defer src="/_vercel/insights/script.js"></script>
-<!-- Vercel Speed Insights -->
-<script>
-  window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
-</script>
-<script defer src="/_vercel/speed-insights/script.js"></script>
 <style>
 :root{
       /* Brand */
@@ -388,6 +378,8 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;min-
   #searchSection{top:56px;padding-top:72px}
 }
 </style>
+<script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
+<script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
 
@@ -485,6 +477,7 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;min-
         <button class="mpl" id="mPlayBtn">&#9654; Play</button>
         <button class="mad" id="mAddBtn">+ My List</button>
         <span id="mThumbsSlot"></span>
+        <button class="mad" onclick="XShare.share(_curMovie)" aria-label="Share" style="display:inline-flex;align-items:center;gap:7px"><span id="shareIco" style="display:inline-flex"></span>Share</button>
         <button class="mad" onclick="closeMod()">✕ Close</button>
       </div>
       <div class="ep-wrap" id="bEpWrap" style="display:none">
@@ -804,6 +797,7 @@ async function addML(m) {
 function openMod(m) {
   if (!m) return;
   _curMovie = m;
+  var _si = document.getElementById('shareIco'); if (_si) _si.innerHTML = XShare.ICON;
   document.body.style.overflow = 'hidden';
   var isTV  = m.type === 'tv', k = _reg(m), tvF = isTV ? '1' : '0';
   var match = Math.round(65 + parseFloat(m.rating||m.vote_average||7) * 3.5);
