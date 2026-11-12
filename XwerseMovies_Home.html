@@ -29,16 +29,6 @@
 <meta name="apple-mobile-web-app-title" content="XwerseMovies">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="xwerse-config.js"></script>
-<!-- Vercel Web Analytics -->
-<script>
-  window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
-</script>
-<script defer src="/_vercel/insights/script.js"></script>
-<!-- Vercel Speed Insights -->
-<script>
-  window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
-</script>
-<script defer src="/_vercel/speed-insights/script.js"></script>
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -241,6 +231,8 @@ nav.solid{background:rgba(8,8,8,.97);backdrop-filter:blur(10px);border-bottom:1p
   .mnav-lbl{font-size:.56rem;font-weight:600;letter-spacing:.1px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:clip}
 }
 </style>
+<script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
+<script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
 
@@ -349,6 +341,7 @@ nav.solid{background:rgba(8,8,8,.97);backdrop-filter:blur(10px);border-bottom:1p
         <button class="modal-play" id="modalPlayBtn">▶ Play</button>
         <button class="modal-add" id="modalAddBtn">＋ My List</button>
         <span id="modalThumbsSlot"></span>
+        <button class="modal-add" id="modalShareBtn" onclick="XShare.share(modalMovie)" aria-label="Share" title="Share" style="display:inline-flex;align-items:center;gap:7px"><span style="display:inline-flex" id="modalShareIco"></span>Share</button>
         <button class="modal-add" onclick="closeModal()">✕ Close</button>
       </div>
       <!-- EPISODE PICKER — shown only for TV shows -->
@@ -473,6 +466,9 @@ let _cachedRowData = null;
   thrillerGenre
 );
 
+  // Opened from a shared link (?t=<tmdb id>&type=movie|tv) → show that title's details
+  openSharedTitle(adminMovies);
+
   // Task 14: live sync — if My List or Continue Watching changes in
   // another tab/device, quietly refresh just those two rows here
   // (uses the cached TMDB data above, so this stays cheap).
@@ -481,6 +477,20 @@ let _cachedRowData = null;
     onCWChange:     refreshLiveRows,
   });
 })();
+
+async function openSharedTitle(adminMovies) {
+  const tgt = XShare.linkTarget();
+  if (!tgt) return;
+  XShare.clearLink();
+  try {
+    let m = (adminMovies || []).find(x => String(x.tmdb_id) === String(tgt.id) && (x.type === tgt.type || !x.type));
+    if (!m) {
+      const d = tgt.type === 'tv' ? await TMDB.tvDetails(tgt.id) : await TMDB.movieDetails(tgt.id);
+      if (d && d.id) m = TMDB.normalize({ ...d, media_type: tgt.type });
+    }
+    if (m) openModal(m); else showToast('This title is not available right now');
+  } catch (e) { showToast('Could not open this title'); }
+}
 
 // Re-fetch only the user-specific rows (Continue Watching + My List)
 // and rebuild the row list, reusing the cached TMDB rows so we don't
@@ -828,6 +838,7 @@ function openModal(m) {
   document.getElementById('modalPlayBtn').textContent  = isTV ? '▶ Play S1 E1' : '▶ Play';
   document.getElementById('modalPlayBtn').onclick = () => { closeModal(); playMovie(m, 1, 1); };
   document.getElementById('modalAddBtn').onclick = () => mlToggle(m);
+  document.getElementById('modalShareIco').innerHTML = XShare.ICON;
 
   // Show/hide episode picker
   const epWrap = document.getElementById('epWrap');
