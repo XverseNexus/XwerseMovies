@@ -76,7 +76,7 @@ module.exports = async function handler(req, res) {
       // Only notify the first time access is given (not on later link edits)
       if (row.status !== 'completed') {
         notif = {
-          title: '🎬 Your request is ready!',
+          title: 'Your request is ready',
           body: `"${row.title}" is ready to watch. Open My Requests and tap Watch Now.`,
         };
       }
