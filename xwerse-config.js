@@ -2082,11 +2082,12 @@ const XvNotif = {
 const XShare = {
   ICON: '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>',
 
+  /* Always the real domain (even if opened on an old *.vercel.app link) — /s/<type>/<id>
+     serves a per-title preview card (api/share.js) and then opens the title on Home. */
   url(m) {
     const id = m && (m.tmdb_id || (m.type === 'tv' ? m.id : null));
-    const u = new URL('XwerseMovies_Home.html', location.origin + '/');
-    if (id) { u.searchParams.set('t', id); u.searchParams.set('type', m.type === 'tv' ? 'tv' : 'movie'); }
-    return u.toString();
+    const base = 'https://xwersemovies.bond';
+    return id ? `${base}/s/${m.type === 'tv' ? 'tv' : 'movie'}/${id}` : base + '/XwerseMovies_Home.html';
   },
 
   async share(m) {
