@@ -29,11 +29,6 @@
 <meta name="apple-mobile-web-app-title" content="XwerseMovies">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="xwerse-config.js"></script>
-<!-- Vercel Speed Insights -->
-<script>
-  window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
-</script>
-<script defer src="/_vercel/speed-insights/script.js"></script>
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -583,10 +578,6 @@ nav{background:#111;border-bottom:1px solid var(--border);padding:0 22px;height:
           <select id="reqStatusFilter" class="fsel" style="flex:1;min-width:150px" onchange="loadRequests()">
             <option value="todo" selected>Needs access (default)</option>
             <option value="">All Paid Requests</option>
-            <option value="pending">Pending</option>
-            <option value="accepted">Accepted</option>
-            <option value="processing">Processing</option>
-            <option value="uploading">Uploading</option>
             <option value="completed">Completed</option>
             <option value="rejected">Rejected</option>
           </select>
@@ -1820,7 +1811,6 @@ function reqCardHTML(r) {
     ? `Season ${r.season_number || ''}`.trim()
     : (Xwerse.REQUEST_PRICES[r.request_type]?.label || r.request_type);
   const date = new Date(r.created_at).toLocaleString('en-IN', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
-  const statuses = ['pending','accepted','processing','uploading','completed','rejected'];
   const done = r.status === 'completed', rejected = r.status === 'rejected';
   const hint = r.request_type === 'movie'
     ? 'Paste the Voe / Filemoon embed link (one link).'
@@ -1855,10 +1845,6 @@ function reqCardHTML(r) {
       <details style="width:100%;border-top:1px solid rgba(255,255,255,.07);padding-top:8px">
         <summary style="font-size:.72rem;color:var(--muted);cursor:pointer">More options</summary>
         <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
-            ${statuses.map(s2 => `<button onclick="setReqStatus('${r.id}','${s2}')" style="background:${r.status===s2?Xwerse.REQUEST_STATUS[s2].color+'33':'rgba(255,255,255,.05)'};border:1px solid ${r.status===s2?Xwerse.REQUEST_STATUS[s2].color+'88':'rgba(255,255,255,.1)'};color:${r.status===s2?Xwerse.REQUEST_STATUS[s2].color:'rgba(255,255,255,.55)'};padding:5px 11px;border-radius:4px;font-size:.7rem;font-weight:600;cursor:pointer">${escHtml(Xwerse.REQUEST_STATUS[s2].label)}</button>`).join('')}
-          </div>
-          ${rejected ? `<div class="fw"><label style="font-size:.68rem">Watch link(s)</label><textarea id="reqWatch-${r.id}" rows="2">${escHtml(r.watch_url||'')}</textarea></div>` : ''}
           <div class="fw"><label style="font-size:.68rem">Download URL</label><input type="text" id="reqDownload-${r.id}" value="${escAttr(r.download_url||'')}" placeholder="https://..."></div>
           <div class="fw"><label style="font-size:.68rem">Direct video URL (https only, plays in the built-in player)</label>
             <div style="display:flex;gap:8px"><input type="text" id="reqDirect-${r.id}" value="${escAttr(r.direct_url||'')}" placeholder="https://..." style="flex:1"><button type="button" class="btn-add" style="padding:0 14px" onclick="testDirectUrl('${r.id}')">▶ Test</button></div></div>
@@ -1905,13 +1891,6 @@ async function rejectReq(id) {
   loadRequests();
 }
 
-async function setReqStatus(id, status) {
-  const { error } = await DB.updateRequestStatus(id, status);
-  if (error) { showToast('❌ Could not update status'); return; }
-  showToast(`✅ Marked as ${Xwerse.REQUEST_STATUS[status].label}`);
-  loadRequests();
-}
-
 function testDirectUrl(id) {
   const u = document.getElementById(`reqDirect-${id}`).value.trim();
   if (!/^https:\/\/[^\s]+$/i.test(u)) { showToast('❌ Enter a valid https:// link first'); return; }
@@ -1919,16 +1898,6 @@ function testDirectUrl(id) {
 }
 
 async function saveReqDetails(id) {
-  const watch_url    = document.getElementById(`reqWatch-${id}`).value.split(/\r?\n/).map(l => l.trim()).filter(Boolean).join('\n');
-  const wl = Xwerse.parseEpisodeLinks(watch_url);
-  if (wl.bad.length) {
-    showToast('❌ Watch URL line ' + wl.bad.join(', ') + ' is not valid. Use: E1 https://... or S1E1 https://...');
-    return;
-  }
-  if (/(^|\s)http:\/\//i.test(watch_url)) {
-    showToast('❌ Watch URL must start with https:// (http is blocked on an https site)');
-    return;
-  }
   const download_url = document.getElementById(`reqDownload-${id}`).value.trim();
   const admin_notes  = document.getElementById(`reqNotes-${id}`).value.trim();
   const direct_url   = document.getElementById(`reqDirect-${id}`).value.trim();
@@ -1940,7 +1909,6 @@ async function saveReqDetails(id) {
   }
 
   const { error } = await DB.updateRequestFull(id, {
-    watch_url: watch_url || null,
     download_url: download_url || null,
     direct_url: direct_url || null,
     admin_notes: admin_notes || null,
