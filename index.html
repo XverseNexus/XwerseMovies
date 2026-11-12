@@ -27,16 +27,6 @@
 <meta name="apple-mobile-web-app-title" content="XwerseMovies">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="xwerse-config.js"></script>
-<!-- Vercel Web Analytics -->
-<script>
-  window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
-</script>
-<script defer src="/_vercel/insights/script.js"></script>
-<!-- Vercel Speed Insights -->
-<script>
-  window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
-</script>
-<script defer src="/_vercel/speed-insights/script.js"></script>
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -151,6 +141,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:cen
 .g-ico{width:17px;height:17px;flex-shrink:0}
 @media(max-width:520px){.box{padding:30px 20px 38px}.land-email{width:100%}.land-form{flex-direction:column;align-items:center}}
 </style>
+<script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
+<script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
 
@@ -364,7 +356,7 @@ async function handleSession(session) {
         is_kids: single.is_kids || false
       });
       hideLoader();
-      window.location.href = 'XwerseMovies_Home.html';
+      window.location.href = (typeof XShare !== 'undefined' ? XShare.afterLoginUrl() : 'XwerseMovies_Home.html');
       return;
     }
 
@@ -372,7 +364,7 @@ async function handleSession(session) {
     const savedProfile = Session.getProfile();
     if (savedProfile && savedProfile.userId === uid) {
       hideLoader();
-      window.location.href = 'XwerseMovies_Home.html';
+      window.location.href = (typeof XShare !== 'undefined' ? XShare.afterLoginUrl() : 'XwerseMovies_Home.html');
       return;
     }
     await renderProfileSelect(session.user, profile);
@@ -549,7 +541,7 @@ async function renderProfileSelect(user, profile) {
     div.onclick = () => {
       // Store userId so handleSession can verify this profile belongs to current user
       Session.setProfile({ userId: user.id, id: vp.id || user.id, name: vp.name, avatar_url: vp.avatar_url, is_kids: vp.is_kids || false });
-      window.location.href = 'XwerseMovies_Home.html';
+      window.location.href = (typeof XShare !== 'undefined' ? XShare.afterLoginUrl() : 'XwerseMovies_Home.html');
     };
     grid.appendChild(div);
   });
