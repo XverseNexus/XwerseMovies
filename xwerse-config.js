@@ -2094,7 +2094,12 @@ const XShare = {
     if (!m) return;
     const url = this.url(m);
     const text = `Watch "${m.title}" on XwerseMovies`;
-    if (navigator.share) {
+    // Phones: native share sheet (WhatsApp/Telegram build the preview card themselves).
+    // Desktop: Windows' share sheet sends the bare link with NO preview card, so copy the
+    // link instead — pasting it into a chat makes WhatsApp fetch the card.
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '')
+                  || (navigator.maxTouchPoints > 1 && /Mac/i.test(navigator.platform || ''));
+    if (isMobile && navigator.share) {
       try { await navigator.share({ title: m.title, text, url }); return; }
       catch (e) { if (e && e.name === 'AbortError') return; }
     }
@@ -2106,7 +2111,7 @@ const XShare = {
       try { document.execCommand('copy'); } catch (_) {}
       t.remove();
     }
-    showToast('Link copied');
+    showToast('Link copied — paste it in any chat');
   },
 
   /* Title opened from a shared link? ?t=<tmdb id>&type=movie|tv */
