@@ -63,11 +63,13 @@ const Xwerse = {
 
   // Shared status metadata so "My Requests" and the Admin panel always
   // show the same label/color/order for a given status.
+  // Users only ever see three states: Processing → Completed / Rejected.
+  // (pending/accepted/processing/uploading are legacy DB values; all show as "Processing".)
   REQUEST_STATUS: {
-    pending:    { label: 'Pending',    color: '#f5c518', order: 0 },
-    accepted:   { label: 'Accepted',   color: '#64b5f6', order: 1 },
+    pending:    { label: 'Processing', color: '#ba68c8', order: 0 },
+    accepted:   { label: 'Processing', color: '#ba68c8', order: 1 },
     processing: { label: 'Processing', color: '#ba68c8', order: 2 },
-    uploading:  { label: 'Uploading',  color: '#4dd0e1', order: 3 },
+    uploading:  { label: 'Processing', color: '#ba68c8', order: 3 },
     completed:  { label: 'Completed',  color: '#46d369', order: 4 },
     rejected:   { label: 'Rejected',   color: '#E50914', order: 5 },
   },
@@ -684,6 +686,7 @@ async function requireAuth(redirectTo = 'index.html') {
   if (!session) {
 
     console.warn('No session found → redirecting');
+    if (typeof XShare !== 'undefined') XShare.rememberNext();
 
     window.location.replace(redirectTo);
 
@@ -1747,6 +1750,24 @@ const XvNotif = {
     } catch(e) { this._items = []; }
     this._badge();
     this._render();
+    this._startSync();
+  },
+
+  /* Quietly re-fetch (panel open, tab refocus, every 60s) so new items appear without a reload */
+  async refresh() {
+    if (!this._uid) return;
+    try {
+      this._items = await DB.getNotifications(this._uid);
+      this._badge();
+      if (this._open) this._render();
+    } catch (e) { /* keep what we have */ }
+  },
+
+  _startSync() {
+    if (this._synced) return;
+    this._synced = true;
+    setInterval(() => { if (!document.hidden) this.refresh(); }, 60000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) this.refresh(); });
   },
 
   /* Toggle open / close */
@@ -1756,7 +1777,7 @@ const XvNotif = {
     const ov = document.getElementById('_xvNPOv');
     if (p)  p.classList.toggle('_xvNP-open', this._open);
     if (ov) ov.classList.toggle('_xvNPOv-show', this._open);
-    if (this._open) this._render();
+    if (this._open) { this._render(); this.refresh(); }
   },
 
   close() { if (this._open) this.toggle(); },
@@ -1771,29 +1792,68 @@ const XvNotif = {
 
   /* Mark single notification read */
   async markRead(id) {
-    DB.markNotifRead(id).catch(() => {});
-    this._items = this._items.map(n => n.id === id ? { ...n, is_read: true } : n);
+    const key = String(id);
+    const it = this._items.find(n => String(n.id) === key);
+    if (!it || it.is_read) return;
+    DB.markNotifRead(it.id).catch(() => {});
+    this._items = this._items.map(n => String(n.id) === key ? { ...n, is_read: true } : n);
     this._badge();
     this._render();
+  },
+
+  /* Tap a notification: mark read, then go where it points (like Netflix) */
+  open(id) {
+    const key = String(id);
+    const it = this._items.find(n => String(n.id) === key);
+    if (!it) return;
+    if (!it.is_read) {
+      DB.markNotifRead(it.id).catch(() => {});
+      this._items = this._items.map(n => String(n.id) === key ? { ...n, is_read: true } : n);
+      this._badge();
+    }
+    const page = this._target(it);
+    const here = location.pathname.split('/').pop() || '';
+    if (page && here !== page) { location.href = page; return; }
+    this._render();
+    this.close();
   },
 
   /* Mark all read */
   async markAllRead() {
     if (!this._uid) return;
+    if (!this._items.some(n => !n.is_read)) { showToast('You are all caught up'); return; }
     try { await DB.markAllNotifsRead(this._uid); } catch(e) {}
     this._items = this._items.map(n => ({ ...n, is_read: true }));
     this._badge();
     this._render();
-    showToast('✅ All marked as read');
+    showToast('All notifications marked as read');
   },
 
   /* ── private ── */
+
+  _esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  },
+
+  /* Old rows were saved with random emoji in front ("🎬 …", "✅ …"). Show clean text. */
+  _clean(s) {
+    return String(s == null ? '' : s)
+      .replace(/^[\s‍️\p{Extended_Pictographic}\p{Emoji_Presentation}]+/u, '')
+      .trim();
+  },
+
+  _target(n) {
+    const t = ((n.title || '') + ' ' + (n.body || '')).toLowerCase();
+    if (/request|payment|refund|fulfilled|ready to watch/.test(t)) return 'XwerseMovies_MyRequests.html';
+    if (/new on/.test(t)) return 'XwerseMovies_Home.html';
+    return null;
+  },
 
   _render() {
     const list = document.getElementById('_xvNPList');
     if (!list) return;
 
-    let items = this._tab === 'unread'
+    const items = this._tab === 'unread'
       ? this._items.filter(n => !n.is_read)
       : [...this._items];
 
@@ -1803,10 +1863,10 @@ const XvNotif = {
                     padding:52px 20px;text-align:center">
           <div style="font-size:2.6rem;margin-bottom:14px;opacity:.25">🔔</div>
           <div style="font-size:.9rem;font-weight:700;color:rgba(255,255,255,.45);margin-bottom:6px">
-            ${this._tab === 'unread' ? 'All caught up' : 'No notifications yet'}
+            ${this._tab === 'unread' ? 'You are all caught up' : 'No notifications yet'}
           </div>
           <div style="font-size:.76rem;color:rgba(255,255,255,.25);line-height:1.55">
-            New notifications will show up here
+            Updates about your requests and new releases will show up here
           </div>
         </div>`;
       return;
@@ -1814,16 +1874,13 @@ const XvNotif = {
 
     list.innerHTML = items.map(n => `
       <div class="_xvNP-item${n.is_read ? '' : ' _xvNP-unread'}"
-           onclick="XvNotif.markRead(${n.id})" role="button">
-        <img class="_xvNP-thumb"
-             src="${n.image_url || 'https://ui-avatars.com/api/?name=XV&background=E50914&color=fff&size=64'}"
-             onerror="this.src='https://ui-avatars.com/api/?name=XV&background=333&color=555&size=64'">
+           data-id="${this._esc(n.id)}" onclick="XvNotif.open(this.dataset.id)" role="button" tabindex="0">
+        <img class="_xvNP-thumb" alt=""
+             src="${this._esc(n.image_url || '/favicon.png')}"
+             onerror="this.onerror=null;this.src='/favicon.png'">
         <div class="_xvNP-body">
-          <div class="_xvNP-ttl">
-            ${!n.is_read ? '<span class="_xvNP-unread-dot"></span>' : ''}
-            ${n.title || ''}
-          </div>
-          <div class="_xvNP-desc">${n.body || ''}</div>
+          <div class="_xvNP-ttl">${!n.is_read ? '<span class="_xvNP-unread-dot"></span>' : ''}${this._esc(this._clean(n.title))}</div>
+          <div class="_xvNP-desc">${this._esc(this._clean(n.body))}</div>
           <div class="_xvNP-time">${this._timeAgo(n.created_at)}</div>
         </div>
       </div>`).join('');
@@ -1844,11 +1901,12 @@ const XvNotif = {
 
   _timeAgo(ts) {
     if (!ts) return '';
-    const s = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
-    if (s < 60)    return 'just now';
-    if (s < 3600)  return Math.floor(s / 60) + 'm ago';
-    if (s < 86400) return Math.floor(s / 3600) + 'h ago';
-    return Math.floor(s / 86400) + 'd ago';
+    const s = Math.max(0, Math.floor((Date.now() - new Date(ts).getTime()) / 1000));
+    if (s < 60)     return 'Just now';
+    if (s < 3600)   return Math.floor(s / 60) + 'm ago';
+    if (s < 86400)  return Math.floor(s / 3600) + 'h ago';
+    if (s < 604800) return Math.floor(s / 86400) + 'd ago';
+    return new Date(ts).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
   },
 
   /* Inject CSS + HTML once */
@@ -2012,7 +2070,63 @@ const XvNotif = {
     /* Close on Escape key */
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape' && XvNotif._open) XvNotif.close();
+      if (e.key === 'Enter' && XvNotif._open && e.target?.classList?.contains('_xvNP-item')) XvNotif.open(e.target.dataset.id);
     });
+  },
+};
+
+// ─────────────────────────────────────────────────────────
+//  SHARE — one link per title. Opens that title's details on Home.
+//  Phones: native share sheet. Desktop: copies the link.
+// ─────────────────────────────────────────────────────────
+const XShare = {
+  ICON: '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>',
+
+  url(m) {
+    const id = m && (m.tmdb_id || (m.type === 'tv' ? m.id : null));
+    const u = new URL('XwerseMovies_Home.html', location.origin + '/');
+    if (id) { u.searchParams.set('t', id); u.searchParams.set('type', m.type === 'tv' ? 'tv' : 'movie'); }
+    return u.toString();
+  },
+
+  async share(m) {
+    if (!m) return;
+    const url = this.url(m);
+    const text = `Watch "${m.title}" on XwerseMovies`;
+    if (navigator.share) {
+      try { await navigator.share({ title: m.title, text, url }); return; }
+      catch (e) { if (e && e.name === 'AbortError') return; }
+    }
+    try { await navigator.clipboard.writeText(url); }
+    catch (e) {
+      const t = document.createElement('textarea');
+      t.value = url; t.style.position = 'fixed'; t.style.opacity = '0';
+      document.body.appendChild(t); t.select();
+      try { document.execCommand('copy'); } catch (_) {}
+      t.remove();
+    }
+    showToast('Link copied');
+  },
+
+  /* Title opened from a shared link? ?t=<tmdb id>&type=movie|tv */
+  linkTarget() {
+    const p = new URLSearchParams(location.search);
+    const id = parseInt(p.get('t'), 10);
+    if (!id) return null;
+    return { id, type: p.get('type') === 'tv' ? 'tv' : 'movie' };
+  },
+  clearLink() {
+    try { history.replaceState(null, '', location.pathname); } catch (e) {}
+  },
+
+  /* Not logged in when the link was opened? Remember it, send them back after login. */
+  rememberNext() {
+    try { if (/[?&]t=\d+/.test(location.search)) sessionStorage.setItem('xv_next', location.pathname.split('/').pop() + location.search); } catch (e) {}
+  },
+  afterLoginUrl() {
+    let n = null;
+    try { n = sessionStorage.getItem('xv_next'); sessionStorage.removeItem('xv_next'); } catch (e) {}
+    return (n && /^XwerseMovies_Home\.html\?t=\d+&type=(movie|tv)$/.test(n)) ? n : 'XwerseMovies_Home.html';
   },
 };
 
