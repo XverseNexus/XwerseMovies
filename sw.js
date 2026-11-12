@@ -3,7 +3,7 @@
 //  Handles: offline support, app shell caching, background sync
 // ═══════════════════════════════════════════════════════════
 
-const CACHE_NAME    = 'xwerse-v43';
+const CACHE_NAME    = 'xwerse-v44';
 const SHELL_TIMEOUT = 3000; // ms before falling back to cache
 
 // App shell — these files are cached on install
@@ -77,7 +77,7 @@ self.addEventListener('fetch', event => {
   }
 
   // 0b. Vercel Web Analytics (/_vercel/insights/*) — never cache or touch
-  if (url.pathname.startsWith('/_vercel/')) return;
+  if (url.pathname.startsWith('/_vercel/') || url.pathname.startsWith('/s/') || url.pathname.startsWith('/api/')) return;
 
   // 1. Network-only for API / video domains
   if (NETWORK_ONLY.some(d => url.hostname.includes(d))) {
