@@ -280,15 +280,15 @@ async function handler(req, res) {
 
     // Notify the user — success or failure, they should know either way.
     const notifBody = isSuccess
-      ? `✅ Payment successful! Your request for "${row.title}" has been submitted and is now pending review.`
-      : `❌ Payment for your "${row.title}" request didn't go through. No amount was charged — please try again.`;
+      ? `Payment received for "${row.title}". We are processing your request and you will get access within 24 hours.`
+      : `Your payment for "${row.title}" didn't go through. No amount was charged — please try again.`;
 
     await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
       method: 'POST',
       headers: { ...restHeaders, 'Prefer': 'return=minimal' },
       body: JSON.stringify([{
         user_id: row.user_id,
-        title: isSuccess ? '🎬 Request Submitted' : '⚠️ Payment Failed',
+        title: isSuccess ? 'Payment received' : 'Payment failed',
         body: notifBody,
         image_url: row.poster_url || null,
         is_read: false,
