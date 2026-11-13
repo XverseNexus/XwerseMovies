@@ -29,16 +29,6 @@
 <meta name="apple-mobile-web-app-title" content="XwerseMovies">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="xwerse-config.js"></script>
-<!-- Vercel Web Analytics -->
-<script>
-  window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
-</script>
-<script defer src="/_vercel/insights/script.js"></script>
-<!-- Vercel Speed Insights -->
-<script>
-  window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
-</script>
-<script defer src="/_vercel/speed-insights/script.js"></script>
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -190,6 +180,8 @@ main{padding:88px var(--content-pad) 60px}
   .mnav-lbl{font-size:.56rem;font-weight:600;letter-spacing:.1px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:clip}
 }
 </style>
+<script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
+<script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
 
@@ -202,7 +194,7 @@ main{padding:88px var(--content-pad) 60px}
     <li><button class="nav-link active">My List</button></li>
   </ul>
   <div class="nav-right">
-    <a href="XwerseMovies_Request.html" title="Request a Title" style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:20px;background:rgba(229,9,20,.16);border:1px solid rgba(229,9,20,.45);color:#fff;text-decoration:none;font-size:.8rem;font-weight:700;transition:.2s;white-space:nowrap" onmouseover="this.style.background='rgba(229,9,20,.3)'" onmouseout="this.style.background='rgba(229,9,20,.16)'">🎬 Request</a>
+    <a href="XwerseMovies_Plans.html" title="Premium plans" style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:20px;background:rgba(229,9,20,.16);border:1px solid rgba(229,9,20,.45);color:#fff;text-decoration:none;font-size:.8rem;font-weight:700;transition:.2s;white-space:nowrap" onmouseover="this.style.background='rgba(229,9,20,.3)'" onmouseout="this.style.background='rgba(229,9,20,.16)'">💎 Premium</a>
     <a href="XwerseMovies_Search.html" title="Search" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:6px;color:rgba(255,255,255,.8);text-decoration:none;font-size:1.05rem;transition:.2s" onmouseover="this.style.background='rgba(255,255,255,.1)'" onmouseout="this.style.background=''">&#x1F50D;</a>
     <button class="nav-bell" onclick="XvNotif.toggle()" title="Notifications">
       🔔<span class="_xvNP-dot" style="position:absolute;top:5px;right:5px;width:7px;height:7px;background:#E50914;border-radius:50%;border:2px solid #080808;display:none;pointer-events:none"></span>
