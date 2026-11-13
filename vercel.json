@@ -96,8 +96,249 @@
       "destination": "/api/share?type=:type&t=:t"
     },
     {
+      "source": "/Home",
+      "destination": "/XwerseMovies_Home.html"
+    },
+    {
+      "source": "/Browse",
+      "destination": "/XwerseMovies_Browse.html"
+    },
+    {
+      "source": "/MyList",
+      "destination": "/XwerseMovies_MyList.html"
+    },
+    {
+      "source": "/Player",
+      "destination": "/XwerseMovies_Player.html"
+    },
+    {
+      "source": "/Search",
+      "destination": "/XwerseMovies_Search.html"
+    },
+    {
+      "source": "/Settings",
+      "destination": "/XwerseMovies_Settings.html"
+    },
+    {
+      "source": "/GoPremium",
+      "destination": "/XwerseMovies_GoPremium.html"
+    },
+    {
+      "source": "/MyPurchases",
+      "destination": "/XwerseMovies_MyRequests.html"
+    },
+    {
+      "source": "/Plans",
+      "destination": "/XwerseMovies_Plans.html"
+    },
+    {
+      "source": "/Admin",
+      "destination": "/XwerseMovies_Admin.html"
+    },
+    {
+      "source": "/Terms",
+      "destination": "/XwerseMovies_Terms.html"
+    },
+    {
+      "source": "/Privacy",
+      "destination": "/XwerseMovies_Privacy.html"
+    },
+    {
+      "source": "/Refund",
+      "destination": "/XwerseMovies_Refund.html"
+    },
+    {
+      "source": "/Delivery",
+      "destination": "/XwerseMovies_Delivery.html"
+    },
+    {
+      "source": "/About",
+      "destination": "/XwerseMovies_About.html"
+    },
+    {
+      "source": "/Contact",
+      "destination": "/XwerseMovies_Contact.html"
+    },
+    {
       "source": "/",
       "destination": "/index.html"
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/XwerseMovies_Home.html",
+      "destination": "/Home",
+      "permanent": true
+    },
+    {
+      "source": "/home",
+      "destination": "/Home",
+      "permanent": true
+    },
+    {
+      "source": "/XwerseMovies_Browse.html",
+      "destination": "/Browse",
+      "permanent": true
+    },
+    {
+      "source": "/browse",
+      "destination": "/Browse",
+      "permanent": true
+    },
+    {
+      "source": "/XwerseMovies_MyList.html",
+      "destination": "/MyList",
+      "permanent": true
+    },
+    {
+      "source": "/mylist",
+      "destination": "/MyList",
+      "permanent": true
+    },
+    {
+      "source": "/XwerseMovies_Player.html",
+      "destination": "/Player",
+      "permanent": true
+    },
+    {
+      "source": "/player",
+      "destination": "/Player",
+      "permanent": true
+    },
+    {
+      "source": "/XwerseMovies_Search.html",
+      "destination": "/Search",
+      "permanent": true
+    },
+    {
+      "source": "/search",
+      "destination": "/Search",
+      "permanent": true
+    },
+    {
+      "source": "/XwerseMovies_Settings.html",
+      "destination": "/Settings",
+      "permanent": true
+    },
+    {
+      "source": "/settings",
+      "destination": "/Settings",
+      "permanent": true
+    },
+    {
+      "source": "/XwerseMovies_GoPremium.html",
+      "destination": "/GoPremium",
+      "permanent": true
+    },
+    {
+      "source": "/gopremium",
+      "destination": "/GoPremium",
+      "permanent": true
+    },
+    {
+      "source": "/XwerseMovies_MyRequests.html",
+      "destination": "/MyPurchases",
+      "permanent": true
+    },
+    {
+      "source": "/mypurchases",
+      "destination": "/MyPurchases",
+      "permanent": true
+    },
+    {
+      "source": "/XwerseMovies_Plans.html",
+      "destination": "/Plans",
+      "permanent": true
+    },
+    {
+      "source": "/plans",
+      "destination": "/Plans",
+      "permanent": true
+    },
+    {
+      "source": "/XwerseMovies_Admin.html",
+      "destination": "/Admin",
+      "permanent": true
+    },
+    {
+      "source": "/admin",
+      "destination": "/Admin",
+      "permanent": true
+    },
+    {
+      "source": "/XwerseMovies_Terms.html",
+      "destination": "/Terms",
+      "permanent": true
+    },
+    {
+      "source": "/terms",
+      "destination": "/Terms",
+      "permanent": true
+    },
+    {
+      "source": "/XwerseMovies_Privacy.html",
+      "destination": "/Privacy",
+      "permanent": true
+    },
+    {
+      "source": "/privacy",
+      "destination": "/Privacy",
+      "permanent": true
+    },
+    {
+      "source": "/XwerseMovies_Refund.html",
+      "destination": "/Refund",
+      "permanent": true
+    },
+    {
+      "source": "/refund",
+      "destination": "/Refund",
+      "permanent": true
+    },
+    {
+      "source": "/XwerseMovies_Delivery.html",
+      "destination": "/Delivery",
+      "permanent": true
+    },
+    {
+      "source": "/delivery",
+      "destination": "/Delivery",
+      "permanent": true
+    },
+    {
+      "source": "/XwerseMovies_About.html",
+      "destination": "/About",
+      "permanent": true
+    },
+    {
+      "source": "/about",
+      "destination": "/About",
+      "permanent": true
+    },
+    {
+      "source": "/XwerseMovies_Contact.html",
+      "destination": "/Contact",
+      "permanent": true
+    },
+    {
+      "source": "/contact",
+      "destination": "/Contact",
+      "permanent": true
+    },
+    {
+      "source": "/XwerseMovies_Request.html",
+      "destination": "/GoPremium",
+      "permanent": true
+    },
+    {
+      "source": "/Request",
+      "destination": "/GoPremium",
+      "permanent": true
+    },
+    {
+      "source": "/MyRequests",
+      "destination": "/MyPurchases",
+      "permanent": true
     }
   ]
 }
