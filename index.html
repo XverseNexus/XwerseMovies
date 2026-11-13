@@ -243,17 +243,17 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:cen
 <div class="page" id="page-profiles">
   <div style="font-family:'Bebas Neue',cursive;font-size:2.5rem;color:#fff;letter-spacing:2px;text-align:center;margin-bottom:32px">Who's Watching?</div>
   <div class="prof-grid" id="profGrid"></div>
-  <button onclick="window.location.href='XwerseMovies_Settings.html'" style="background:transparent;border:1.5px solid rgba(255,255,255,.38);color:#e5e5e5;padding:9px 34px;font-size:.86rem;font-weight:600;border-radius:4px;cursor:pointer;font-family:'Barlow',sans-serif;transition:border-color .2s" onmouseover="this.style.borderColor='#fff'" onmouseout="this.style.borderColor='rgba(255,255,255,.38)'">Manage Profiles</button>
+  <button onclick="window.location.href='/Settings'" style="background:transparent;border:1.5px solid rgba(255,255,255,.38);color:#e5e5e5;padding:9px 34px;font-size:.86rem;font-weight:600;border-radius:4px;cursor:pointer;font-family:'Barlow',sans-serif;transition:border-color .2s" onmouseover="this.style.borderColor='#fff'" onmouseout="this.style.borderColor='rgba(255,255,255,.38)'">Manage Profiles</button>
 </div>
 
 <footer style="position:fixed;left:0;right:0;bottom:0;z-index:15;text-align:center;padding:10px 4% 14px;font-size:.7rem;color:rgba(255,255,255,.42);background:linear-gradient(to top,rgba(0,0,0,.55),transparent)">
-  <a href="XwerseMovies_Terms.html" style="color:inherit;text-decoration:none;margin:0 8px">Terms &amp; Conditions</a>·
-  <a href="XwerseMovies_Privacy.html" style="color:inherit;text-decoration:none;margin:0 8px">Privacy Policy</a>·
-  <a href="XwerseMovies_Refund.html" style="color:inherit;text-decoration:none;margin:0 8px">Refund &amp; Cancellation</a>·
-  <a href="XwerseMovies_Delivery.html" style="color:inherit;text-decoration:none;margin:0 8px">Shipping &amp; Delivery</a>·
-  <a href="XwerseMovies_Plans.html" style="color:inherit;text-decoration:none;margin:0 8px">Plans</a>·
-  <a href="XwerseMovies_About.html" style="color:inherit;text-decoration:none;margin:0 8px">About Us</a>·
-  <a href="XwerseMovies_Contact.html" style="color:inherit;text-decoration:none;margin:0 8px">Contact Us</a>
+  <a href="/Terms" style="color:inherit;text-decoration:none;margin:0 8px">Terms &amp; Conditions</a>·
+  <a href="/Privacy" style="color:inherit;text-decoration:none;margin:0 8px">Privacy Policy</a>·
+  <a href="/Refund" style="color:inherit;text-decoration:none;margin:0 8px">Refund &amp; Cancellation</a>·
+  <a href="/Delivery" style="color:inherit;text-decoration:none;margin:0 8px">Shipping &amp; Delivery</a>·
+  <a href="/Plans" style="color:inherit;text-decoration:none;margin:0 8px">Plans</a>·
+  <a href="/About" style="color:inherit;text-decoration:none;margin:0 8px">About Us</a>·
+  <a href="/Contact" style="color:inherit;text-decoration:none;margin:0 8px">Contact Us</a>
 </footer>
 
 <script>
@@ -357,7 +357,7 @@ async function handleSession(session) {
         is_kids: single.is_kids || false
       });
       hideLoader();
-      window.location.href = (typeof XShare !== 'undefined' ? XShare.afterLoginUrl() : 'XwerseMovies_Home.html');
+      window.location.href = (typeof XShare !== 'undefined' ? XShare.afterLoginUrl() : '/Home');
       return;
     }
 
@@ -365,7 +365,7 @@ async function handleSession(session) {
     const savedProfile = Session.getProfile();
     if (savedProfile && savedProfile.userId === uid) {
       hideLoader();
-      window.location.href = (typeof XShare !== 'undefined' ? XShare.afterLoginUrl() : 'XwerseMovies_Home.html');
+      window.location.href = (typeof XShare !== 'undefined' ? XShare.afterLoginUrl() : '/Home');
       return;
     }
     await renderProfileSelect(session.user, profile);
@@ -542,13 +542,13 @@ async function renderProfileSelect(user, profile) {
     div.onclick = () => {
       // Store userId so handleSession can verify this profile belongs to current user
       Session.setProfile({ userId: user.id, id: vp.id || user.id, name: vp.name, avatar_url: vp.avatar_url, is_kids: vp.is_kids || false });
-      window.location.href = (typeof XShare !== 'undefined' ? XShare.afterLoginUrl() : 'XwerseMovies_Home.html');
+      window.location.href = (typeof XShare !== 'undefined' ? XShare.afterLoginUrl() : '/Home');
     };
     grid.appendChild(div);
   });
   const add=document.createElement('div'); add.className='prof-item';
   add.innerHTML=`<div class="prof-av" style="background:rgba(255,255,255,.06);border:2px dashed rgba(255,255,255,.2)"><span style="font-size:2.2rem;color:rgba(255,255,255,.28)">+</span></div><div class="prof-name">Add Profile</div>`;
-  add.onclick=()=>window.location.href='XwerseMovies_Settings.html';
+  add.onclick=()=>window.location.href='/Settings';
   grid.appendChild(add);
   showPage('profiles');
 }
