@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Request a Title — XwerseMovies</title>
+<title>Premium — Pay Per View — XwerseMovies</title>
 <meta name="robots" content="noindex, nofollow">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="XwerseMovies">
-<meta property="og:title" content="Request a Title — XwerseMovies">
-<meta property="og:description" content="Can't find a movie or show? Request it — official languages, dubbed audio, subtitles and your choice of quality (up to 1080p) included.">
+<meta property="og:title" content="Premium Pay Per View — XwerseMovies">
+<meta property="og:description" content="Pay once for a movie, season or complete series and watch in Full HD with very few ads. From ₹9, no subscription.">
 <meta property="og:image" content="https://xwersemovies.bond/og-image.png">
 <meta name="twitter:card" content="summary_large_image">
 <script>/* SW update → auto-reload */if('serviceWorker'in navigator){var _xvR=false;navigator.serviceWorker.addEventListener('controllerchange',function(){if(!_xvR){_xvR=true;location.reload();}});}</script>
@@ -20,11 +20,6 @@
 <meta name="apple-mobile-web-app-title" content="XwerseMovies">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="xwerse-config.js"></script>
-<!-- Vercel Speed Insights -->
-<script>
-  window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
-</script>
-<script defer src="/_vercel/speed-insights/script.js"></script>
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -156,7 +151,7 @@ textarea.ftxt{resize:vertical;min-height:72px;line-height:1.5;cursor:text}
   <ul class="nav-links">
     <li><button class="nl" onclick="location.href='XwerseMovies_Home.html'">Home</button></li>
     <li><button class="nl" onclick="location.href='XwerseMovies_Browse.html'">Browse</button></li>
-    <li><button class="nl" style="color:#fff;font-weight:700" disabled>Request a Title</button></li>
+    <li><button class="nl" style="color:#fff;font-weight:700" disabled>Premium</button></li>
   </ul>
   <div class="nav-r">
     <button class="nav-btn" title="Search" onclick="location.href='XwerseMovies_Search.html'">🔍</button>
@@ -166,8 +161,8 @@ textarea.ftxt{resize:vertical;min-height:72px;line-height:1.5;cursor:text}
 
 <div id="pageWrap">
   <div class="page-hd">
-    <div class="page-tit">Request a Title</div>
-    <div class="page-sub">Can't find a movie or show — or want a better version of one that's already up? Request it. Every request includes all officially available languages, dubbed &amp; original audio, subtitles, and your choice of quality (up to 1080p Full HD) — no add-on charges.</div>
+    <div class="page-tit">Go Premium</div>
+    <div class="page-sub">Pick a movie, a season or a complete series — pay once, no subscription. You get <b>Full HD (1080p)</b> with <b>very few ads</b>, plus a download link and an embed link when available, and Indian-language subtitles where available. <a href="XwerseMovies_Plans.html" style="color:#f5c518">Compare Free vs Premium →</a></div>
   </div>
 
   <!-- STEP 1: TITLE -->
@@ -260,7 +255,7 @@ textarea.ftxt{resize:vertical;min-height:72px;line-height:1.5;cursor:text}
     </div>
     <div class="dup-banner" id="dupBanner" style="display:none">
       <span id="dupText">✅ You have already requested this.</span><br>
-      <a href="XwerseMovies_MyRequests.html">View in My Requests →</a>
+      <a href="XwerseMovies_MyRequests.html">View in My Purchases →</a>
     </div>
     <div class="email-gate" id="emailGate">
       <div class="gate-title">📧 STEP 1 — COPY YOUR PAYMENT EMAIL</div>
@@ -344,9 +339,9 @@ async function pollRequestPaymentStatus(reqId) {
     if (row?.payment_status === 'paid') {
       document.getElementById('verifyIcon').textContent = '✅';
       document.getElementById('verifyTitle').textContent = 'Request Submitted!';
-      document.getElementById('verifySub').textContent = `Your ${Xwerse.REQUEST_PRICES[row.request_type]?.label || 'request'} for "${row.title}" is now pending review. We'll notify you as it progresses.`;
+      document.getElementById('verifySub').textContent = `Your ${Xwerse.REQUEST_PRICES[row.request_type]?.label || 'request'} for "${row.title}" is being processed. We'll notify you as it progresses.`;
       const btn = document.getElementById('verifyDoneBtn');
-      btn.style.display = 'inline-block'; btn.textContent = 'View My Requests';
+      btn.style.display = 'inline-block'; btn.textContent = 'View My Purchases';
       btn.onclick = () => location.href = 'XwerseMovies_MyRequests.html';
       return;
     }
@@ -494,7 +489,7 @@ function checkDuplicate() {
   const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? 'block' : 'none'; };
   if (dup) {
     document.getElementById('dupText').textContent = dup.status === 'completed'
-      ? '✅ You have already requested this — it is ready in My Requests.'
+      ? '✅ You have already requested this — it is ready in My Purchases.'
       : '✅ You have already requested and paid for this. It is being processed — we will give you access within 24 hours.';
   }
   show('dupBanner', !!dup);
