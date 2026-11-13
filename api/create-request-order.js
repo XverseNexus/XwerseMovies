@@ -125,7 +125,7 @@ module.exports = async function handler(req, res) {
           customer_phone: phone,
         },
         order_meta: {
-          return_url: `${SITE_URL}/XwerseMovies_Request.html?order_id=${orderId}`,
+          return_url: `${SITE_URL}/GoPremium?order_id=${orderId}`,
           notify_url: `${SITE_URL}/api/cashfree-request-webhook`,
         },
         order_note: `${request_type} request: ${title}`,
