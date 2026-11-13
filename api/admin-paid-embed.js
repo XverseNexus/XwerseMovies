@@ -34,6 +34,21 @@ module.exports = async function handler(req, res) {
     }
 
     const { action, movie_id, tmdb_id, paid_url } = req.body || {};
+
+    // All paid embeds at once (the admin panel loads this once, so Edit opens instantly)
+    if (action === 'list') {
+      const l = await fetch(`${SUPABASE_URL}/rest/v1/movie_paid_embeds?select=movie_id,paid_url&limit=2000`, { headers: H });
+      if (!l.ok) {
+        const t = (await l.text()).slice(0, 220);
+        console.error('admin-paid-embed: list failed', l.status, t);
+        return res.status(500).json({ error: `Could not read paid embeds [${l.status}] ${t}` });
+      }
+      const rows = await l.json();
+      const map = {};
+      (Array.isArray(rows) ? rows : []).forEach(r => { map[r.movie_id] = r.paid_url; });
+      return res.status(200).json({ map });
+    }
+
     const mid = parseInt(movie_id, 10);
     if (!mid) return res.status(400).json({ error: 'Invalid movie' });
 
