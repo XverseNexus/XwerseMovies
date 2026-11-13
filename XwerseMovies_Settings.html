@@ -13,7 +13,7 @@
 <meta property="og:image" content="https://xwersemovies.bond/og-image.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:url" content="https://xwersemovies.bond/XwerseMovies_Settings.html">
+<meta property="og:url" content="https://xwersemovies.bond/Settings">
 <meta property="og:locale" content="en_IN">
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
@@ -240,10 +240,10 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:60px;display:flex;ali
 <body>
 
 <nav>
-  <a class="logo" href="XwerseMovies_Home.html">Xwerse<span>Movies</span></a>
+  <a class="logo" href="/Home">Xwerse<span>Movies</span></a>
   <div class="nav-r">
-    <a href="XwerseMovies_Search.html" class="nav-btn" title="Search" style="text-decoration:none;padding:8px 12px;display:inline-flex;align-items:center;gap:4px;font-size:.85rem">🔍 Search</a>
-    <button class="nav-btn" onclick="location.href='XwerseMovies_Home.html'">🏠 Home</button>
+    <a href="/Search" class="nav-btn" title="Search" style="text-decoration:none;padding:8px 12px;display:inline-flex;align-items:center;gap:4px;font-size:.85rem">🔍 Search</a>
+    <button class="nav-btn" onclick="location.href='/Home'">🏠 Home</button>
     <button class="nav-btn" onclick="toggleNP()" style="position:relative">🔔 <span id="npDot" style="position:absolute;top:4px;right:4px;width:7px;height:7px;background:var(--red);border-radius:50%;display:none"></span></button>
   </div>
 </nav>
@@ -722,7 +722,7 @@ async function doSignOut() {
   await Auth.signOut();
   // Don't clear saved profile — same user skips Who's Watching on next sign-in.
   // Use "Switch Profile" from the home menu to explicitly change profiles.
-  window.location.href = 'index.html';
+  window.location.href = '/';
 }
 
 async function deleteAccount() {
@@ -758,19 +758,19 @@ document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&npOpen) toggleNP()
 
 <!-- MOBILE BOTTOM NAV -->
 <nav class="btm-nav" aria-label="Mobile navigation">
-  <a class="mnav-item" href="XwerseMovies_Home.html">
+  <a class="mnav-item" href="/Home">
     <svg class="mnav-ico" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
     <span class="mnav-lbl">Home</span>
   </a>
-  <a class="mnav-item" href="XwerseMovies_Browse.html#new">
+  <a class="mnav-item" href="/Browse#new">
     <svg class="mnav-ico" viewBox="0 0 24 24"><path d="M13.5.67s.74 2.65.74 4.8c0 2.06-1.35 3.73-3.41 3.73-2.07 0-3.63-1.67-3.63-3.73l.03-.36C5.21 7.51 4 10.62 4 14c0 4.42 3.58 8 8 8s8-3.58 8-8C20 8.61 17.41 3.8 13.5.67z"/></svg>
     <span class="mnav-lbl">New &amp; Hot</span>
   </a>
-  <a class="mnav-item" href="XwerseMovies_Search.html">
+  <a class="mnav-item" href="/Search">
     <svg class="mnav-ico" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
     <span class="mnav-lbl">Search</span>
   </a>
-  <a class="mnav-item" href="XwerseMovies_MyList.html">
+  <a class="mnav-item" href="/MyList">
     <svg class="mnav-ico" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
     <span class="mnav-lbl">My List</span>
   </a>
