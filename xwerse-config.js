@@ -783,7 +783,8 @@ async function initNavAvatar(avatarElId = 'navAvatar') {
       </div>
       <button class="xvm-item" onclick="window.location.href='XwerseMovies_Settings.html'">⚙️ &nbsp;Account Settings</button>
       <button class="xvm-item" onclick="window.location.href='XwerseMovies_Request.html'">🎬 &nbsp;Request a Title</button>
-      <button class="xvm-item" onclick="window.location.href='XwerseMovies_MyRequests.html'">📋 &nbsp;My Requests</button>
+      <button class="xvm-item" onclick="window.location.href='XwerseMovies_MyRequests.html'">🛒 &nbsp;My Purchases</button>
+      <button class="xvm-item" onclick="window.location.href='XwerseMovies_Plans.html'">💎 &nbsp;Plans</button>
       <button class="xvm-item" onclick="xvSwitchProfile()">👥 &nbsp;Switch Profile</button>
       <button class="xvm-item" id="xvm-admin-btn" style="display:none" onclick="window.location.href='XwerseMovies_Admin.html'">🛡️ &nbsp;Admin Panel</button>
       <div class="xvm-sep"></div>
