@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>XwerseMovies — My Requests</title>
+<title>XwerseMovies — My Purchases</title>
 <meta name="robots" content="noindex, nofollow">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="XwerseMovies">
-<meta property="og:title" content="My Requests — XwerseMovies">
+<meta property="og:title" content="My Purchases — XwerseMovies">
 <meta property="og:description" content="Track the status of movies and shows you've requested on XwerseMovies.">
 <meta property="og:image" content="https://xwersemovies.bond/og-image.png">
 <meta property="og:image:width" content="1200">
@@ -15,7 +15,7 @@
 <meta property="og:url" content="https://xwersemovies.bond/XwerseMovies_MyRequests.html">
 <meta property="og:locale" content="en_IN">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="My Requests — XwerseMovies">
+<meta name="twitter:title" content="My Purchases — XwerseMovies">
 <meta name="twitter:description" content="Track the status of movies and shows you've requested on XwerseMovies.">
 <meta name="twitter:image" content="https://xwersemovies.bond/og-image.png">
 <script>/* SW update → auto-reload */if('serviceWorker'in navigator){var _xvR=false;navigator.serviceWorker.addEventListener('controllerchange',function(){if(!_xvR){_xvR=true;location.reload();}});}</script>
@@ -27,16 +27,6 @@
 <meta name="apple-mobile-web-app-title" content="XwerseMovies">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="xwerse-config.js"></script>
-<!-- Vercel Web Analytics -->
-<script>
-  window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
-</script>
-<script defer src="/_vercel/insights/script.js"></script>
-<!-- Vercel Speed Insights -->
-<script>
-  window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
-</script>
-<script defer src="/_vercel/speed-insights/script.js"></script>
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -94,6 +84,12 @@ main{padding:88px var(--content-pad) 60px;max-width:960px;margin:0 auto}
 .req-btn{background:var(--red);color:#fff;border:none;padding:8px 16px;font-size:.78rem;font-weight:700;border-radius:5px;cursor:pointer;font-family:'Barlow',sans-serif;text-decoration:none;display:inline-flex;align-items:center;gap:5px;transition:background .2s}
 .req-btn:hover{background:#f40612}
 .req-btn.secondary{background:rgba(255,255,255,.09);color:#fff}
+.emb{margin-top:12px;border-top:1px solid rgba(255,255,255,.08);padding-top:10px}
+.emb summary{cursor:pointer;font-size:.76rem;font-weight:700;color:rgba(255,255,255,.65)}
+.emb-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:9px}
+.emb-lbl{font-size:.76rem;font-weight:700;color:#fff;min-width:56px}
+.emb-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:#fff;border-radius:5px;padding:6px 12px;font-size:.72rem;font-weight:700;cursor:pointer;font-family:'Barlow',sans-serif}
+.emb-btn:hover{background:rgba(255,255,255,.16)}
 .req-btn.secondary:hover{background:rgba(255,255,255,.16)}
 .ep-chips{display:flex;flex-wrap:wrap;gap:6px;width:100%;margin-top:8px}
 .ep-chip{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;padding:5px 11px;border-radius:4px;font-size:.72rem;font-weight:600;text-decoration:none;transition:.2s}
@@ -115,6 +111,8 @@ main{padding:88px var(--content-pad) 60px;max-width:960px;margin:0 auto}
   .mnav-lbl{font-size:.56rem;font-weight:600;letter-spacing:.1px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:clip}
 }
 </style>
+<script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
+<script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
 
@@ -139,7 +137,7 @@ main{padding:88px var(--content-pad) 60px;max-width:960px;margin:0 auto}
 <main>
   <div class="page-hd">
     <div>
-      <div class="page-title">My Requests</div>
+      <div class="page-title">My Purchases</div>
       <div class="page-sub" id="reqCountText">Loading...</div>
     </div>
     <a class="btn-new-req" href="XwerseMovies_Request.html">➕ New Request</a>
@@ -223,6 +221,38 @@ function escHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+// Premium perk: the embed link(s), to use on the buyer's own site / anywhere.
+function embedBlockHTML(r) {
+  if (!r.watch_url) return '';
+  const p = Xwerse.parseEpisodeLinks(r.watch_url);
+  const items = [];
+  if (r.request_type === 'movie') {
+    const u = p.fallback || (p.eps[0] && p.eps[0].url);
+    if (u) items.push({ label: 'Embed link', url: u });
+  } else {
+    p.eps.slice().sort((a, b) => ((a.season || r.season_number || 1) - (b.season || r.season_number || 1)) || (a.ep - b.ep))
+      .forEach(e => items.push({ label: (r.request_type === 'series' ? `S${e.season || r.season_number || 1} ` : '') + `E${e.ep}`, url: e.url }));
+    if (!items.length && p.fallback) items.push({ label: 'Embed link', url: p.fallback });
+  }
+  if (!items.length) return '';
+  const rows = items.map(it => `
+      <div class="emb-row">
+        <span class="emb-lbl">${escHtml(it.label)}</span>
+        <button class="emb-btn" data-copy="${escHtml(it.url)}" onclick="copyEmbed(this)">🔗 Copy link</button>
+        <button class="emb-btn" data-copy="${escHtml('<iframe src="' + it.url + '" width="100%" height="100%" frameborder="0" allowfullscreen allow="autoplay; fullscreen"></iframe>')}" onclick="copyEmbed(this)">&lt;/&gt; Copy embed code</button>
+      </div>`).join('');
+  return `<details class="emb"><summary>Embed link — use it on your own website</summary>${rows}</details>`;
+}
+async function copyEmbed(btn) {
+  const text = btn.getAttribute('data-copy') || '';
+  try { await navigator.clipboard.writeText(text); }
+  catch (e) {
+    const t = document.createElement('textarea'); t.value = text; t.style.position = 'fixed'; t.style.opacity = '0';
+    document.body.appendChild(t); t.select(); try { document.execCommand('copy'); } catch (_) {} t.remove();
+  }
+  const old = btn.innerHTML; btn.innerHTML = '✓ Copied'; setTimeout(() => { btn.innerHTML = old; }, 1400);
+}
+
 function reqCardHTML(r) {
   const vs = virtualStatus(r);
   let badge;
@@ -280,6 +310,7 @@ function reqCardHTML(r) {
       actions += `<a class="req-btn secondary" href="${escHtml(r.download_url)}" target="_blank" rel="noopener">⬇ Download</a>`;
     }
     actions += `</div>`;
+    actions += embedBlockHTML(r);
   }
 
   return `
