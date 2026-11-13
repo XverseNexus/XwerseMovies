@@ -285,16 +285,25 @@ textarea.ftxt{resize:vertical;min-height:72px;line-height:1.5;cursor:text}
 </nav>
 
 <script>
+// Public page: visitors can read the plans without logging in.
+// Logged-in users get the normal profile avatar + menu + notifications.
 (async () => {
+  let user = null;
   try {
     const { data } = await getSB().auth.getSession();
-    if (data && data.session) {
-      await initNavAvatar('navAvatar');
-      await initNavAvatar('mnavProfileAvatar');
-    } else {
-      document.getElementById('navAvatar').outerHTML = '<a href="index.html" style="color:#fff;font-size:.82rem;font-weight:700;text-decoration:none;background:var(--red);padding:7px 14px;border-radius:5px">Sign in</a>';
-    }
+    if (data && data.session) user = await requireAuth();   // loads profile; session exists so it won't redirect
   } catch (e) {}
+
+  if (user) {
+    await initNavAvatar('navAvatar');
+    await initNavAvatar('mnavProfileAvatar');
+    if (typeof XvNotif !== 'undefined') XvNotif.init(user.id);
+  } else {
+    const a = document.getElementById('navAvatar');
+    if (a) a.outerHTML = '<a href="index.html" style="color:#fff;font-size:.82rem;font-weight:700;text-decoration:none;background:var(--red);padding:7px 14px;border-radius:5px">Sign in</a>';
+    const m = document.getElementById('mnavProfileTab');
+    if (m) { m.href = 'index.html'; m.removeAttribute('onclick'); const l = m.querySelector('.mnav-lbl'); if (l) l.textContent = 'Sign in'; }
+  }
 })();
 </script>
 </body>
