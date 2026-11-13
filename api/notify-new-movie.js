@@ -86,7 +86,7 @@ module.exports = async function handler(req, res) {
     const rows = profiles.map((p) => ({
       user_id: p.id,
       title: 'New on XwerseMovies',
-      body: `${title} — naya ${label} ab available hai, abhi dekho!`,
+      body: `${title} — a new ${label} is now available. Watch now!`,
       image_url: image_url || null,
       is_read: false,
     }));
