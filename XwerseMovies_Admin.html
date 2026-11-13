@@ -386,6 +386,16 @@ nav{background:#111;border-bottom:1px solid var(--border);padding:0 22px;height:
               </div>
             </div>
           </div>
+          <div class="fg c1" style="margin-top:10px">
+            <div class="fw">
+              <label>💰 Paid User Embed URL (shown only to users who buy this movie)</label>
+              <input type="url" id="paidEmbed" placeholder="https://filemoon.../e/xxxxx  (leave blank if not ready)">
+              <div class="hint" style="margin-top:4px">
+                Above = free viewers. This one = paid viewers. Fill <b>at least one</b>. When a user pays for this movie,
+                they get this link automatically — no manual Give Access.
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -873,6 +883,24 @@ function prevImg(url, elId, cls) {
 // ─────────────────────────────────────────
 //  ADD MOVIE
 // ─────────────────────────────────────────
+// ── PAID EMBED (stored server-side in a private table; never exposed to the public site) ──
+async function paidEmbedApi(payload) {
+  const { data: sess } = await getSB().auth.getSession();
+  const token = sess?.session?.access_token;
+  if (!token) { showToast('❌ Please sign in again'); return null; }
+  try {
+    const r = await fetch('/api/admin-paid-embed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify(payload),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { showToast('❌ ' + (d.error || 'Paid embed request failed')); return null; }
+    return d;
+  } catch (e) { showToast('❌ Network error'); return null; }
+}
+function savePaidEmbed(movieId, tmdbId, url) { return paidEmbedApi({ action: 'set', movie_id: movieId, tmdb_id: tmdbId, paid_url: url || '' }); }
+
 async function addMovie() {
 const title = document.getElementById('mTitle').value.trim();
 const btn = document.getElementById('addBtn');
@@ -891,6 +919,11 @@ if (exists) {
     showToast('❌ Please enter a title');
     return;
   }
+
+  const _freeV = document.getElementById('manualEmbed')?.value.trim();
+  const _paidV = document.getElementById('paidEmbed')?.value.trim();
+  if (!_freeV && !_paidV) { showToast('❌ Free ya Paid embed — kam se kam ek daalna zaruri hai'); return; }
+  if (_paidV && !/^https:\/\/[^\s]+$/i.test(_paidV)) { showToast('❌ Paid embed must be one https:// link'); return; }
 
   btn.textContent = 'Adding...';
   btn.disabled = true;
@@ -990,6 +1023,11 @@ if (exists) {
       `✅ "${title}" successfully added! ID: ${data.id}`;
 
     showToast(`✅ "${title}" added!`);
+
+    if (_paidV) {
+      const out = await savePaidEmbed(data.id, data.tmdb_id, _paidV);
+      if (out) { showToast('💰 Paid embed saved'); }
+    }
 
     allMovies.unshift(data);
 
@@ -1828,6 +1866,7 @@ function reqCardHTML(r) {
           <div style="font-size:.72rem;color:var(--muted);margin-top:2px">👤 ${escHtml(r.user_name||'Unknown')} (${escHtml(r.user_email||'')})</div>
           <div style="font-size:.68rem;color:rgba(255,255,255,.35);margin-top:2px">${date}</div>
           ${r.notes ? `<div style="font-size:.72rem;color:rgba(255,255,255,.5);margin-top:4px;font-style:italic">"${escHtml(r.notes)}"</div>` : ''}
+          ${String(r.admin_notes||'').startsWith('[AUTO]') ? `<div style="font-size:.72rem;color:#46d369;margin-top:5px">⚡ Bought &amp; access given automatically — you had already set the paid embed for this movie.</div>` : ''}
         </div>
         <span class="esrc" style="background:${st.color}22;border-color:${st.color}55;color:${st.color};align-self:flex-start">● ${escHtml(st.label)}</span>
       </div>
@@ -2083,17 +2122,38 @@ function editMovie(id) {
         </select>
       </div>
     </div>
+    <div class="fw" style="margin-bottom:12px">
+      <label>💰 Paid User Embed URL <span style="color:var(--muted);font-weight:400">(only users who buy this movie)</span></label>
+      <input id="ePaidEmbed" class="fi" placeholder="Loading…" disabled>
+      <div class="hint" style="margin-top:4px">Blank = no paid embed yet. Changing it also updates users who were already given access automatically. Fill at least one of the two embeds.</div>
+    </div>
     <div class="brow">
       <button class="btn-add" onclick="saveEdit()">💾 Save Changes</button>
       <button class="btn-sec" onclick="testById(${m.id})">▶ Test</button>
       <button class="btn-sec" onclick="closeEditModal()">Cancel</button>
     </div>`;
   document.getElementById('editModal').classList.add('open');
+
+  // load this movie's paid embed (private table → via admin API)
+  const _pe = document.getElementById('ePaidEmbed');
+  window._origPaid = null;
+  paidEmbedApi({ action: 'get', movie_id: id }).then(d => {
+    if (!_pe || editingId !== id) return;
+    _pe.disabled = !d;
+    _pe.placeholder = 'https://filemoon.../e/xxxxx  (leave blank if none)';
+    if (d) { _pe.value = d.paid_url || ''; window._origPaid = d.paid_url || ''; }
+  });
 }
 
 async function saveEdit() {
 
   const embedVal = document.getElementById('eEmbed').value.trim();
+  const _peEl = document.getElementById('ePaidEmbed');
+  const paidVal = _peEl && !_peEl.disabled ? _peEl.value.trim() : null;   // null = couldn't load, leave untouched
+  if (!embedVal && !paidVal && !(paidVal === null && window._origPaid)) {
+    showToast('❌ Free ya Paid embed — kam se kam ek zaruri hai'); return;
+  }
+  if (paidVal && !/^https:\/\/[^\s]+$/i.test(paidVal)) { showToast('❌ Paid embed must be one https:// link'); return; }
 
   if (embedVal && !validateEmbedUrl(embedVal)) {
   showToast('❌ Please enter a valid embed URL (https://...)');
@@ -2126,6 +2186,13 @@ async function saveEdit() {
   if (error) {
     showToast('❌ ' + error.message);
     return;
+  }
+
+  if (paidVal !== null && paidVal !== (window._origPaid || '')) {
+    const mv = allMovies.find(x => x.id === editingId) || {};
+    const out = await savePaidEmbed(editingId, mv.tmdb_id, paidVal);
+    if (out) showToast(paidVal ? `💰 Paid embed saved${out.updated_requests ? ` · ${out.updated_requests} buyer(s) updated` : ''}` : '💰 Paid embed removed');
+    else return;
   }
 
   const idx = allMovies.findIndex(x => x.id === editingId);
