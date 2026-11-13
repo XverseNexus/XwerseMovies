@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plans — Free &amp; Premium — XwerseMovies</title>
+<meta name="robots" content="index, follow">
+<meta name="description" content="XwerseMovies plans: watch free with ads, or go Premium pay-per-view for Full HD, fewer ads, download and embed links. Movie ₹9, Season ₹29, Series ₹59.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="XwerseMovies">
+<meta property="og:title" content="Plans — Free & Premium — XwerseMovies">
+<meta property="og:description" content="Free HD streaming with ads, or Premium pay-per-view in Full HD with fewer ads — from ₹9.">
+<meta property="og:image" content="https://xwersemovies.bond/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<script>/* SW update → auto-reload */if('serviceWorker'in navigator){var _xvR=false;navigator.serviceWorker.addEventListener('controllerchange',function(){if(!_xvR){_xvR=true;location.reload();}});}</script>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#E50914">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="XwerseMovies">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="xwerse-config.js"></script>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --red: #E50914; --red-dark: #B00710; --green: #46d369;
+  --bg: #141414; --bg2: #0a0a0a; --card: #1c1c1c; --card2: #242424;
+  --text: #e5e5e5; --muted: #808080; --border: rgba(255,255,255,.08);
+  --content-max: 1900px;
+  --content-pad: max(4%, calc((100% - var(--content-max)) / 2));
+}
+html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;overflow-x:hidden}
+a{color:inherit}
+
+/* ── NAV ─────────────────────────────────────────────────── */
+nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;align-items:center;padding:0 var(--content-pad);gap:0;background:rgba(8,8,8,.97);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+.logo{font-family:'Bebas Neue',cursive;font-size:1.7rem;color:var(--red);letter-spacing:2px;margin-right:28px;cursor:pointer;text-decoration:none;flex-shrink:0}
+.logo span{color:#fff}
+.nav-links{display:flex;gap:2px;list-style:none}
+.nl{background:none;border:none;color:rgba(255,255,255,.75);font-size:.86rem;font-weight:500;padding:8px 14px;cursor:pointer;font-family:'Barlow',sans-serif;transition:color .2s}
+.nl:hover{color:#fff}
+@media(max-width:640px){.nav-links{display:none}}
+.nav-r{margin-left:auto;display:flex;align-items:center;gap:10px}
+.nav-btn{background:none;border:none;color:#fff;cursor:pointer;font-size:1rem;padding:8px;border-radius:4px;transition:background .2s}
+.nav-btn:hover{background:rgba(255,255,255,.08)}
+.nav-avatar{width:32px;height:32px;border-radius:4px;background:linear-gradient(135deg,var(--red),#831010);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.82rem;cursor:pointer;color:#fff;overflow:hidden;flex-shrink:0}
+
+/* ── PAGE ────────────────────────────────────────────────── */
+#pageWrap{padding-top:66px;max-width:760px;margin:0 auto;padding-left:var(--content-pad);padding-right:var(--content-pad);padding-bottom:60px}
+.page-hd{padding:36px 0 26px}
+.page-tit{font-family:'Bebas Neue',cursive;font-size:clamp(1.8rem,4vw,2.6rem);letter-spacing:1.5px;color:#fff}
+.page-sub{font-size:.9rem;color:var(--muted);margin-top:6px;line-height:1.6}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:22px;margin-bottom:18px}
+.card-tit{font-size:.72rem;font-weight:700;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.card-tit .stepn{width:20px;height:20px;border-radius:50%;background:var(--red);color:#fff;font-size:.68rem;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+
+/* Search box */
+.rs-search-wrap{position:relative}
+.rs-search{width:100%;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.12);border-radius:6px;padding:12px 40px 12px 14px;color:#fff;font-size:.92rem;font-family:'Barlow',sans-serif;outline:none;transition:border .2s}
+.rs-search:focus{border-color:rgba(255,255,255,.35)}
+.rs-search::placeholder{color:rgba(255,255,255,.32)}
+.rs-search-ico{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:rgba(255,255,255,.35);pointer-events:none}
+.rs-results{margin-top:10px;max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
+.rs-result{display:flex;gap:12px;align-items:center;padding:8px;border-radius:6px;cursor:pointer;transition:background .15s}
+.rs-result:hover{background:rgba(255,255,255,.06)}
+.rs-result img{width:42px;height:63px;object-fit:cover;border-radius:4px;background:#2a2a2a;flex-shrink:0}
+.rs-result-info{flex:1;min-width:0}
+.rs-result-title{font-size:.86rem;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rs-result-meta{font-size:.72rem;color:var(--muted);margin-top:2px}
+
+/* Selected title preview */
+.rs-selected{display:flex;gap:14px;align-items:center;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:12px}
+.rs-selected img{width:56px;height:84px;object-fit:cover;border-radius:5px;background:#2a2a2a;flex-shrink:0}
+.rs-selected-info{flex:1;min-width:0}
+.rs-selected-title{font-size:1rem;font-weight:700;color:#fff}
+.rs-selected-meta{font-size:.78rem;color:var(--muted);margin-top:3px}
+.rs-change-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;padding:7px 14px;border-radius:5px;font-size:.78rem;cursor:pointer;font-family:'Barlow',sans-serif;white-space:nowrap;transition:background .15s}
+.rs-change-btn:hover{background:rgba(255,255,255,.16)}
+
+/* Request type pills */
+.rt-pills{display:flex;gap:10px;flex-wrap:wrap}
+.rt-pill{flex:1;min-width:140px;background:rgba(255,255,255,.04);border:1.5px solid rgba(255,255,255,.1);border-radius:8px;padding:14px;cursor:pointer;transition:all .15s;text-align:center}
+.rt-pill:hover{border-color:rgba(255,255,255,.3)}
+.rt-pill.sel{border-color:var(--red);background:rgba(229,9,20,.08)}
+.rt-pill-name{font-size:.88rem;font-weight:700;color:#fff}
+.rt-pill-price{font-family:'Bebas Neue',cursive;font-size:1.3rem;color:var(--red);margin-top:4px;letter-spacing:.5px}
+
+/* Form fields */
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+@media(max-width:640px){.fgrid{grid-template-columns:1fr}}
+.fwrap{display:flex;flex-direction:column;gap:6px}
+.fwrap.full{grid-column:1/-1}
+.flbl{font-size:.68rem;font-weight:700;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.5px}
+.fsel,.ftxt{background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.1);color:#fff;padding:10px 12px;font-size:.86rem;border-radius:6px;font-family:'Barlow',sans-serif;cursor:pointer;outline:none;width:100%;transition:border .2s}
+.fsel:focus,.ftxt:focus{border-color:rgba(255,255,255,.32)}
+.fsel option{background:#1a1a1a}
+textarea.ftxt{resize:vertical;min-height:72px;line-height:1.5;cursor:text}
+
+.audio-pills{display:flex;gap:8px}
+.audio-pill{flex:1;background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.1);border-radius:6px;padding:9px;text-align:center;cursor:pointer;font-size:.82rem;transition:all .15s}
+.audio-pill.sel{border-color:var(--red);background:rgba(229,9,20,.08);color:#fff;font-weight:700}
+
+/* Price summary */
+.price-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0}
+.price-row.total{border-top:1px solid var(--border);margin-top:6px;padding-top:14px;font-weight:700}
+.price-label{font-size:.86rem;color:rgba(255,255,255,.7)}
+.price-val{font-family:'Bebas Neue',cursive;font-size:1.1rem;color:#fff;letter-spacing:.5px}
+.price-row.total .price-val{font-size:1.6rem;color:var(--red)}
+.included-list{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+.inc-chip{background:rgba(70,211,105,.1);border:1px solid rgba(70,211,105,.25);color:var(--green);font-size:.7rem;padding:4px 10px;border-radius:20px}
+
+.submit-btn{width:100%;background:var(--red);color:#fff;border:none;padding:14px;border-radius:6px;font-size:.95rem;font-weight:700;cursor:pointer;font-family:'Barlow',sans-serif;transition:background .2s;margin-top:6px}
+.submit-btn:hover{background:var(--red-dark)}
+.submit-btn:disabled{background:#333;color:rgba(255,255,255,.3);cursor:not-allowed}
+.email-gate{margin:16px 0 12px;padding:14px;border:1px solid rgba(245,197,24,.35);background:rgba(245,197,24,.06);border-radius:8px}
+.email-gate .gate-title{font-size:.78rem;font-weight:700;color:#f5c518;margin-bottom:8px;letter-spacing:.3px}
+.email-row{display:flex;gap:8px}
+.email-row input{flex:1;min-width:0;background:#141414;border:1px solid rgba(255,255,255,.18);color:#fff;border-radius:6px;padding:11px 12px;font-size:.9rem;font-family:'Barlow',sans-serif}
+.copy-btn{flex-shrink:0;background:#fff;color:#000;border:none;border-radius:6px;padding:0 16px;font-weight:700;font-size:.82rem;cursor:pointer;font-family:'Barlow',sans-serif;transition:.2s}
+.copy-btn:hover{filter:brightness(.88)}
+.copy-btn.done{background:var(--green);color:#000}
+.email-help{font-size:.72rem;color:rgba(255,255,255,.62);margin-top:9px;line-height:1.6}
+.dup-banner{margin-top:16px;padding:14px;border:1px solid rgba(70,211,105,.4);background:rgba(70,211,105,.08);border-radius:8px;font-size:.84rem;line-height:1.6;color:#fff}
+.dup-banner a{display:inline-block;margin-top:8px;background:#fff;color:#000;font-weight:700;font-size:.8rem;padding:8px 16px;border-radius:5px;text-decoration:none}
+.gate-hint{text-align:center;font-size:.72rem;color:#f5c518;margin-top:8px}
+.stub-note{text-align:center;font-size:.72rem;color:rgba(245,197,24,.85);margin-top:10px;line-height:1.6}
+
+.empty-state{text-align:center;padding:40px 20px;color:var(--muted);font-size:.86rem}
+
+/* ── MOBILE BOTTOM NAV ───────────────────────────────────── */
+.mob-nav{display:none}
+@media(max-width:640px){
+  .mob-nav{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:500;background:rgba(9,9,9,.97);border-top:1px solid rgba(255,255,255,.08);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);box-sizing:border-box}
+  .mnav-item{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:10px 2px 8px;text-decoration:none;color:rgba(255,255,255,.42);font-family:'Barlow',sans-serif;transition:color .18s;-webkit-tap-highlight-color:transparent;position:relative;overflow:hidden;box-sizing:border-box}
+  .mnav-item.active{color:#fff}
+  .mnav-item.active::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:20px;height:2px;background:var(--red);border-radius:0 0 3px 3px}
+  .mnav-ico{width:22px;height:22px;fill:currentColor;flex-shrink:0}
+  .mnav-lbl{font-size:.56rem;font-weight:600;letter-spacing:.1px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:clip}
+  .mnav-avatar{width:22px;height:22px;border-radius:4px;background:linear-gradient(135deg,var(--red),#831010);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.6rem;color:#fff;overflow:hidden;flex-shrink:0}
+  #pageWrap{padding-bottom:calc(72px + env(safe-area-inset-bottom,0px))}
+}
+</style>
+<script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
+<script defer src="/_vercel/insights/script.js"></script>
+
+<style>
+.pl-hero{text-align:center;padding:38px 0 8px}
+.pl-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:22px 0}
+@media(max-width:700px){.pl-grid{grid-template-columns:1fr}}
+.pl-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px 22px;position:relative}
+.pl-card.prem{border:1.5px solid rgba(245,197,24,.55);background:linear-gradient(180deg,rgba(245,197,24,.07),var(--card) 40%)}
+.pl-badge{position:absolute;top:-11px;right:18px;background:#f5c518;color:#000;font-size:.66rem;font-weight:800;letter-spacing:.6px;padding:3px 10px;border-radius:10px}
+.pl-name{font-family:'Bebas Neue',cursive;font-size:1.8rem;letter-spacing:1.5px;color:#fff}
+.pl-price{font-size:.92rem;color:var(--muted);margin:2px 0 16px}
+.pl-price b{color:#fff;font-size:1.25rem}
+.pl-list{list-style:none;display:flex;flex-direction:column;gap:11px}
+.pl-list li{display:flex;gap:10px;font-size:.88rem;line-height:1.5;color:rgba(255,255,255,.82)}
+.pl-list .ic{flex-shrink:0;width:20px;text-align:center}
+.pl-list .no{color:rgba(255,255,255,.5)}
+.pl-cta{display:block;text-align:center;margin-top:20px;padding:13px;border-radius:8px;font-weight:700;font-size:.92rem;text-decoration:none;font-family:'Barlow',sans-serif}
+.pl-cta.free{background:rgba(255,255,255,.1);color:#fff}
+.pl-cta.prem{background:#f5c518;color:#000}
+.pl-h{font-family:'Bebas Neue',cursive;font-size:1.5rem;letter-spacing:1.2px;color:#fff;margin:34px 0 12px}
+.pl-prices{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:600px){.pl-prices{grid-template-columns:1fr}}
+.pl-p{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;text-align:center}
+.pl-p .t{font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:700}
+.pl-p .a{font-family:'Bebas Neue',cursive;font-size:2.4rem;color:#fff;margin:4px 0}
+.pl-p .d{font-size:.8rem;color:rgba(255,255,255,.6);line-height:1.5}
+.pl-faq details{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px}
+.pl-faq summary{cursor:pointer;font-weight:700;font-size:.9rem;color:#fff}
+.pl-faq p{margin-top:10px;font-size:.84rem;line-height:1.65;color:rgba(255,255,255,.7)}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="logo" href="XwerseMovies_Home.html">Xwerse<span>Movies</span></a>
+  <ul class="nav-links">
+    <li><button class="nl" onclick="location.href='XwerseMovies_Home.html'">Home</button></li>
+    <li><button class="nl" onclick="location.href='XwerseMovies_Browse.html'">Browse</button></li>
+    <li><button class="nl" style="color:#fff;font-weight:700" disabled>Plans</button></li>
+  </ul>
+  <div class="nav-r">
+    <button class="nav-btn" title="Search" onclick="location.href='XwerseMovies_Search.html'">🔍</button>
+    <div class="nav-avatar" id="navAvatar">U</div>
+  </div>
+</nav>
+
+<body>
+<nav>
+  <a class="logo" href="XwerseMovies_Home.html">Xwerse<span>Movies</span></a>
+  <ul class="nav-links">
+    <li><button class="nl" onclick="location.href='XwerseMovies_Home.html'">Home</button></li>
+    <li><button class="nl" onclick="location.href='XwerseMovies_Browse.html'">Browse</button></li>
+    <li><button class="nl" style="color:#fff;font-weight:700" disabled>Plans</button></li>
+  </ul>
+  <div class="nav-r">
+    <button class="nav-btn" title="Search" onclick="location.href='XwerseMovies_Search.html'">🔍</button>
+    <div class="nav-avatar" id="navAvatar">U</div>
+  </div>
+</nav>
+
+<div id="pageWrap" style="max-width:980px">
+  <div class="pl-hero">
+    <div class="page-tit">Choose how you watch</div>
+    <div class="page-sub">Watch free with ads — or pay once for a title and watch it in Full HD with far fewer ads. No subscription, ever.</div>
+  </div>
+
+  <div class="pl-grid">
+    <!-- FREE -->
+    <div class="pl-card">
+      <div class="pl-name">Free</div>
+      <div class="pl-price"><b>₹0</b> · no payment needed</div>
+      <ul class="pl-list">
+        <li><span class="ic">✅</span><span>Watch movies on the homepage for free — no charges.</span></li>
+        <li><span class="ic">✅</span><span>HD quality (up to 720p).</span></li>
+        <li><span class="ic">✅</span><span>Movies in <b>Hindi dub</b>, plus movies whose official audio is Hindi.</span></li>
+        <li><span class="ic">📢</span><span>More ads — redirect and pop-up ads while playing. That is how we keep it free.</span></li>
+        <li><span class="ic no">➖</span><span class="no">Some titles are not available, and many are only in the <b>original audio language</b>.</span></li>
+      </ul>
+      <a class="pl-cta free" href="XwerseMovies_Home.html">Start watching free</a>
+    </div>
+
+    <!-- PREMIUM -->
+    <div class="pl-card prem">
+      <div class="pl-badge">PAY PER VIEW</div>
+      <div class="pl-name">Premium</div>
+      <div class="pl-price">from <b>₹9</b> · pay only for what you watch</div>
+      <ul class="pl-list">
+        <li><span class="ic">✅</span><span><b>Full HD (1080p)</b> video.</span></li>
+        <li><span class="ic">✅</span><span><b>Very few ads</b> — only 1–2 redirect ads, no pop-up clutter.</span></li>
+        <li><span class="ic">✅</span><span>Buy a <b>movie</b>, a <b>specific season</b>, or a <b>complete web series</b> — priced separately.</span></li>
+        <li><span class="ic">✅</span><span>Everything in the Free plan is included.</span></li>
+        <li><span class="ic">✅</span><span><b>Pay per view</b> — no subscription, no auto-renewal, nothing extra to pay.</span></li>
+        <li><span class="ic">✅</span><span><b>Download link</b> for your title, when available.</span></li>
+        <li><span class="ic">✅</span><span><b>Embed link</b> — use it on your own website or anywhere you like.</span></li>
+        <li><span class="ic">✅</span><span><b>Subtitles</b> in Indian languages in the video player, where available for the title.</span></li>
+      </ul>
+      <a class="pl-cta prem" href="XwerseMovies_Request.html">Get Premium access →</a>
+    </div>
+  </div>
+
+  <div class="pl-h">Premium prices</div>
+  <div class="pl-prices">
+    <div class="pl-p"><div class="t">Movie</div><div class="a">₹9</div><div class="d">One movie</div></div>
+    <div class="pl-p"><div class="t">Season</div><div class="a">₹29</div><div class="d">One season of a web series</div></div>
+    <div class="pl-p"><div class="t">Complete Series</div><div class="a">₹59</div><div class="d">All available seasons</div></div>
+  </div>
+
+  <div class="pl-h">How Premium works</div>
+  <div class="pl-faq">
+    <details open><summary>1. Pick a title and pay</summary><p>Search the title, choose Movie / Season / Series, and pay securely with UPI through Cashfree. Use the same email you sign in with — we show it to you with a copy button.</p></details>
+    <details open><summary>2. Get access</summary><p>Once the payment is confirmed it appears in <b>My Purchases</b> as <i>Processing</i>. Titles we have already prepared unlock automatically; others are added within 24–72 hours and you get a notification.</p></details>
+    <details open><summary>3. Watch, download or embed</summary><p>Open <b>My Purchases</b> and tap Watch. When available you also get the download link and the embed link.</p></details>
+    <details><summary>Is there a refund?</summary><p>Yes — if we cannot arrange your title, you get a full refund. See the <a href="XwerseMovies_Refund.html" style="color:#fff">Refund &amp; Cancellation Policy</a>.</p></details>
+    <details><summary>Can I buy the same title twice?</summary><p>No. Once a title is bought and paid, it stays on your account — you cannot (and do not need to) purchase it again.</p></details>
+  </div>
+</div>
+
+<!-- MOBILE BOTTOM NAV -->
+<nav class="mob-nav" aria-label="Mobile navigation">
+  <a class="mnav-item" href="XwerseMovies_Home.html">
+    <svg class="mnav-ico" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+    <span class="mnav-lbl">Home</span>
+  </a>
+  <a class="mnav-item" href="XwerseMovies_Browse.html#new">
+    <svg class="mnav-ico" viewBox="0 0 24 24"><path d="M13.5.67s.74 2.65.74 4.8c0 2.06-1.35 3.73-3.41 3.73-2.07 0-3.63-1.67-3.63-3.73l.03-.36C5.21 7.51 4 10.62 4 14c0 4.42 3.58 8 8 8s8-3.58 8-8C20 8.61 17.41 3.8 13.5.67z"/></svg>
+    <span class="mnav-lbl">New &amp; Hot</span>
+  </a>
+  <a class="mnav-item" href="XwerseMovies_Search.html">
+    <svg class="mnav-ico" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+    <span class="mnav-lbl">Search</span>
+  </a>
+  <a class="mnav-item" href="XwerseMovies_MyList.html">
+    <svg class="mnav-ico" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+    <span class="mnav-lbl">My List</span>
+  </a>
+  <a class="mnav-item" href="javascript:void(0)" id="mnavProfileTab" aria-label="Profile" onclick="document.getElementById('mnavProfileAvatar').click()">
+    <div class="mnav-avatar" id="mnavProfileAvatar">U</div>
+    <span class="mnav-lbl">Profile</span>
+  </a>
+</nav>
+
+<script>
+(async () => {
+  try {
+    const { data } = await getSB().auth.getSession();
+    if (data && data.session) {
+      await initNavAvatar('navAvatar');
+      await initNavAvatar('mnavProfileAvatar');
+    } else {
+      document.getElementById('navAvatar').outerHTML = '<a href="index.html" style="color:#fff;font-size:.82rem;font-weight:700;text-decoration:none;background:var(--red);padding:7px 14px;border-radius:5px">Sign in</a>';
+    }
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>
