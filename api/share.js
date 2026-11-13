@@ -22,7 +22,7 @@ module.exports = async function handler(req, res) {
   const id   = String(req.query?.t || '').match(/^\d{1,9}$/) ? String(req.query.t) : null;
   const type = req.query?.type === 'tv' ? 'tv' : 'movie';
 
-  let target = `${SITE}/XwerseMovies_Home.html`;
+  let target = `${SITE}/Home`;
   let title = 'XwerseMovies';
   let desc  = 'Stream trending movies, TV shows and Bollywood hits — anytime, anywhere on XwerseMovies.';
   let image = `${SITE}/og-image.png`;
@@ -30,7 +30,7 @@ module.exports = async function handler(req, res) {
   let canonical = SITE + '/';
 
   if (id) {
-    target = `${SITE}/XwerseMovies_Home.html?t=${id}&type=${type}`;
+    target = `${SITE}/Home?t=${id}&type=${type}`;
     canonical = `${SITE}/s/${type}/${id}`;
     try {
       const r = await fetch(`https://api.themoviedb.org/3/${type}/${id}?api_key=${KEY}&language=en-US`, {
