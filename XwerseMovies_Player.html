@@ -143,26 +143,13 @@ html,body{
   font:700 .8rem 'Barlow',sans-serif; gap:6px; white-space:nowrap;
 }
 
-/* Phone start cover: one tap = full screen + landscape (browsers only allow that after a tap) */
-#landCover{
-  position:absolute; inset:0; z-index:100; background:#000; display:none;
-  flex-direction:column; align-items:center; justify-content:center; gap:14px; cursor:pointer;
-  -webkit-tap-highlight-color:transparent;
-}
-#landCover.show{ display:flex; }
-#landCover .lc-play{
-  width:76px; height:76px; border-radius:50%; background:#E50914; color:#fff;
-  display:flex; align-items:center; justify-content:center; font-size:1.9rem; padding-left:5px;
-  box-shadow:0 0 0 8px rgba(229,9,20,.18);
-}
-#landCover .lc-t{ color:#fff; font:700 1rem 'Barlow',sans-serif; text-align:center; padding:0 24px; }
-#landCover .lc-s{ color:rgba(255,255,255,.5); font:500 .78rem 'Barlow',sans-serif; }
 /* Fallback when the phone can't lock rotation (iPhone): show the player turned sideways */
 html.fakeLand body{ overflow:hidden; }
 html.fakeLand #playerWrap{
-  position:fixed; top:0; left:100vw; width:100vh; height:100vw;
+  position:fixed; top:0; left:var(--pw,100vw); width:var(--ph,100vh); height:var(--pw,100vw);
   transform:rotate(90deg); transform-origin:top left;
 }
+html.fakeLand #hint{ display:none !important; }
 #titleBox{ flex:1; min-width:0; opacity:0; transition:opacity .3s; pointer-events:none; }
 #playerWrap.ui-on #titleBox{ opacity:1; }
 .top-title{ font-size:1rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-shadow:0 1px 4px rgba(0,0,0,.8); }
@@ -221,13 +208,6 @@ html.fakeLand #playerWrap{
       <div class="top-sub" id="topSub"></div>
     </div>
     <button class="ui-btn" id="nextEpBtn" onclick="doPlayNextEp()" title="Next Episode">Next Ep &#9654;</button>
-  </div>
-
-  <!-- PHONE START COVER -->
-  <div id="landCover" onclick="startLandscape()" role="button" aria-label="Tap to watch">
-    <div class="lc-play">▶</div>
-    <div class="lc-t" id="lcTitle">Tap to watch</div>
-    <div class="lc-s">Opens in full screen · landscape</div>
   </div>
 
   <div id="hint">↻ Rotate your phone for the best view</div>
@@ -688,52 +668,27 @@ function doPlayNextEp() {
 }
 
 /* ─────────────────────────────────────────────────────────
-   PHONES: open straight in landscape, full screen.
-   Browsers allow fullscreen + rotation-lock only after a tap, so
-   phones first see one big ▶ tap target; that tap does both.
-   If the phone refuses to lock rotation (iPhone), the player is
-   turned sideways instead so it still shows landscape.
-   Laptops / PCs / tablets skip all of this.
+   PHONES: the player always shows in landscape, with no extra tap.
+   Browsers don't let a page lock rotation without a tap, so while the
+   phone is held upright the player is simply turned sideways; turn the
+   phone and it switches to the real landscape by itself. The embed's own
+   full-screen button still does real full screen.
+   Laptops / PCs / tablets: untouched.
 ───────────────────────────────────────────────────────── */
 const _isPhone = /Android.*Mobile|iPhone|iPod/i.test(navigator.userAgent || '');
-const _fsEl = () => document.fullscreenElement || document.webkitFullscreenElement;
-const _isLandscape = () => window.innerWidth > window.innerHeight;
-
-function _syncFake() {
+function _syncLand() {
+  if (!_isPhone) return;
   const root = document.documentElement;
-  // Sideways fallback only while the phone is held upright and NOT really in landscape
-  if (root.classList.contains('fakeLand') && _isLandscape()) root.classList.remove('fakeLand');
+  const w = window.innerWidth, h = window.innerHeight;
+  root.style.setProperty('--pw', w + 'px');
+  root.style.setProperty('--ph', h + 'px');
+  root.classList.toggle('fakeLand', h > w);
 }
-
-async function startLandscape() {
-  const cover = $('landCover');
-  if (cover) cover.classList.remove('show');
-  const w = $('playerWrap');
-  try {
-    const req = w.requestFullscreen || w.webkitRequestFullscreen;
-    if (req) await req.call(w);
-  } catch (e) {}
-  let locked = false;
-  try {
-    if (screen.orientation && screen.orientation.lock) { await screen.orientation.lock('landscape'); locked = true; }
-  } catch (e) {}
-  setTimeout(() => {
-    if (!locked && !_isLandscape()) document.documentElement.classList.add('fakeLand');
-  }, 350);
-}
-
 if (_isPhone) {
-  const t = new URLSearchParams(location.search).get('title');
-  if (t && $('lcTitle')) $('lcTitle').textContent = t;
-  $('landCover').classList.add('show');
+  _syncLand();
+  window.addEventListener('resize', _syncLand);
+  window.addEventListener('orientationchange', () => setTimeout(_syncLand, 250));
 }
-window.addEventListener('resize', _syncFake);
-document.addEventListener('fullscreenchange', () => {
-  if (!_fsEl()) {
-    document.documentElement.classList.remove('fakeLand');
-    try { screen.orientation && screen.orientation.unlock && screen.orientation.unlock(); } catch (e) {}
-  }
-});
 
 /* ─────────────────────────────────────────────────────────
    KEYBOARD: Esc = back (but not when Esc was just closing fullscreen)
