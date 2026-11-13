@@ -12,7 +12,7 @@
 <meta property="og:image" content="https://xwersemovies.bond/og-image.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:url" content="https://xwersemovies.bond/XwerseMovies_Browse.html">
+<meta property="og:url" content="https://xwersemovies.bond/Browse">
 <meta property="og:locale" content="en_IN">
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
@@ -273,18 +273,18 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
 <body>
 
 <nav>
-  <a class="logo" href="XwerseMovies_Home.html">Xwerse<span>Movies</span></a>
+  <a class="logo" href="/Home">Xwerse<span>Movies</span></a>
   <ul class="nav-links">
-    <li><button class="nl" onclick="location.href='XwerseMovies_Home.html'">Home</button></li>
+    <li><button class="nl" onclick="location.href='/Home'">Home</button></li>
     <li><button class="nl active" id="nlTV" onclick="switchPage('tv')">TV Shows</button></li>
     <li><button class="nl" id="nlMov" onclick="switchPage('movies')">Movies</button></li>
     <li><button class="nl" id="nlNew" onclick="switchPage('new')">New & Popular</button></li>
     <li><button class="nl" id="nlLang" onclick="switchPage('languages')">Browse Languages</button></li>
-    <li><button class="nl" onclick="location.href='XwerseMovies_MyList.html'">My List</button></li>
+    <li><button class="nl" onclick="location.href='/MyList'">My List</button></li>
   </ul>
   <div class="nav-right">
-    <a href="XwerseMovies_Plans.html" title="Premium plans" style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:20px;background:rgba(229,9,20,.16);border:1px solid rgba(229,9,20,.45);color:#fff;text-decoration:none;font-size:.8rem;font-weight:700;transition:.2s;white-space:nowrap" onmouseover="this.style.background='rgba(229,9,20,.3)'" onmouseout="this.style.background='rgba(229,9,20,.16)'">💎 Premium</a>
-    <a href="XwerseMovies_Search.html" title="Search" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:6px;color:rgba(255,255,255,.8);text-decoration:none;font-size:1.05rem;transition:.2s" onmouseover="this.style.background='rgba(255,255,255,.1)'" onmouseout="this.style.background=''">&#x1F50D;</a>
+    <a href="/Plans" title="Premium plans" style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:20px;background:rgba(229,9,20,.16);border:1px solid rgba(229,9,20,.45);color:#fff;text-decoration:none;font-size:.8rem;font-weight:700;transition:.2s;white-space:nowrap" onmouseover="this.style.background='rgba(229,9,20,.3)'" onmouseout="this.style.background='rgba(229,9,20,.16)'">💎 Premium</a>
+    <a href="/Search" title="Search" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:6px;color:rgba(255,255,255,.8);text-decoration:none;font-size:1.05rem;transition:.2s" onmouseover="this.style.background='rgba(255,255,255,.1)'" onmouseout="this.style.background=''">&#x1F50D;</a>
     <button class="nav-bell" onclick="XvNotif.toggle()" title="Notifications">
       🔔<span class="_xvNP-dot" style="position:absolute;top:5px;right:5px;width:7px;height:7px;background:#E50914;border-radius:50%;border:2px solid #080808;display:none;pointer-events:none"></span>
     </button>
@@ -730,7 +730,7 @@ function bPlayEp(season, episode) {
   p.set('age',m.age_rating||''); p.set('quality',m.quality||'');
   if (m.embed_url) p.set('embed',m.embed_url);
   closeMod();
-  window.location.href = 'XwerseMovies_Player.html?'+p.toString();
+  window.location.href = '/Player?'+p.toString();
 }
 
 // ── PLAY ──────────────────────────────────────────────────────
@@ -745,7 +745,7 @@ function play(m) {
   p.set('age',m.age_rating||''); p.set('dur',m.duration||'');
   p.set('quality',m.quality||'');
   if (m.embed_url) p.set('embed',m.embed_url);
-  window.location.href = 'XwerseMovies_Player.html?'+p.toString();
+  window.location.href = '/Player?'+p.toString();
 }
 
 // ── ADD TO MY LIST ────────────────────────────────────────────
@@ -769,19 +769,19 @@ document.addEventListener('keydown', function(e){ if (e.key==='Escape') closeMod
 
 <!-- MOBILE BOTTOM NAV -->
 <nav class="mob-nav" aria-label="Mobile navigation">
-  <a class="mnav-item" href="XwerseMovies_Home.html" aria-label="Home">
+  <a class="mnav-item" href="/Home" aria-label="Home">
     <svg class="mnav-ico" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
     <span class="mnav-lbl">Home</span>
   </a>
-  <a class="mnav-item active" href="XwerseMovies_Browse.html#new" id="mnavNewHot" aria-label="New and Hot">
+  <a class="mnav-item active" href="/Browse#new" id="mnavNewHot" aria-label="New and Hot">
     <svg class="mnav-ico" viewBox="0 0 24 24"><path d="M13.5.67s.74 2.65.74 4.8c0 2.06-1.35 3.73-3.41 3.73-2.07 0-3.63-1.67-3.63-3.73l.03-.36C5.21 7.51 4 10.62 4 14c0 4.42 3.58 8 8 8s8-3.58 8-8C20 8.61 17.41 3.8 13.5.67z"/></svg>
     <span class="mnav-lbl">New &amp; Hot</span>
   </a>
-  <a class="mnav-item" href="XwerseMovies_Search.html" aria-label="Search">
+  <a class="mnav-item" href="/Search" aria-label="Search">
     <svg class="mnav-ico" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
     <span class="mnav-lbl">Search</span>
   </a>
-  <a class="mnav-item" href="XwerseMovies_MyList.html" aria-label="My List">
+  <a class="mnav-item" href="/MyList" aria-label="My List">
     <svg class="mnav-ico" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
     <span class="mnav-lbl">My List</span>
   </a>
