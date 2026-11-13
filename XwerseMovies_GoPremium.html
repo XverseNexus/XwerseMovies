@@ -147,14 +147,14 @@ textarea.ftxt{resize:vertical;min-height:72px;line-height:1.5;cursor:text}
 <body>
 
 <nav>
-  <a class="logo" href="XwerseMovies_Home.html">Xwerse<span>Movies</span></a>
+  <a class="logo" href="/Home">Xwerse<span>Movies</span></a>
   <ul class="nav-links">
-    <li><button class="nl" onclick="location.href='XwerseMovies_Home.html'">Home</button></li>
-    <li><button class="nl" onclick="location.href='XwerseMovies_Browse.html'">Browse</button></li>
+    <li><button class="nl" onclick="location.href='/Home'">Home</button></li>
+    <li><button class="nl" onclick="location.href='/Browse'">Browse</button></li>
     <li><button class="nl" style="color:#fff;font-weight:700" disabled>Premium</button></li>
   </ul>
   <div class="nav-r">
-    <button class="nav-btn" title="Search" onclick="location.href='XwerseMovies_Search.html'">🔍</button>
+    <button class="nav-btn" title="Search" onclick="location.href='/Search'">🔍</button>
     <div class="nav-avatar" id="navAvatar">U</div>
   </div>
 </nav>
@@ -162,7 +162,7 @@ textarea.ftxt{resize:vertical;min-height:72px;line-height:1.5;cursor:text}
 <div id="pageWrap">
   <div class="page-hd">
     <div class="page-tit">Go Premium</div>
-    <div class="page-sub">Pick a movie, a season or a complete series — pay once, no subscription. You get <b>Full HD (1080p)</b> with <b>very few ads</b>, plus a download link and an embed link when available, and Indian-language subtitles where available. <a href="XwerseMovies_Plans.html" style="color:#f5c518">Compare Free vs Premium →</a></div>
+    <div class="page-sub">Pick a movie, a season or a complete series — pay once, no subscription. You get <b>Full HD (1080p)</b> with <b>very few ads</b>, plus a download link and an embed link when available, and Indian-language subtitles where available. <a href="/Plans" style="color:#f5c518">Compare Free vs Premium →</a></div>
   </div>
 
   <!-- STEP 1: TITLE -->
@@ -255,7 +255,7 @@ textarea.ftxt{resize:vertical;min-height:72px;line-height:1.5;cursor:text}
     </div>
     <div class="dup-banner" id="dupBanner" style="display:none">
       <span id="dupText">✅ You have already requested this.</span><br>
-      <a href="XwerseMovies_MyRequests.html">View in My Purchases →</a>
+      <a href="/MyPurchases">View in My Purchases →</a>
     </div>
     <div class="email-gate" id="emailGate">
       <div class="gate-title">📧 STEP 1 — COPY YOUR PAYMENT EMAIL</div>
@@ -268,7 +268,7 @@ textarea.ftxt{resize:vertical;min-height:72px;line-height:1.5;cursor:text}
     <button class="submit-btn" id="submitBtn" onclick="submitRequest()" disabled>Proceed to Payment →</button>
     <p class="gate-hint" id="gateHint">👆 Copy your email above to unlock the payment button</p>
     <p class="stub-note" style="color:rgba(255,255,255,.4)">🔒 Secure checkout powered by Cashfree Payments. You'll be redirected to complete payment.</p>
-    <p class="stub-note" style="color:rgba(255,255,255,.4)">Your request is created only after payment is confirmed — see our <a href="XwerseMovies_Refund.html" style="color:inherit">Refund Policy</a>.</p>
+    <p class="stub-note" style="color:rgba(255,255,255,.4)">Your request is created only after payment is confirmed — see our <a href="/Refund" style="color:inherit">Refund Policy</a>.</p>
   </div>
 </div>
 
@@ -282,19 +282,19 @@ textarea.ftxt{resize:vertical;min-height:72px;line-height:1.5;cursor:text}
 
 <!-- MOBILE BOTTOM NAV -->
 <nav class="mob-nav" aria-label="Mobile navigation">
-  <a class="mnav-item" href="XwerseMovies_Home.html">
+  <a class="mnav-item" href="/Home">
     <svg class="mnav-ico" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
     <span class="mnav-lbl">Home</span>
   </a>
-  <a class="mnav-item" href="XwerseMovies_Browse.html#new">
+  <a class="mnav-item" href="/Browse#new">
     <svg class="mnav-ico" viewBox="0 0 24 24"><path d="M13.5.67s.74 2.65.74 4.8c0 2.06-1.35 3.73-3.41 3.73-2.07 0-3.63-1.67-3.63-3.73l.03-.36C5.21 7.51 4 10.62 4 14c0 4.42 3.58 8 8 8s8-3.58 8-8C20 8.61 17.41 3.8 13.5.67z"/></svg>
     <span class="mnav-lbl">New &amp; Hot</span>
   </a>
-  <a class="mnav-item" href="XwerseMovies_Search.html">
+  <a class="mnav-item" href="/Search">
     <svg class="mnav-ico" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
     <span class="mnav-lbl">Search</span>
   </a>
-  <a class="mnav-item" href="XwerseMovies_MyList.html">
+  <a class="mnav-item" href="/MyList">
     <svg class="mnav-ico" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
     <span class="mnav-lbl">My List</span>
   </a>
@@ -342,7 +342,7 @@ async function pollRequestPaymentStatus(reqId) {
       document.getElementById('verifySub').textContent = `Your ${Xwerse.REQUEST_PRICES[row.request_type]?.label || 'request'} for "${row.title}" is being processed. We'll notify you as it progresses.`;
       const btn = document.getElementById('verifyDoneBtn');
       btn.style.display = 'inline-block'; btn.textContent = 'View My Purchases';
-      btn.onclick = () => location.href = 'XwerseMovies_MyRequests.html';
+      btn.onclick = () => location.href = '/MyPurchases';
       return;
     }
     if (row?.payment_status === 'failed') {
@@ -351,7 +351,7 @@ async function pollRequestPaymentStatus(reqId) {
       document.getElementById('verifySub').textContent = 'Your payment did not go through. No amount was charged. Please try again.';
       const btn = document.getElementById('verifyDoneBtn');
       btn.style.display = 'inline-block'; btn.textContent = 'Try Again';
-      btn.onclick = () => location.href = 'XwerseMovies_Request.html';
+      btn.onclick = () => location.href = '/GoPremium';
       return;
     }
     await new Promise(r => setTimeout(r, 2000));
@@ -360,7 +360,7 @@ async function pollRequestPaymentStatus(reqId) {
   document.getElementById('verifySub').textContent = "This is taking longer than usual. If your payment succeeded, it'll be reflected shortly.";
   const btn = document.getElementById('verifyDoneBtn');
   btn.style.display = 'inline-block'; btn.textContent = 'Go to Home';
-  btn.onclick = () => location.href = 'XwerseMovies_Home.html';
+  btn.onclick = () => location.href = '/Home';
 }
 
 // ── TITLE SEARCH ──────────────────────────────────────────
@@ -601,7 +601,7 @@ async function submitRequest() {
     };
 
     const { data: { session } } = await getSB().auth.getSession();
-    if (!session) { showToast('⚠️ Please sign in again'); location.href = 'index.html'; return; }
+    if (!session) { showToast('⚠️ Please sign in again'); location.href = '/'; return; }
 
     const res = await fetch('/api/create-request-pending', {
       method: 'POST',
