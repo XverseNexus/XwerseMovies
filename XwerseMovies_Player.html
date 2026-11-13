@@ -14,7 +14,7 @@
 <meta property="og:image" content="https://xwersemovies.bond/og-image.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:url" content="https://xwersemovies.bond/XwerseMovies_Player.html">
+<meta property="og:url" content="https://xwersemovies.bond/Player">
 <meta property="og:locale" content="en_IN">
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
@@ -617,7 +617,7 @@ async function goBack() {
   if (document.referrer && document.referrer.includes('XwerseMovies')) {
     history.back();
   } else {
-    location.href = 'XwerseMovies_Home.html';
+    location.href = '/Home';
   }
 }
 
@@ -664,7 +664,7 @@ function doPlayNextEp() {
   params.set('episode', (movieData._episode || 1) + 1);
   params.set('season',  movieData._season || 1);
   params.delete('embed');   // force auto-build embed for the new episode
-  location.href = 'XwerseMovies_Player.html?' + params.toString();
+  location.href = '/Player?' + params.toString();
 }
 
 /* ─────────────────────────────────────────────────────────
