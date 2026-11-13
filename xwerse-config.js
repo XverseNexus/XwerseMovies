@@ -665,7 +665,7 @@ function showToast(msg, duration = 2800) {
 // ─────────────────────────────────────────────────────────
 //  AUTH GUARD  — call on every protected page
 // ─────────────────────────────────────────────────────────
-async function requireAuth(redirectTo = 'index.html') {
+async function requireAuth(redirectTo = '/') {
 
   const sb = getSB();
 
@@ -781,12 +781,12 @@ async function initNavAvatar(avatarElId = 'navAvatar') {
         <div class="xvm-name">${name}</div>
         <div class="xvm-email">${email}</div>
       </div>
-      <button class="xvm-item" onclick="window.location.href='XwerseMovies_Settings.html'">⚙️ &nbsp;Account Settings</button>
-      <button class="xvm-item" onclick="window.location.href='XwerseMovies_Request.html'">🎬 &nbsp;Request a Title</button>
-      <button class="xvm-item" onclick="window.location.href='XwerseMovies_MyRequests.html'">🛒 &nbsp;My Purchases</button>
-      <button class="xvm-item" onclick="window.location.href='XwerseMovies_Plans.html'">💎 &nbsp;Plans</button>
+      <button class="xvm-item" onclick="window.location.href='/Settings'">⚙️ &nbsp;Account Settings</button>
+      <button class="xvm-item" onclick="window.location.href='/GoPremium'">💎 &nbsp;Go Premium</button>
+      <button class="xvm-item" onclick="window.location.href='/MyPurchases'">🛒 &nbsp;My Purchases</button>
+      <button class="xvm-item" onclick="window.location.href='/Plans'">💎 &nbsp;Plans</button>
       <button class="xvm-item" onclick="xvSwitchProfile()">👥 &nbsp;Switch Profile</button>
-      <button class="xvm-item" id="xvm-admin-btn" style="display:none" onclick="window.location.href='XwerseMovies_Admin.html'">🛡️ &nbsp;Admin Panel</button>
+      <button class="xvm-item" id="xvm-admin-btn" style="display:none" onclick="window.location.href='/Admin'">🛡️ &nbsp;Admin Panel</button>
       <div class="xvm-sep"></div>
       <button class="xvm-item danger" onclick="xvSignOut()">🚪 &nbsp;Sign Out</button>`;
 
@@ -798,13 +798,13 @@ async function initNavAvatar(avatarElId = 'navAvatar') {
 // Sign out — profile NOT cleared, so same user skips Who's Watching on return
 async function xvSignOut() {
   await Auth.signOut();
-  window.location.href = 'index.html';
+  window.location.href = '/';
 }
 
 // Switch profile — CLEARS saved profile so Who's Watching shows for selection
 function xvSwitchProfile() {
   Session.setProfile(null);
-  window.location.href = 'index.html';
+  window.location.href = '/';
 }
 
 // ═════════════════════════════════════════════════════════════════
@@ -1813,7 +1813,7 @@ const XvNotif = {
       this._badge();
     }
     const page = this._target(it);
-    const here = location.pathname.split('/').pop() || '';
+    const here = location.pathname.replace(/\.html$/, '');
     if (page && here !== page) { location.href = page; return; }
     this._render();
     this.close();
@@ -1845,8 +1845,8 @@ const XvNotif = {
 
   _target(n) {
     const t = ((n.title || '') + ' ' + (n.body || '')).toLowerCase();
-    if (/request|payment|refund|fulfilled|ready to watch/.test(t)) return 'XwerseMovies_MyRequests.html';
-    if (/new on/.test(t)) return 'XwerseMovies_Home.html';
+    if (/request|payment|refund|fulfilled|ready to watch/.test(t)) return '/MyPurchases';
+    if (/new on/.test(t)) return '/Home';
     return null;
   },
 
@@ -2057,7 +2057,7 @@ const XvNotif = {
       <div class="_xvNP-ft">
         <button class="_xvNP-mark" onclick="XvNotif.markAllRead()">✓ Mark All Read</button>
         <button class="_xvNP-cfg"
-          onclick="XvNotif.close();window.location.href='XwerseMovies_Settings.html#notifs'">
+          onclick="XvNotif.close();window.location.href='/Settings#notifs'">
           ⚙ Settings
         </button>
       </div>`;
@@ -2088,7 +2088,7 @@ const XShare = {
   url(m) {
     const id = m && (m.tmdb_id || (m.type === 'tv' ? m.id : null));
     const base = 'https://xwersemovies.bond';
-    return id ? `${base}/s/${m.type === 'tv' ? 'tv' : 'movie'}/${id}` : base + '/XwerseMovies_Home.html';
+    return id ? `${base}/s/${m.type === 'tv' ? 'tv' : 'movie'}/${id}` : base + '/Home';
   },
 
   async share(m) {
@@ -2128,12 +2128,12 @@ const XShare = {
 
   /* Not logged in when the link was opened? Remember it, send them back after login. */
   rememberNext() {
-    try { if (/[?&]t=\d+/.test(location.search)) sessionStorage.setItem('xv_next', location.pathname.split('/').pop() + location.search); } catch (e) {}
+    try { if (/[?&]t=\d+/.test(location.search)) sessionStorage.setItem('xv_next', '/Home' + location.search); } catch (e) {}
   },
   afterLoginUrl() {
     let n = null;
     try { n = sessionStorage.getItem('xv_next'); sessionStorage.removeItem('xv_next'); } catch (e) {}
-    return (n && /^XwerseMovies_Home\.html\?t=\d+&type=(movie|tv)$/.test(n)) ? n : 'XwerseMovies_Home.html';
+    return (n && /^\/Home\?t=\d+&type=(movie|tv)$/.test(n)) ? n : '/Home';
   },
 };
 
