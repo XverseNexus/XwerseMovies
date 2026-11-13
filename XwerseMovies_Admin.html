@@ -108,6 +108,20 @@ nav{background:#111;border-bottom:1px solid var(--border);padding:0 22px;height:
 .sts{font-size:.68rem;color:var(--green);margin-top:3px}
 /* FORM CARD */
 .fc{background:var(--card);border:1px solid var(--border);border-radius:9px;padding:20px 22px;margin-bottom:16px}
+.sl-card{border:1px solid rgba(255,255,255,.09);border-radius:10px;padding:12px 14px;background:rgba(255,255,255,.025);margin-bottom:12px}
+.sl-card.free{border-left:3px solid #46d369}
+.sl-card.paid{border-left:3px solid #f5c518}
+.sl-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
+.sl-ttl{font-weight:700;font-size:.82rem;color:#fff}
+.sl-sub{font-size:.68rem;color:var(--muted);margin-bottom:9px;line-height:1.45}
+.sl-row{display:flex;gap:8px;align-items:stretch}
+.sl-row input{flex:1;min-width:0}
+.sl-test{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:#fff;border-radius:6px;padding:0 14px;font-size:.76rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit}
+.sl-test:hover{background:rgba(255,255,255,.15)}
+.sl-chip{font-size:.62rem;font-weight:700;padding:2px 9px;border-radius:10px;background:rgba(255,255,255,.08);color:var(--muted);white-space:nowrap}
+.sl-chip.ok{background:rgba(70,211,105,.13);color:#46d369}
+.sl-chip.bad{background:rgba(229,9,20,.14);color:#ff6b6b}
+.sl-note{font-size:.7rem;color:var(--muted);margin:2px 0 12px;line-height:1.5}
 .fc-title{font-size:.9rem;font-weight:700;color:#fff;margin-bottom:16px;display:flex;align-items:center;gap:8px}
 .fc-ico{width:30px;height:30px;background:rgba(229,9,20,.1);border:1px solid rgba(229,9,20,.18);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:.85rem}
 /* FORM FIELDS */
@@ -374,28 +388,8 @@ nav{background:#111;border-bottom:1px solid var(--border);padding:0 22px;height:
             </div>
           </div>
 
-          <!-- Custom embed override -->
-          <div class="fg c1" style="margin-top:10px">
-            <div class="fw">
-              <label>Custom Embed URL (paste any embed link)</label>
-              <input type="url" id="manualEmbed" placeholder="https://vidsrc.to/embed/movie/12345  OR  https://vidsrc.to/embed/tv/1396/1/1  OR  https://streamtape.com/e/xxxxx/">
-              <div class="hint" style="margin-top:4px">
-                Movie: https://vidsrc.to/embed/movie/TMDB_ID &nbsp;|&nbsp;
-                TV Show: https://vidsrc.to/embed/tv/TMDB_ID &nbsp;|&nbsp;
-                Series Ep: https://vidsrc.to/embed/tv/TMDB_ID/1/1
-              </div>
-            </div>
-          </div>
-          <div class="fg c1" style="margin-top:10px">
-            <div class="fw">
-              <label>💰 Paid User Embed URL (shown only to users who buy this movie)</label>
-              <input type="url" id="paidEmbed" placeholder="https://filemoon.../e/xxxxx  (leave blank if not ready)">
-              <div class="hint" style="margin-top:4px">
-                Above = free viewers. This one = paid viewers. Fill <b>at least one</b>. When a user pays for this movie,
-                they get this link automatically — no manual Give Access.
-              </div>
-            </div>
-          </div>
+          <!-- Streaming links: free + paid -->
+          <div id="addEmbedBox" style="margin-top:12px"></div>
         </div>
       </div>
 
@@ -721,6 +715,9 @@ window.addEventListener('load', async () => {
   window._isFullAdmin = profile?.is_admin === true || profile?.role === 'admin';
 
   buildGenreTags();
+  document.getElementById('addEmbedBox').innerHTML = slBoxHTML({ freeId: 'manualEmbed', paidId: 'paidEmbed' });
+  slInit('manualEmbed', 'paidEmbed');
+  loadPaidMap();
   await loadDashboard();
   initModeratorAccess(); // show Moderators sidebar button for full admins
 });
@@ -883,8 +880,65 @@ function prevImg(url, elId, cls) {
 // ─────────────────────────────────────────
 //  ADD MOVIE
 // ─────────────────────────────────────────
+// ── STREAMING LINKS box (used by Add form + Edit popup) ──────────────────
+//   🆓 Free viewers  = free embed (ads OK)      💰 Paid viewers = paid embed (auto access on payment)
+function slHost(url) {
+  const u = String(url || '').toLowerCase();
+  if (/voe\./.test(u))                                  return 'Voe';
+  if (/filemoon|byse|moonplayer|kerapoxy/.test(u))       return 'Filemoon';
+  if (/vidsrc/.test(u))                                  return 'VidSrc';
+  if (/streamtape/.test(u))                              return 'Streamtape';
+  if (/dailymotion/.test(u))                             return 'Dailymotion';
+  if (/youtube|youtu\.be/.test(u))                       return 'YouTube';
+  return 'Custom link';
+}
+function slChip(inputId, chipId, emptyLabel) {
+  const v = (document.getElementById(inputId)?.value || '').trim();
+  const c = document.getElementById(chipId); if (!c) return;
+  if (!v)                          { c.textContent = emptyLabel; c.className = 'sl-chip'; }
+  else if (!/^https:\/\/[^\s]+$/i.test(v)) { c.textContent = '⚠ Must start with https://'; c.className = 'sl-chip bad'; }
+  else                             { c.textContent = '✓ ' + slHost(v); c.className = 'sl-chip ok'; }
+}
+function slTest(inputId, title, autoUrl) {
+  let v = (document.getElementById(inputId)?.value || '').trim();
+  if (!v && autoUrl) v = autoUrl;
+  if (!/^https:\/\/[^\s]+$/i.test(v)) { showToast('❌ Paste a valid https:// link first'); return; }
+  document.getElementById('testTitle').textContent = title;
+  document.getElementById('testFrame').src = v;
+  document.getElementById('testModal').classList.add('open');
+}
+function slBoxHTML({ freeId, paidId, freeVal = '', paidVal = '', auto = '', freeBadge = '' }) {
+  const esc = (s) => String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  return `
+    <div class="sl-card free">
+      <div class="sl-hd"><span class="sl-ttl">🆓 Free viewers</span><span>${freeBadge} <span class="sl-chip" id="${freeId}Chip">–</span></span></div>
+      <div class="sl-sub">Everyone can watch this (ads are fine). Leave blank to auto-use VidSrc${auto ? '' : ' (needs a TMDB ID)'}.</div>
+      <div class="sl-row">
+        <input type="url" id="${freeId}" class="fi" value="${esc(freeVal)}" placeholder="https://voe.sx/e/xxxxx" oninput="slChip('${freeId}','${freeId}Chip','Auto VidSrc')">
+        <button type="button" class="sl-test" onclick="slTest('${freeId}','Free embed — test','${esc(auto)}')">▶ Test</button>
+      </div>
+    </div>
+    <div class="sl-card paid">
+      <div class="sl-hd"><span class="sl-ttl">💰 Paid viewers</span><span class="sl-chip" id="${paidId}Chip">–</span></div>
+      <div class="sl-sub">Only users who buy this movie. When someone pays, they get this link automatically — no manual Give Access. You can change it anytime.</div>
+      <div class="sl-row">
+        <input type="url" id="${paidId}" class="fi" value="${esc(paidVal)}" placeholder="https://filemoon.sx/e/xxxxx" oninput="slChip('${paidId}','${paidId}Chip','Not set')">
+        <button type="button" class="sl-test" onclick="slTest('${paidId}','Paid embed — test','')">▶ Test</button>
+      </div>
+    </div>
+    <div class="sl-note">Fill <b>at least one</b> of the two.</div>`;
+}
+function slInit(freeId, paidId) { slChip(freeId, freeId + 'Chip', 'Auto VidSrc'); slChip(paidId, paidId + 'Chip', 'Not set'); }
+
+// Paid embeds are fetched ONCE after login (private table) so Edit opens instantly.
+window._paidMap = {};
+async function loadPaidMap() {
+  const d = await paidEmbedApi({ action: 'list' }, true);
+  if (d && d.map) window._paidMap = d.map;
+}
+
 // ── PAID EMBED (stored server-side in a private table; never exposed to the public site) ──
-async function paidEmbedApi(payload) {
+async function paidEmbedApi(payload, silent) {
   const { data: sess } = await getSB().auth.getSession();
   const token = sess?.session?.access_token;
   if (!token) { showToast('❌ Please sign in again'); return null; }
@@ -895,11 +949,15 @@ async function paidEmbedApi(payload) {
       body: JSON.stringify(payload),
     });
     const d = await r.json().catch(() => ({}));
-    if (!r.ok) { showToast('❌ ' + (d.error || 'Paid embed request failed')); return null; }
+    if (!r.ok) { if (!silent) showToast('❌ ' + (d.error || 'Paid embed request failed')); return null; }
     return d;
-  } catch (e) { showToast('❌ Network error'); return null; }
+  } catch (e) { if (!silent) showToast('❌ Network error'); return null; }
 }
-function savePaidEmbed(movieId, tmdbId, url) { return paidEmbedApi({ action: 'set', movie_id: movieId, tmdb_id: tmdbId, paid_url: url || '' }); }
+async function savePaidEmbed(movieId, tmdbId, url) {
+  const out = await paidEmbedApi({ action: 'set', movie_id: movieId, tmdb_id: tmdbId, paid_url: url || '' });
+  if (out) { if (url) window._paidMap[movieId] = url; else delete window._paidMap[movieId]; }
+  return out;
+}
 
 async function addMovie() {
 const title = document.getElementById('mTitle').value.trim();
@@ -1060,11 +1118,12 @@ if (exists) {
 function resetForm() {
   ['mTitle','tmdbId','mYear','mRating','mDur','mOverview',
    'mPoster','mBackdrop','mCast','mDirector','mTags',
-   'manualTmdbId','manualEmbed','seriesEmbedPreview',
+   'manualTmdbId','manualEmbed','paidEmbed','seriesEmbedPreview',
    'sSeason','sEpisode','sEpTitle'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = id==='sSeason'||id==='sEpisode' ? '1' : '';
   });
+  if (typeof slInit === 'function') slInit('manualEmbed', 'paidEmbed');
   const pp = document.getElementById('posterPrev');
   const bp = document.getElementById('backdropPrev');
   if (pp) pp.innerHTML = '<span>No<br>Poster</span>';
@@ -2085,19 +2144,7 @@ function editMovie(id) {
         </select>
       </div>
     </div>
-    <div class="fw" style="margin-bottom:12px">
-      <label>Embed URL &nbsp; ${srcBadge}</label>
-      <input id="eEmbed" class="fi" value="${currentEmbed}" placeholder="Leave empty = vidsrc auto | Paste custom for override">
-      <div class="hint" style="margin-top:4px">
-        Leave empty → auto-use vidsrc (TMDB ID: ${m.tmdb_id||'not set'})
-        ${autoVidsrc ? `<br>Auto URL: <span style="color:#64b5f6;font-family:monospace;font-size:.62rem">${autoVidsrc}</span>` : ''}
-      </div>
-    </div>
-    <div class="fw" style="margin-bottom:12px">
-      <label>💰 Paid User Embed URL <span style="color:var(--muted);font-weight:400">(only users who buy this movie)</span></label>
-      <input id="ePaidEmbed" class="fi" placeholder="Loading…" disabled>
-      <div class="hint" style="margin-top:4px">Blank = no paid embed yet. Changing it also updates users who were already given access automatically. Fill at least one of the two embeds.</div>
-    </div>
+    ${slBoxHTML({ freeId: 'eEmbed', paidId: 'ePaidEmbed', freeVal: currentEmbed, paidVal: (window._paidMap || {})[m.id] || '', auto: autoVidsrc, freeBadge: srcBadge })}
     <div class="fg c1" style="margin-bottom:12px">
       <div class="fw">
         <label>Poster URL</label>
@@ -2129,28 +2176,19 @@ function editMovie(id) {
     </div>
     <div class="brow">
       <button class="btn-add" onclick="saveEdit()">💾 Save Changes</button>
-      <button class="btn-sec" onclick="testById(${m.id})">▶ Test</button>
       <button class="btn-sec" onclick="closeEditModal()">Cancel</button>
     </div>`;
   document.getElementById('editModal').classList.add('open');
 
-  // load this movie's paid embed (private table → via admin API)
-  const _pe = document.getElementById('ePaidEmbed');
-  window._origPaid = null;
-  paidEmbedApi({ action: 'get', movie_id: id }).then(d => {
-    if (!_pe || editingId !== id) return;
-    _pe.disabled = !d;
-    _pe.placeholder = 'https://filemoon.../e/xxxxx  (leave blank if none)';
-    if (d) { _pe.value = d.paid_url || ''; window._origPaid = d.paid_url || ''; }
-  });
+  slInit('eEmbed', 'ePaidEmbed');
+  window._origPaid = (window._paidMap || {})[id] || '';
 }
 
 async function saveEdit() {
 
   const embedVal = document.getElementById('eEmbed').value.trim();
-  const _peEl = document.getElementById('ePaidEmbed');
-  const paidVal = _peEl && !_peEl.disabled ? _peEl.value.trim() : null;   // null = couldn't load, leave untouched
-  if (!embedVal && !paidVal && !(paidVal === null && window._origPaid)) {
+  const paidVal = document.getElementById('ePaidEmbed').value.trim();
+  if (!embedVal && !paidVal) {
     showToast('❌ Free ya Paid embed — kam se kam ek zaruri hai'); return;
   }
   if (paidVal && !/^https:\/\/[^\s]+$/i.test(paidVal)) { showToast('❌ Paid embed must be one https:// link'); return; }
@@ -2188,7 +2226,7 @@ async function saveEdit() {
     return;
   }
 
-  if (paidVal !== null && paidVal !== (window._origPaid || '')) {
+  if (paidVal !== (window._origPaid || '')) {
     const mv = allMovies.find(x => x.id === editingId) || {};
     const out = await savePaidEmbed(editingId, mv.tmdb_id, paidVal);
     if (out) showToast(paidVal ? `💰 Paid embed saved${out.updated_requests ? ` · ${out.updated_requests} buyer(s) updated` : ''}` : '💰 Paid embed removed');
