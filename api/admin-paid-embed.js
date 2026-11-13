@@ -39,7 +39,11 @@ module.exports = async function handler(req, res) {
 
     if (action === 'get') {
       const g = await fetch(`${SUPABASE_URL}/rest/v1/movie_paid_embeds?movie_id=eq.${mid}&select=paid_url&limit=1`, { headers: H });
-      if (!g.ok) return res.status(500).json({ error: 'Could not read paid embed (did you run the SQL for movie_paid_embeds?)' });
+      if (!g.ok) {
+        const t = (await g.text()).slice(0, 220);
+        console.error('admin-paid-embed: read failed', g.status, t);
+        return res.status(500).json({ error: `Could not read paid embed [${g.status}] ${t}` });
+      }
       const rows = await g.json();
       return res.status(200).json({ paid_url: (Array.isArray(rows) && rows[0]?.paid_url) || null });
     }
@@ -63,8 +67,9 @@ module.exports = async function handler(req, res) {
       body: JSON.stringify({ movie_id: mid, tmdb_id: tid, media_type: 'movie', paid_url: url, updated_at: new Date().toISOString() }),
     });
     if (!up.ok) {
-      console.error('admin-paid-embed: upsert failed', await up.text());
-      return res.status(500).json({ error: 'Could not save paid embed (did you run the SQL for movie_paid_embeds?)' });
+      const t = (await up.text()).slice(0, 220);
+      console.error('admin-paid-embed: upsert failed', up.status, t);
+      return res.status(500).json({ error: `Could not save paid embed [${up.status}] ${t}` });
     }
 
     // Embed changed → everyone who was auto-granted this movie gets the new link too.
