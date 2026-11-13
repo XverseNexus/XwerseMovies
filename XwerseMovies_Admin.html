@@ -2098,12 +2098,39 @@ function rowHTML(m) {
 
 function testById(id) {
   const m = allMovies.find(x => x.id === id) || {};
-  // Priority: saved embed_url > build from tmdb_id
-  const url = getPlayUrl(m);
-  if (!url) { showToast('⚠️ No embed URL for this title'); return; }
-  document.getElementById('testTitle').textContent = m.title || 'Testing...';
+  const freeUrl = getPlayUrl(m);
+  const paidUrl = (window._paidMap || {})[id] || '';
+
+  // Both exist → let the admin choose which one to play
+  if (freeUrl && paidUrl) { askWhichEmbed(m, freeUrl, paidUrl); return; }
+  if (!freeUrl && !paidUrl) { showToast('⚠️ No embed URL for this title'); return; }
+  openTestPlayer(m.title, freeUrl || paidUrl, paidUrl && !freeUrl ? 'Paid' : 'Free');
+}
+
+function openTestPlayer(title, url, kind) {
+  document.getElementById('testTitle').textContent = (title || 'Testing...') + (kind ? ' — ' + kind + ' embed' : '');
   document.getElementById('testFrame').src = url;
   document.getElementById('testModal').classList.add('open');
+}
+
+function askWhichEmbed(m, freeUrl, paidUrl) {
+  document.getElementById('embedPick')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'embedPick';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `
+    <div style="background:#181818;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:20px;width:100%;max-width:340px">
+      <div style="font-weight:700;color:#fff;font-size:.95rem;margin-bottom:4px">Play which embed?</div>
+      <div style="font-size:.74rem;color:var(--muted);margin-bottom:14px">${(m.title || '').replace(/</g,'&lt;')}</div>
+      <button class="btn-add" id="pickFree" style="width:100%;margin-bottom:8px;justify-content:center">🆓 Free viewers' embed</button>
+      <button class="btn-add" id="pickPaid" style="width:100%;margin-bottom:8px;justify-content:center;background:#f5c518;color:#000">💰 Paid viewers' embed</button>
+      <button class="btn-sec" style="width:100%" id="pickCancel">Cancel</button>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#pickFree').onclick   = () => { ov.remove(); openTestPlayer(m.title, freeUrl, 'Free'); };
+  ov.querySelector('#pickPaid').onclick   = () => { ov.remove(); openTestPlayer(m.title, paidUrl, 'Paid'); };
+  ov.querySelector('#pickCancel').onclick = () => ov.remove();
 }
 
 // ─────────────────────────────────────────
