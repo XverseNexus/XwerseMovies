@@ -3,21 +3,21 @@
 //  Handles: offline support, app shell caching, background sync
 // ═══════════════════════════════════════════════════════════
 
-const CACHE_NAME    = 'xwerse-v45';
+const CACHE_NAME    = 'xwerse-v47';
 const SHELL_TIMEOUT = 3000; // ms before falling back to cache
 
 // App shell — these files are cached on install
 const APP_SHELL = [
-  '/index.html',
-  '/XwerseMovies_Home.html',
-  '/XwerseMovies_Browse.html',
-  '/XwerseMovies_MyList.html',
-  '/XwerseMovies_Player.html',
-  '/XwerseMovies_Search.html',
-  '/XwerseMovies_Settings.html',
-  '/XwerseMovies_Request.html',
-  '/XwerseMovies_MyRequests.html',
-  '/XwerseMovies_Plans.html',
+  '/',
+  '/Home',
+  '/Browse',
+  '/MyList',
+  '/Player',
+  '/Search',
+  '/Settings',
+  '/GoPremium',
+  '/MyPurchases',
+  '/Plans',
   '/xwerse-config.js',
   '/manifest.json',
   '/favicon.png',
@@ -103,7 +103,7 @@ self.addEventListener('fetch', event => {
 
   // 4. For HTML pages: Network-first with cache fallback
   //    Shows cached version if network is slow / offline
-  if (url.pathname.endsWith('.html') || url.pathname === '/') {
+  if (url.pathname.endsWith('.html') || url.pathname === '/' || event.request.mode === 'navigate') {
     event.respondWith(
       networkFirstWithTimeout(event.request, SHELL_TIMEOUT)
     );
