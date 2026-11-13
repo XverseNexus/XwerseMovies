@@ -265,13 +265,31 @@ async function handler(req, res) {
 
     const newStatus = isSuccess ? 'paid' : 'failed';
 
+    // Instant access: a movie whose PAID embed the admin already set up is handed over
+    // the moment the payment is confirmed (no waiting for "Give Access").
+    let paidUrl = null;
+    if (isSuccess && row.request_type === 'movie' && row.tmdb_id) {
+      try {
+        const pe = await fetch(
+          `${SUPABASE_URL}/rest/v1/movie_paid_embeds?tmdb_id=eq.${encodeURIComponent(row.tmdb_id)}&media_type=eq.movie&select=paid_url&limit=1`,
+          { headers: restHeaders }
+        );
+        const peRows = pe.ok ? await pe.json() : [];
+        paidUrl = (Array.isArray(peRows) && peRows[0]?.paid_url) || null;
+      } catch (e) { console.error('cashfree-payment-form-webhook: paid-embed lookup failed (non-fatal)', e); }
+    }
+
+    const patchBody = { payment_status: newStatus, cashfree_payment_id: cfPaymentId };
+    if (paidUrl) {
+      patchBody.watch_url   = paidUrl;
+      patchBody.status      = 'completed';
+      patchBody.admin_notes = '[AUTO] Paid embed was already set by admin — access given automatically when the payment was confirmed.';
+    }
+
     const patchRes = await fetch(`${SUPABASE_URL}/rest/v1/requests?id=eq.${row.id}`, {
       method: 'PATCH',
       headers: restHeaders,
-      body: JSON.stringify({
-        payment_status: newStatus,
-        cashfree_payment_id: cfPaymentId,
-      }),
+      body: JSON.stringify(patchBody),
     });
     if (!patchRes.ok) {
       const errText = await patchRes.text();
@@ -279,7 +297,9 @@ async function handler(req, res) {
     }
 
     // Notify the user — success or failure, they should know either way.
-    const notifBody = isSuccess
+    const notifBody = paidUrl
+      ? `Payment received. "${row.title}" is ready to watch — open My Requests and tap Watch Now.`
+      : isSuccess
       ? `Payment received for "${row.title}". We are processing your request and you will get access within 24 hours.`
       : `Your payment for "${row.title}" didn't go through. No amount was charged — please try again.`;
 
@@ -288,14 +308,14 @@ async function handler(req, res) {
       headers: { ...restHeaders, 'Prefer': 'return=minimal' },
       body: JSON.stringify([{
         user_id: row.user_id,
-        title: isSuccess ? 'Payment received' : 'Payment failed',
+        title: paidUrl ? 'Your request is ready' : (isSuccess ? 'Payment received' : 'Payment failed'),
         body: notifBody,
         image_url: row.poster_url || null,
         is_read: false,
       }]),
     }).catch((e) => console.error('cashfree-payment-form-webhook: notification insert failed', e));
 
-    res.status(200).json({ received: true, status: newStatus, request_id: row.id });
+    res.status(200).json({ received: true, status: newStatus, request_id: row.id, auto_granted: !!paidUrl });
   } catch (err) {
     console.error('cashfree-payment-form-webhook error:', err);
     // Still 200 — Cashfree retries on non-2xx, and retrying won't fix a
