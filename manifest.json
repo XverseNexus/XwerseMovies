@@ -2,7 +2,7 @@
   "name": "XwerseMovies",
   "short_name": "XwerseMovies",
   "description": "Watch Movies & Shows — Anytime, Anywhere",
-  "start_url": "/index.html",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
@@ -27,12 +27,12 @@
   "shortcuts": [
     {
       "name": "Browse",
-      "url": "/XwerseMovies_Browse.html",
+      "url": "/Browse",
       "description": "Browse Movies & Shows"
     },
     {
       "name": "My List",
-      "url": "/XwerseMovies_MyList.html",
+      "url": "/MyList",
       "description": "Your saved content"
     }
   ]
