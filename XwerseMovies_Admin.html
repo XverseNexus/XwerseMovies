@@ -2093,6 +2093,11 @@ function editMovie(id) {
         ${autoVidsrc ? `<br>Auto URL: <span style="color:#64b5f6;font-family:monospace;font-size:.62rem">${autoVidsrc}</span>` : ''}
       </div>
     </div>
+    <div class="fw" style="margin-bottom:12px">
+      <label>💰 Paid User Embed URL <span style="color:var(--muted);font-weight:400">(only users who buy this movie)</span></label>
+      <input id="ePaidEmbed" class="fi" placeholder="Loading…" disabled>
+      <div class="hint" style="margin-top:4px">Blank = no paid embed yet. Changing it also updates users who were already given access automatically. Fill at least one of the two embeds.</div>
+    </div>
     <div class="fg c1" style="margin-bottom:12px">
       <div class="fw">
         <label>Poster URL</label>
@@ -2121,11 +2126,6 @@ function editMovie(id) {
           <option value="false" ${!m.featured?'selected':''}>No</option>
         </select>
       </div>
-    </div>
-    <div class="fw" style="margin-bottom:12px">
-      <label>💰 Paid User Embed URL <span style="color:var(--muted);font-weight:400">(only users who buy this movie)</span></label>
-      <input id="ePaidEmbed" class="fi" placeholder="Loading…" disabled>
-      <div class="hint" style="margin-top:4px">Blank = no paid embed yet. Changing it also updates users who were already given access automatically. Fill at least one of the two embeds.</div>
     </div>
     <div class="brow">
       <button class="btn-add" onclick="saveEdit()">💾 Save Changes</button>
