@@ -462,7 +462,7 @@ nav{background:#111;border-bottom:1px solid var(--border);padding:0 22px;height:
     <!-- MOVIES TABLE -->
     <div class="panel" id="panel-movies">
       <div class="ptit">All Movies</div>
-      <div class="psub">Supabase DB mein saved movies</div>
+      <div class="psub">Movies saved in the Supabase database</div>
       <div class="tbar">
         <input class="tsearch" type="text" placeholder="🔍 Search movies..." oninput="filterTable('movies',this.value)">
         <select class="tfsel" onchange="filterTableLang('movies',this.value)"><option value="">All Languages</option><option value="hi">Hindi</option><option value="en">English</option><option value="te">Telugu</option><option value="ta">Tamil</option></select>
@@ -475,7 +475,7 @@ nav{background:#111;border-bottom:1px solid var(--border);padding:0 22px;height:
     <!-- TV TABLE -->
     <div class="panel" id="panel-tv">
       <div class="ptit">TV Shows</div>
-      <div class="psub">Supabase DB mein saved TV shows</div>
+      <div class="psub">TV shows saved in the Supabase database</div>
       <div class="tbar">
         <input class="tsearch" type="text" placeholder="🔍 Search shows..." oninput="filterTable('tv',this.value)">
         <select class="tfsel" onchange="filterTableLang('tv',this.value)"><option value="">All Languages</option><option value="hi">Hindi</option><option value="en">English</option><option value="te">Telugu</option><option value="ta">Tamil</option><option value="ko">Korean</option></select>
@@ -488,7 +488,7 @@ nav{background:#111;border-bottom:1px solid var(--border);padding:0 22px;height:
     <!-- FEATURED -->
     <div class="panel" id="panel-featured">
       <div class="ptit">Featured / Hero Banner</div>
-      <div class="psub">Home page hero mein dikhne wali movies</div>
+      <div class="psub">Titles shown in the Home page hero banner</div>
       <div id="featuredGrid"></div>
     </div>
 
@@ -980,7 +980,7 @@ if (exists) {
 
   const _freeV = document.getElementById('manualEmbed')?.value.trim();
   const _paidV = document.getElementById('paidEmbed')?.value.trim();
-  if (!_freeV && !_paidV) { showToast('❌ Free ya Paid embed — kam se kam ek daalna zaruri hai'); return; }
+  if (!_freeV && !_paidV) { showToast('❌ Add at least one embed — free or paid'); return; }
   if (_paidV && !/^https:\/\/[^\s]+$/i.test(_paidV)) { showToast('❌ Paid embed must be one https:// link'); return; }
 
   btn.textContent = 'Adding...';
@@ -2216,7 +2216,7 @@ async function saveEdit() {
   const embedVal = document.getElementById('eEmbed').value.trim();
   const paidVal = document.getElementById('ePaidEmbed').value.trim();
   if (!embedVal && !paidVal) {
-    showToast('❌ Free ya Paid embed — kam se kam ek zaruri hai'); return;
+    showToast('❌ Add at least one embed — free or paid'); return;
   }
   if (paidVal && !/^https:\/\/[^\s]+$/i.test(paidVal)) { showToast('❌ Paid embed must be one https:// link'); return; }
 
