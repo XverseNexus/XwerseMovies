@@ -290,7 +290,7 @@ function reqCardHTML(r) {
 
     actions = `<div class="req-actions">`;
     if (r.direct_url || r.watch_url) {
-      actions += `<a class="req-btn" href="/Player?${playParams.toString()}">▶ Watch Now</a>`;
+      actions += `<a class="req-btn" href="${XPlay.href(playParams)}">▶ Watch Now</a>`;
     }
     // Season / Series requests: one chip per uploaded episode so the user can jump straight to it.
     const epLinks = (r.request_type !== 'movie' && r.watch_url) ? Xwerse.parseEpisodeLinks(r.watch_url).eps : [];
@@ -302,7 +302,7 @@ function reqCardHTML(r) {
           const q = new URLSearchParams(playParams);
           q.set('season', s); q.set('episode', e.ep);
           const label = r.request_type === 'series' ? `S${s} E${e.ep}` : `E${e.ep}`;
-          return `<a class="ep-chip" href="/Player?${q.toString()}">${label}</a>`;
+          return `<a class="ep-chip" href="${XPlay.href(q)}">${label}</a>`;
         }).join('');
       actions += `<div class="ep-chips">${chips}</div>`;
     }
