@@ -2138,6 +2138,60 @@ const XShare = {
 };
 
 /* ═══════════════════════════════════════════════════════════
+   XPlay — short, clean player links
+     movie → /watch/movie/603            tv → /watch/tv/1399/s2e5
+   Everything else the player needs (title, poster, embed …) is kept out of the address bar:
+   it is handed over through sessionStorage and, on refresh / shared link, looked up again.
+   ═══════════════════════════════════════════════════════════ */
+const XPlay = {
+  _MAP: 'xv_play_map',
+  /* params: URLSearchParams (or plain object) with the same fields the player always took. Returns the URL to open. */
+  href(params) {
+    const p = params instanceof URLSearchParams ? params : new URLSearchParams(params);
+    const type = p.get('type') === 'tv' ? 'tv' : 'movie';
+    const tmdb = p.get('tmdb_id'), id = p.get('id');
+    const key = tmdb ? tmdb : (id ? 'id-' + id : '');
+    if (!key) return '/Player?' + p.toString();            // nothing to identify the title: old long form
+    let url = '/watch/' + type + '/' + key;
+    if (type === 'tv') url += '/s' + (parseInt(p.get('season')) || 1) + 'e' + (parseInt(p.get('episode')) || 1);
+    if (p.get('req')) url += '?req=' + encodeURIComponent(p.get('req'));
+    try {
+      const m = JSON.parse(sessionStorage.getItem(this._MAP) || '{}');
+      const keys = Object.keys(m);
+      if (keys.length > 40) delete m[keys[0]];
+      m[url] = p.toString();
+      sessionStorage.setItem(this._MAP, JSON.stringify(m));
+    } catch (e) {}
+    return url;
+  },
+  /* The player calls this once: returns URLSearchParams describing what to play. */
+  read() {
+    const here = location.pathname + location.search;
+    // 1) an old long link (bookmark / shared before) → use it, then shorten the address bar
+    const legacy = new URLSearchParams(location.search);
+    if (legacy.get('tmdb_id') || legacy.get('id') || legacy.get('title')) {
+      try { history.replaceState(null, '', this.href(legacy)); } catch (e) {}
+      return legacy;
+    }
+    // 2) we navigated here from inside the site → full details were stashed
+    try {
+      const m = JSON.parse(sessionStorage.getItem(this._MAP) || '{}');
+      if (m[here]) return new URLSearchParams(m[here]);
+    } catch (e) {}
+    // 3) refresh / link opened fresh → rebuild from the path
+    const p = new URLSearchParams(), r = new URLSearchParams(location.search);
+    const mt = location.pathname.match(/^\/watch\/(movie|tv)\/([^\/]+)(?:\/s(\d+)e(\d+))?\/?$/);
+    if (mt) {
+      p.set('type', mt[1]);
+      if (/^id-\d+$/.test(mt[2])) p.set('id', mt[2].slice(3)); else p.set('tmdb_id', mt[2]);
+      if (mt[3]) { p.set('season', mt[3]); p.set('episode', mt[4]); }
+    }
+    if (r.get('req')) p.set('req', r.get('req'));
+    return p;
+  },
+};
+
+/* ═══════════════════════════════════════════════════════════
    XTv — TV show helpers shared by Home, Browse and Player
    • remembers, per user and per show, the last episode opened and
      which episodes were opened ("watched" ticks) — stored on this device
@@ -2154,12 +2208,54 @@ const XTv = {
     try { const d = JSON.parse(localStorage.getItem(this._key(t))); if (d && d.seen) return d; } catch (e) {}
     return { seen: {}, last: null };
   },
+  _save(t, d) { try { localStorage.setItem(this._key(t), JSON.stringify(d)); } catch (err) {} },
+
+  /* Episode opened: saved on this device at once, then pushed to the user's account
+     (table tv_progress) so every device shows the same ticks / "Resume". */
   mark(t, s, e) {
     if (!t) return;
     const d = this.load(t);
     d.seen[s + ':' + e] = 1;
     d.last = { s: +s, e: +e, at: Date.now() };
-    try { localStorage.setItem(this._key(t), JSON.stringify(d)); } catch (err) {}
+    this._save(t, d);
+    this.pull(t).then(() => this._push(t));      // merge account data first, then push the union
+  },
+
+  /* ── account sync ── (all failures are silent: this device's copy keeps working) */
+  _pulled: {},
+  pull(t) {
+    const uid = this._uid();
+    if (!t || uid === 'anon') return Promise.resolve();
+    const k = uid + ':' + t;
+    if (this._pulled[k]) return this._pulled[k];
+    this._pulled[k] = (async () => {
+      try {
+        const { data, error } = await getSB().from('tv_progress')
+          .select('last_season,last_episode,last_at,seen')
+          .eq('user_id', uid).eq('tmdb_id', t).maybeSingle();
+        if (error || !data) return;
+        const d = this.load(t);
+        Object.assign(d.seen, data.seen || {});
+        if (data.last_season && (!d.last || (data.last_at || 0) > (d.last.at || 0))) {
+          d.last = { s: +data.last_season, e: +data.last_episode || 1, at: +data.last_at || 0 };
+        }
+        this._save(t, d);
+      } catch (e) {}
+    })();
+    return this._pulled[k];
+  },
+  async _push(t) {
+    const uid = this._uid();
+    if (!t || uid === 'anon') return;
+    try {
+      const d = this.load(t);
+      if (!d.last) return;
+      await getSB().from('tv_progress').upsert({
+        user_id: uid, tmdb_id: t,
+        last_season: d.last.s, last_episode: d.last.e, last_at: d.last.at,
+        seen: d.seen, updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,tmdb_id' });
+    } catch (e) {}
   },
   seen(t, s, e) { return !!(t && this.load(t).seen[s + ':' + e]); },
   tid(m) { return m && (m.tmdb_id || (m.type === 'tv' ? m.id : null)) || null; },
