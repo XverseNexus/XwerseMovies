@@ -143,6 +143,39 @@ html,body{
   font:700 .8rem 'Barlow',sans-serif; gap:6px; white-space:nowrap;
 }
 
+
+/* ── EPISODES BUTTON + SIDE PANEL (TV shows) ────────────── */
+#epBtn{
+  display:none; height:38px; padding:0 14px; border-radius:6px;
+  font:700 .8rem 'Barlow',sans-serif; gap:6px; white-space:nowrap;
+}
+#epPanel{
+  position:absolute; top:0; right:0; bottom:0; width:min(400px, 92%); z-index:45;
+  background:rgba(12,12,12,.97); border-left:1px solid rgba(255,255,255,.12);
+  transform:translateX(102%); transition:transform .28s ease;
+  display:flex; flex-direction:column;
+  padding-top:env(safe-area-inset-top); padding-right:env(safe-area-inset-right);
+}
+#playerWrap.eps-open #epPanel{ transform:none; }
+.epp-hd{ display:flex; align-items:center; gap:10px; padding:14px 14px 10px; border-bottom:1px solid rgba(255,255,255,.1); }
+.epp-ttl{ flex:1; font-weight:700; font-size:1rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#eppSeason{ background:#1f1f1f; color:#fff; border:1px solid rgba(255,255,255,.2); border-radius:6px; padding:6px 8px; font:600 .8rem 'Barlow',sans-serif; max-width:46%; }
+#eppClose{ background:none; border:0; color:#fff; font-size:1.3rem; cursor:pointer; padding:2px 6px; }
+#eppList{ flex:1; overflow-y:auto; padding:6px 8px 18px; -webkit-overflow-scrolling:touch; }
+.epp-row{ display:flex; gap:10px; padding:9px 6px; border-radius:6px; cursor:pointer; align-items:flex-start; border:1px solid transparent; }
+.epp-row:hover{ background:rgba(255,255,255,.07); }
+.epp-row.cur{ background:rgba(229,9,20,.14); border-color:rgba(229,9,20,.5); }
+.epp-n{ width:24px; flex-shrink:0; text-align:center; font:1.25rem 'Bebas Neue',cursive; color:rgba(255,255,255,.4); margin-top:6px; }
+.epp-th{ width:112px; aspect-ratio:16/9; flex-shrink:0; border-radius:4px; background:#222 center/cover no-repeat; position:relative; overflow:hidden; }
+.epp-inf{ flex:1; min-width:0; }
+.epp-nm{ font-size:.82rem; font-weight:700; display:flex; gap:6px; align-items:center; }
+.epp-nm span.t{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.epp-rt{ font-size:.7rem; color:rgba(255,255,255,.5); font-weight:500; flex-shrink:0; }
+.epp-ov{ font-size:.7rem; color:rgba(255,255,255,.55); margin-top:3px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.epp-tick{ color:#46d369; font-size:.72rem; font-weight:700; flex-shrink:0; }
+.epp-now{ color:var(--red); font-size:.68rem; font-weight:800; letter-spacing:.04em; flex-shrink:0; }
+.epp-msg{ padding:18px 10px; color:rgba(255,255,255,.5); font-size:.82rem; text-align:center; }
+
 /* Fallback when the phone can't lock rotation (iPhone): show the player turned sideways */
 html.fakeLand body{ overflow:hidden; }
 html.fakeLand #playerWrap{
@@ -207,7 +240,18 @@ html.fakeLand #hint{ display:none !important; }
       <div class="top-title" id="topTitle">Loading...</div>
       <div class="top-sub" id="topSub"></div>
     </div>
+    <button class="ui-btn" id="epBtn" onclick="toggleEps()" title="Episodes">&#9776; Episodes</button>
     <button class="ui-btn" id="nextEpBtn" onclick="doPlayNextEp()" title="Next Episode">Next Ep &#9654;</button>
+  </div>
+
+  <!-- EPISODES PANEL (TV shows) -->
+  <div id="epPanel" aria-hidden="true">
+    <div class="epp-hd">
+      <div class="epp-ttl" id="eppTitle">Episodes</div>
+      <select id="eppSeason" onchange="eppLoad(this.value)"></select>
+      <button id="eppClose" onclick="closeEps()" aria-label="Close episodes">&#10005;</button>
+    </div>
+    <div id="eppList"></div>
   </div>
 
   <div id="hint">↻ Rotate your phone for the best view</div>
@@ -532,7 +576,7 @@ function loadVideo(m) {
 
   // TV shows get a manual "Next Ep" button (we can't know when an embed ends,
   // so there is no auto-jump).
-  $('nextEpBtn').style.display = isTV ? 'flex' : 'none';
+  if (isTV) initTvUi(m); else { $('nextEpBtn').style.display = 'none'; $('epBtn').style.display = 'none'; }
 
   // Direct-stream request → built-in HTML5 player, no iframe at all
   if (m.direct_url || m._directDenied) { loadDirect(m); return; }
@@ -614,7 +658,7 @@ function loadVideo(m) {
 async function goBack() {
   clearInterval(syncTimer);
   if (_isDirect) { try { await syncProgress(); } catch (e) {} }
-  if (document.referrer && document.referrer.includes('XwerseMovies')) {
+  if (document.referrer && document.referrer.indexOf(location.origin) === 0) {
     history.back();
   } else {
     location.href = '/Home';
@@ -658,13 +702,76 @@ async function syncProgress() {
 /* ─────────────────────────────────────────────────────────
    NEXT EPISODE (TV only) — manual button, always reliable
 ───────────────────────────────────────────────────────── */
-function doPlayNextEp() {
-  if (!movieData) return;
+let _nextEp = null;
+
+function tvId() { return movieData && (movieData.tmdb_id || (movieData.type === 'tv' ? movieData.id : null)); }
+
+/* Open another episode of this show in the player */
+function goEpisode(s, e) {
   const params = new URLSearchParams(location.search);
-  params.set('episode', (movieData._episode || 1) + 1);
-  params.set('season',  movieData._season || 1);
+  params.set('season', s);
+  params.set('episode', e);
   params.delete('embed');   // force auto-build embed for the new episode
-  location.href = '/Player?' + params.toString();
+  location.replace('/Player?' + params.toString());   // replace: Back goes to the title, not the previous episode
+}
+
+/* Marks this episode as watched, shows the Episodes button and works out
+   what "Next Ep" should be (rolls over into the next season; hidden after the last episode). */
+async function initTvUi(m) {
+  const s = m._season || 1, e = m._episode || 1, t = tvId();
+  if (!m._directDenied) XTv.mark(t, s, e);
+  $('epBtn').style.display = t ? 'flex' : 'none';
+  $('nextEpBtn').style.display = 'flex';            // shown right away, refined below
+  _nextEp = await XTv.next(t, s, e);
+  const b = $('nextEpBtn');
+  if (!_nextEp) { b.style.display = 'none'; return; }
+  b.innerHTML = (_nextEp.s !== s ? 'S' + _nextEp.s + ' E1' : 'Next Ep') + ' &#9654;';
+  b.title = 'Season ' + _nextEp.s + ' · Episode ' + _nextEp.e;
+}
+
+function doPlayNextEp() {
+  if (!movieData || !_nextEp) return;
+  goEpisode(_nextEp.s, _nextEp.e);
+}
+
+/* ── Episodes side panel ── */
+let _eppReady = false;
+function toggleEps() { $('playerWrap').classList.contains('eps-open') ? closeEps() : openEps(); }
+function closeEps() { $('playerWrap').classList.remove('eps-open'); $('epPanel').setAttribute('aria-hidden', 'true'); }
+async function openEps() {
+  $('playerWrap').classList.add('eps-open');
+  $('epPanel').setAttribute('aria-hidden', 'false');
+  clearTimeout(uiTimer);
+  if (_eppReady) return;
+  _eppReady = true;
+  $('eppTitle').textContent = movieData.title || 'Episodes';
+  const t = tvId();
+  const list = await XTv.seasons(t);
+  if (!list) { $('eppList').innerHTML = '<div class="epp-msg">Episodes are not available for this show.</div>'; _eppReady = false; return; }
+  const cur = movieData._season || 1;
+  $('eppSeason').innerHTML = list.map(x => '<option value="' + x.n + '"' + (x.n === cur ? ' selected' : '') + '>Season ' + x.n + '</option>').join('');
+  eppLoad(list.some(x => x.n === cur) ? cur : list[0].n);
+}
+function _esc(x) { return String(x == null ? '' : x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+async function eppLoad(season) {
+  const sn = parseInt(season), t = tvId(), box = $('eppList');
+  box.innerHTML = '<div class="epp-msg">Loading episodes…</div>';
+  let d = null;
+  try { d = await TMDB.tvSeason(t, sn); } catch (e) {}
+  const eps = (d && d.episodes) || [];
+  if (!eps.length) { box.innerHTML = '<div class="epp-msg">No episodes found.</div>'; return; }
+  const curS = movieData._season || 1, curE = movieData._episode || 1;
+  box.innerHTML = eps.map(ep => {
+    const n = ep.episode_number, isCur = sn === curS && n === curE;
+    const th = ep.still_path ? ' style="background-image:url(https://image.tmdb.org/t/p/w300' + ep.still_path + ')"' : '';
+    return '<div class="epp-row' + (isCur ? ' cur' : '') + '" onclick="' + (isCur ? 'closeEps()' : 'goEpisode(' + sn + ',' + n + ')') + '">'
+      + '<div class="epp-n">' + n + '</div><div class="epp-th"' + th + '></div>'
+      + '<div class="epp-inf"><div class="epp-nm"><span class="t">' + _esc(ep.name || 'Episode ' + n) + '</span>'
+      + (ep.runtime ? '<span class="epp-rt">' + ep.runtime + 'm</span>' : '')
+      + (isCur ? '<span class="epp-now">NOW PLAYING</span>' : (XTv.seen(t, sn, n) ? '<span class="epp-tick" title="Watched">&#10003;</span>' : ''))
+      + '</div><div class="epp-ov">' + _esc(ep.overview || '') + '</div></div></div>';
+  }).join('');
+  const curRow = box.querySelector('.cur'); if (curRow) curRow.scrollIntoView({ block: 'center' });
 }
 
 /* ─────────────────────────────────────────────────────────
@@ -696,6 +803,7 @@ if (_isPhone) {
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   if (document.fullscreenElement || document.webkitFullscreenElement) return;
+  if ($('playerWrap').classList.contains('eps-open')) { closeEps(); return; }
   goBack();
 });
 
