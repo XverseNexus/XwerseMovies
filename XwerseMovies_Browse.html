@@ -846,7 +846,7 @@ function bPlayEp(season, episode) {
   p.set('age',m.age_rating||''); p.set('quality',m.quality||'');
   if (m.embed_url) p.set('embed',m.embed_url);
   closeMod();
-  window.location.href = '/Player?'+p.toString();
+  window.location.href = XPlay.href(p);
 }
 
 // ── PLAY ──────────────────────────────────────────────────────
@@ -861,7 +861,7 @@ function play(m) {
   p.set('age',m.age_rating||''); p.set('dur',m.duration||'');
   p.set('quality',m.quality||'');
   if (m.embed_url) p.set('embed',m.embed_url);
-  window.location.href = '/Player?'+p.toString();
+  window.location.href = XPlay.href(p);
 }
 
 // ── ADD TO MY LIST ────────────────────────────────────────────
