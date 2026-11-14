@@ -786,8 +786,10 @@ async function bLoadSeasons(m) {
   if (!sel || !list) return;
   sel.innerHTML = ''; list.innerHTML = '<div class="ep-loading">Loading...</div>';
   try {
-    var d = await TMDB.tvDetails(m.tmdb_id);
+    var _r = await Promise.all([TMDB.tvDetails(m.tmdb_id), XTv.pull(m.tmdb_id)]);
+    var d = _r[0];
     if (_curMovie !== m) return;
+    bSetPlay(null);
     var seasons = (d.seasons||[]).filter(function(s){ return s.season_number > 0; });
     if (!seasons.length) { list.innerHTML='<div class="ep-loading">No seasons found.</div>'; return; }
     sel.innerHTML = seasons.map(function(s){
