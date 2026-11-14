@@ -2137,6 +2137,129 @@ const XShare = {
   },
 };
 
+/* ═══════════════════════════════════════════════════════════
+   XTv — TV show helpers shared by Home, Browse and Player
+   • remembers, per user and per show, the last episode opened and
+     which episodes were opened ("watched" ticks) — stored on this device
+     so it works for every show, including ones that are not in our DB
+   • knows how many episodes each season has, so "Next Ep" rolls over to
+     the next season and disappears after the final episode
+   ═══════════════════════════════════════════════════════════ */
+const XTv = {
+  _uid() {
+    try { return (typeof currentUser !== 'undefined' && currentUser && currentUser.id) || 'anon'; } catch (e) { return 'anon'; }
+  },
+  _key(t) { return 'xv_tv_' + this._uid() + '_' + t; },
+  load(t) {
+    try { const d = JSON.parse(localStorage.getItem(this._key(t))); if (d && d.seen) return d; } catch (e) {}
+    return { seen: {}, last: null };
+  },
+  mark(t, s, e) {
+    if (!t) return;
+    const d = this.load(t);
+    d.seen[s + ':' + e] = 1;
+    d.last = { s: +s, e: +e, at: Date.now() };
+    try { localStorage.setItem(this._key(t), JSON.stringify(d)); } catch (err) {}
+  },
+  seen(t, s, e) { return !!(t && this.load(t).seen[s + ':' + e]); },
+  tid(m) { return m && (m.tmdb_id || (m.type === 'tv' ? m.id : null)) || null; },
+
+  /* Where to resume: the last episode opened on this device, else the
+     last season/episode saved in Continue Watching (DB). null = never watched. */
+  resume(m) {
+    const t = this.tid(m);
+    const d = t ? this.load(t) : { last: null };
+    if (d.last) return { s: d.last.s, e: d.last.e };
+    if (m && (m.lastSeason || m.lastEpisode)) return { s: m.lastSeason || 1, e: m.lastEpisode || 1 };
+    return null;
+  },
+
+  /* [{ n: seasonNumber, count: episodeCount }] sorted, specials (season 0) excluded. null if unknown. */
+  async seasons(tmdbId) {
+    if (!tmdbId) return null;
+    const ck = 'xv_seas_' + tmdbId;
+    try { const c = JSON.parse(sessionStorage.getItem(ck)); if (c && c.length) return c; } catch (e) {}
+    try {
+      const d = await TMDB.tvDetails(tmdbId);
+      const list = ((d && d.seasons) || []).filter(x => x.season_number > 0 && x.episode_count > 0)
+        .map(x => ({ n: x.season_number, count: x.episode_count })).sort((a, b) => a.n - b.n);
+      if (list.length) { try { sessionStorage.setItem(ck, JSON.stringify(list)); } catch (e) {} return list; }
+    } catch (e) {}
+    return null;
+  },
+
+  /* The episode after (s, e): same season, or episode 1 of the next season, or null after the very last one.
+     If season data can't be loaded it falls back to e + 1. */
+  async next(tmdbId, s, e) {
+    const list = await this.seasons(tmdbId);
+    if (!list) return { s: +s, e: +e + 1, guess: true };
+    const cur = list.find(x => x.n === +s);
+    if (cur && +e < cur.count) return { s: +s, e: +e + 1 };
+    const nxt = list.find(x => x.n > +s);
+    return nxt ? { s: nxt.n, e: 1 } : null;
+  },
+
+  /* ── Info-popup extras: show status / next air date, cast, "More like this" ──
+     details = TMDB tvDetails() result. Returns an HTML string.
+     The page must define window.xvOpenSimilar(item) to open a title. */
+  _sim: [],
+  _esc(x) { return String(x == null ? '' : x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); },
+  _css() {
+    if (document.getElementById('xtv-css')) return;
+    const st = document.createElement('style');
+    st.id = 'xtv-css';
+    st.textContent = `
+      .xtv-x{margin-top:20px;border-top:1px solid rgba(255,255,255,.08);padding-top:16px}
+      .xtv-st{display:inline-flex;align-items:center;gap:8px;font-size:.8rem;font-weight:600;color:#fff;background:rgba(255,255,255,.07);border-radius:6px;padding:7px 11px;margin-bottom:12px}
+      .xtv-dot{width:8px;height:8px;border-radius:50%;background:#46d369;flex-shrink:0}
+      .xtv-dot.end{background:#8a8a8a}
+      .xtv-cast{font-size:.8rem;color:rgba(255,255,255,.62);line-height:1.5;margin-bottom:14px}
+      .xtv-cast b{color:rgba(255,255,255,.9);font-weight:600}
+      .xtv-h{font-size:.9rem;font-weight:700;color:#fff;margin-bottom:10px}
+      .xtv-sim{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
+      .xtv-sim img{width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:5px;background:#222;cursor:pointer;display:block;transition:transform .15s}
+      .xtv-sim img:hover{transform:scale(1.04)}
+      .ep-seen{color:#46d369;font-size:.7rem;font-weight:700;flex-shrink:0}
+      .ep-item.ep-cur{background:rgba(229,9,20,.12);border-color:rgba(229,9,20,.4)}
+    `;
+    document.head.appendChild(st);
+  },
+  extras(d) {
+    this._css();
+    this._sim = [];
+    if (!d) return '';
+    let h = '';
+    // status / next episode
+    const nx = d.next_episode_to_air;
+    let st = '';
+    if (nx && nx.air_date) {
+      const when = new Date(nx.air_date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+      st = '<span class="xtv-dot"></span>Ongoing · Next episode S' + nx.season_number + ' E' + nx.episode_number + ' airs ' + when;
+    } else if (d.status === 'Returning Series') {
+      st = '<span class="xtv-dot"></span>Ongoing · New episodes expected';
+    } else if (d.status === 'Ended' || d.status === 'Canceled') {
+      st = '<span class="xtv-dot end"></span>' + (d.status === 'Canceled' ? 'Cancelled' : 'Series ended');
+    }
+    if (st) h += '<div class="xtv-st">' + st + '</div>';
+    // cast
+    const cast = ((d.credits && d.credits.cast) || []).slice(0, 8).map(c => this._esc(c.name)).filter(Boolean);
+    if (cast.length) h += '<div class="xtv-cast"><b>Starring:</b> ' + cast.join(', ') + '</div>';
+    // similar
+    const sim = ((d.similar && d.similar.results) || []).filter(x => x.poster_path).slice(0, 9);
+    if (sim.length) {
+      this._sim = sim.map(x => TMDB.normalize(Object.assign({ media_type: 'tv' }, x)));
+      h += '<div class="xtv-h">More like this</div><div class="xtv-sim">'
+        + this._sim.map((m, i) => '<img src="' + this._esc(m.poster_url) + '" alt="' + this._esc(m.title) + '" title="' + this._esc(m.title) + '" loading="lazy" onclick="XTv.openSimilar(' + i + ')">').join('')
+        + '</div>';
+    }
+    return h ? '<div class="xtv-x">' + h + '</div>' : '';
+  },
+  openSimilar(i) {
+    const m = this._sim[i];
+    if (m && typeof window.xvOpenSimilar === 'function') window.xvOpenSimilar(m);
+  },
+};
+
 // ─────────────────────────────────────────────────────────
 //  PASSWORD STRENGTH METER
 //  Attach to any password <input> — shows a 3-bar weak/medium/
