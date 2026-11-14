@@ -357,7 +357,86 @@ let tvV='grid', movV='grid';
 let tvPage=0, movPage=0;
 let tvF={lang:'',genre:'',sort:''}, movF={lang:'',genre:'',sort:''};
 const PS=20;
-const TVGENRES=['All','Drama','Action','Comedy','Thriller','Sci-Fi','Horror','Fantasy','Anime','Crime','Hindi','Korean'];
+// ── REAL FILTERS ─────────────────────────────────────────────
+// TMDB list items carry no genre/language, so filtering the small loaded list
+// showed "0 titles". Instead, when a filter is active we ask TMDB "discover"
+// for exactly that language/genre, and merge in matching titles from our DB.
+const GENRE_IDS = {
+  tv:    {'Drama':18,'Action':10759,'Comedy':35,'Crime':80,'Mystery':9648,'Sci-Fi & Fantasy':10765,'Animation':16,'Reality':10764,'Family':10751,'Documentary':99},
+  movie: {'Action':28,'Drama':18,'Comedy':35,'Horror':27,'Sci-Fi':878,'Romance':10749,'Thriller':53,'Animation':16,'Crime':80}
+};
+const LANG_PILLS = {'Hindi':'hi','Telugu':'te','Tamil':'ta','Korean':'ko'};
+const _dcache = {};
+const _dtoken = {tv:0, movie:0};
+const _remote = {tv:null, movie:null};
+
+function _filterActive(F){ return !!(F.lang || F.genre); }
+
+async function _discover(kind, F){
+  const key = kind+'|'+F.lang+'|'+F.genre+'|'+F.sort;
+  if (_dcache[key]) return _dcache[key];
+  const today = new Date().toISOString().slice(0,10);
+  const ids = [];
+  if (F.genre && GENRE_IDS[kind][F.genre]) ids.push(GENRE_IDS[kind][F.genre]);
+  if (F.lang === 'ja' && kind === 'tv') ids.push(16);          // Anime tab = Japanese animation
+  const p = { sort_by:'popularity.desc', include_adult:'false' };
+  if (F.lang) p.with_original_language = F.lang;
+  if (ids.length) p.with_genres = ids.join(',');
+  if (F.sort === 'rating') { p.sort_by = 'vote_average.desc'; p['vote_count.gte'] = 200; }
+  if (F.sort === 'year') {
+    if (kind === 'tv') { p.sort_by = 'first_air_date.desc'; p['first_air_date.lte'] = today; }
+    else               { p.sort_by = 'primary_release_date.desc'; p['primary_release_date.lte'] = today; }
+    p['vote_count.gte'] = 20;
+  }
+  const path = kind === 'tv' ? '/discover/tv' : '/discover/movie';
+  const pages = await Promise.all([1,2,3].map(n => TMDB.fetch(path, Object.assign({page:n}, p))));
+  const seen = {}, out = [];
+  pages.forEach(r => (r && r.results || []).forEach(it => {
+    if (!it.poster_path || seen[it.id]) return;
+    seen[it.id] = 1; out.push(TMDB.normalize(it));
+  }));
+  _dcache[key] = out;
+  return out;
+}
+
+function _dbMatches(m, F, kind){
+  if (F.lang) {
+    const l = m.language || m.original_language || m.lang || '';
+    if (l !== F.lang) return false;
+  }
+  if (F.genre) {
+    const want = F.genre.toLowerCase().split(' ')[0];
+    const g = m.genres || m.genre || [];
+    if (!g.some(x => String(typeof x === 'string' ? x : (x && x.name) || '').toLowerCase().indexOf(want) !== -1)) return false;
+  }
+  return true;
+}
+
+// Called whenever a filter or the sort changes (kind = 'tv' | 'movie')
+async function applyFilters(kind){
+  const F = kind === 'tv' ? tvF : movF;
+  const tok = ++_dtoken[kind];
+  if (!_filterActive(F)) { _remote[kind] = null; kind === 'tv' ? renderTV() : renderMov(); return; }
+  const grid = document.getElementById(kind === 'tv' ? 'tvGrid' : 'movGrid');
+  grid.className = 'cgrid';
+  grid.innerHTML = skelG(20);
+  let list = [];
+  try { list = await _discover(kind, F); } catch (e) { list = []; }
+  if (tok !== _dtoken[kind]) return;          // a newer click superseded this one
+  _remote[kind] = list;
+  kind === 'tv' ? renderTV() : renderMov();
+}
+
+function _collect(kind, F, base){
+  if (!_filterActive(F)) return [...base];
+  const rem = _remote[kind] || [];
+  const dbHits = base.filter(m => m.id && _dbMatches(m, F, kind));
+  const seen = {}; const out = [];
+  dbHits.concat(rem).forEach(m => { const k = m.tmdb_id || m.id; if (seen[k]) return; seen[k] = 1; out.push(m); });
+  return out;
+}
+
+const TVGENRES=['All','Drama','Action','Comedy','Crime','Mystery','Sci-Fi & Fantasy','Animation','Reality','Family','Documentary'];
 const MOVGENRES=['All','Action','Drama','Comedy','Horror','Sci-Fi','Romance','Thriller','Animation','Crime','Hindi','Telugu','Tamil'];
 const LANGS=[{code:'hi',name:'Hindi',icon:'🇮🇳',count:1800,bg:'#5c1a1a'},{code:'en',name:'English',icon:'🇬🇧',count:4200,bg:'#1a3a5c'},{code:'te',name:'Telugu',icon:'🎭',count:650,bg:'#3a3a1a'},{code:'ta',name:'Tamil',icon:'🌺',count:580,bg:'#1a3a2a'},{code:'kn',name:'Kannada',icon:'🦁',count:320,bg:'#2a1a3a'},{code:'ml',name:'Malayalam',icon:'🌴',count:410,bg:'#1a2a3a'},{code:'ko',name:'Korean',icon:'🇰🇷',count:730,bg:'#1a1a5c'},{code:'ja',name:'Japanese',icon:'🇯🇵',count:890,bg:'#3a1a1a'}];
 
@@ -424,13 +503,11 @@ async function loadTV(){
   const hero = tvData.find(m=>m.backdrop_url)||tnorm[0];
   if(hero) setHero('tv',hero);
   buildT10('tvT10', ttop.slice(0,10));
-  buildPills('tvGP', TVGENRES, g=>{ tvF.genre=g==='All'?'':g; tvPage=0; renderTV(); });
+  buildPills('tvGP', TVGENRES, g=>{ tvF.genre=g==='All'?'':g; tvPage=0; applyFilters('tv'); });
   renderTV();
 }
 function renderTV(){
-  let d=[...tvData];
-  if(tvF.lang) d=d.filter(function(m){ var l=m.language||m.original_language||m.lang||''; return l===tvF.lang; });
-  if(tvF.genre) d=d.filter(function(m){ var g=m.genres||m.genre||[]; return g.some(function(x){ return (typeof x==='string'?x:x.name)===tvF.genre; }); });
+  let d=_collect('tv',tvF,tvData);
   if(tvF.sort==='rating') d.sort((a,b)=>(b.rating||b.vote_average||0)-(a.rating||a.vote_average||0));
   if(tvF.sort==='alpha') d.sort((a,b)=>a.title.localeCompare(b.title));
   if(tvF.sort==='year') d.sort((a,b)=>(b.year||'')>(a.year||'')?1:-1);
@@ -440,8 +517,8 @@ function renderTV(){
   document.getElementById('tvGrid').innerHTML=pg.map(m=>cHTML(m,tvV==='list')).join('');
   document.getElementById('tvLM').style.display=d.length>pg.length?'block':'none';
 }
-function tvTab(lang,btn){ document.querySelectorAll('#pg-tv .ptab').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); tvF.lang=lang; tvPage=0; renderTV(); }
-function sortTV(s){ tvF.sort=s; tvPage=0; renderTV(); }
+function tvTab(lang,btn){ document.querySelectorAll('#pg-tv .ptab').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); tvF.lang=lang; tvPage=0; applyFilters('tv'); }
+function sortTV(s){ tvF.sort=s; tvPage=0; applyFilters('tv'); }
 
 // ── MOVIES ────────────────────────────────
 async function loadMovies(){
@@ -456,13 +533,11 @@ async function loadMovies(){
   const hero=movData.find(m=>m.backdrop_url)||tnorm[0];
   if(hero) setHero('mov',hero);
   buildT10('movT10',ttop.slice(0,10));
-  buildPills('movGP',MOVGENRES,g=>{ movF.genre=g==='All'?'':g; movPage=0; renderMov(); });
+  buildPills('movGP',MOVGENRES,g=>{ if(LANG_PILLS[g]){ movF.lang=LANG_PILLS[g]; movF.genre=''; } else { movF.genre=g==='All'?'':g; if(g==='All') movF.lang=''; } movPage=0; applyFilters('movie'); });
   renderMov();
 }
 function renderMov(){
-  let d=[...movData];
-  if(movF.lang) d=d.filter(function(m){ var l=m.language||m.original_language||m.lang||''; return l===movF.lang; });
-  if(movF.genre) d=d.filter(function(m){ var g=m.genres||m.genre||[]; return g.some(function(x){ return (typeof x==='string'?x:x.name)===movF.genre; }); });
+  let d=_collect('movie',movF,movData);
   if(movF.sort==='rating') d.sort((a,b)=>(b.rating||b.vote_average||0)-(a.rating||a.vote_average||0));
   if(movF.sort==='alpha') d.sort((a,b)=>a.title.localeCompare(b.title));
   if(movF.sort==='year') d.sort((a,b)=>(b.year||'')>(a.year||'')?1:-1);
@@ -472,8 +547,8 @@ function renderMov(){
   document.getElementById('movGrid').innerHTML=pg.map(m=>cHTML(m,movV==='list')).join('');
   document.getElementById('movLM').style.display=d.length>pg.length?'block':'none';
 }
-function sortMov(s){ movF.sort=s; movPage=0; renderMov(); }
-function filterMovL(l){ movF.lang=l; movPage=0; renderMov(); }
+function sortMov(s){ movF.sort=s; movPage=0; applyFilters('movie'); }
+function filterMovL(l){ movF.lang=l; movPage=0; applyFilters('movie'); }
 function loadMore(t){ if(t==='tv'){tvPage++;renderTV();}else{movPage++;renderMov();} }
 function setV(t,v,btn){ if(t==='tv'){tvV=v;document.querySelectorAll('#pg-tv .vb').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderTV();}else{movV=v;document.querySelectorAll('#pg-movies .vb').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderMov();} }
 
