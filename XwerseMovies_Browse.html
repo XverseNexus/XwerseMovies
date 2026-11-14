@@ -306,7 +306,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
     <div class="pg-tabs"><button class="ptab active" onclick="tvTab('',this)">All</button><button class="ptab" onclick="tvTab('hi',this)">Hindi</button><button class="ptab" onclick="tvTab('en',this)">English</button><button class="ptab" onclick="tvTab('ko',this)">Korean</button><button class="ptab" onclick="tvTab('ja',this)">Anime</button></div>
     <div class="gpstrip" id="tvGP"></div>
     <div class="frow"><span class="flbl">Sort:</span><select class="fsel" onchange="sortTV(this.value)"><option value="">Popular</option><option value="rating">Highest Rated</option><option value="year">Newest</option><option value="alpha">A–Z</option></select><div class="fsp"></div><span class="rcnt" id="tvCnt"></span><div class="vtog"><button class="vb on" onclick="setV('tv','grid',this)">⊞</button><button class="vb" onclick="setV('tv','list',this)">☰</button></div></div>
-    <div class="cont"><div class="sh"><span class="st">Top 10 TV Shows <span class="sb">INDIA</span></span></div><div class="t10w" id="tvT10"></div><div class="sh"><span class="st" id="tvGridLbl">All TV Shows</span></div><div class="cgrid" id="tvGrid"></div><button class="lm-btn" id="tvLM" onclick="loadMore('tv')" style="display:none">Load More ↓</button></div>
+    <div class="cont"><div class="sh"><span class="st">Top 10 TV Shows <span class="sb">THIS WEEK</span></span></div><div class="t10w" id="tvT10"></div><div class="sh"><span class="st" id="tvGridLbl">All TV Shows</span></div><div class="cgrid" id="tvGrid"></div><button class="lm-btn" id="tvLM" onclick="loadMore('tv')" style="display:none">Load More ↓</button></div>
   </div>
 
   <!-- MOVIES -->
@@ -345,6 +345,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
           <select class="ep-season-sel" id="bEpSeasonSel" onchange="bLoadEpisodes(this.value)"></select>
         </div>
         <div id="bEpList"></div>
+        <div id="bTvExtras"></div>
       </div>
     </div>
   </div>
@@ -495,14 +496,14 @@ async function loadTV(){
   document.getElementById('tvGrid').innerHTML = skelG(20);
   const [dbTV,tmdbPop,tmdbTop] = await Promise.all([
     DB.getMovies({type:'tv',limit:50}).then(r=>r.data||[]),
-    TMDB.popularTV(), TMDB.topTV()
+    TMDB.popularTV(), TMDB.fetch('/trending/tv/week')
   ]);
   const norm = arr => (arr?.results||[]).filter(m=>m.poster_path).map(TMDB.normalize);
   const tnorm = norm(tmdbPop), ttop = norm(tmdbTop);
   tvData = [...dbTV, ...tnorm.filter(t=>!dbTV.find(d=>d.tmdb_id===t.tmdb_id))];
   const hero = tvData.find(m=>m.backdrop_url)||tnorm[0];
   if(hero) setHero('tv',hero);
-  buildT10('tvT10', ttop.slice(0,10));
+  buildT10('tvT10', topTen(dbTV, ttop));
   buildPills('tvGP', TVGENRES, g=>{ tvF.genre=g==='All'?'':g; tvPage=0; applyFilters('tv'); });
   renderTV();
 }
@@ -525,14 +526,14 @@ async function loadMovies(){
   document.getElementById('movGrid').innerHTML=skelG(20);
   const [dbMov,tmdbPop,tmdbTop]=await Promise.all([
     DB.getMovies({type:'movie',limit:50}).then(r=>r.data||[]),
-    TMDB.popularMov(), TMDB.topMovies()
+    TMDB.popularMov(), TMDB.fetch('/trending/movie/week')
   ]);
   const norm=arr=>(arr?.results||[]).filter(m=>m.poster_path).map(TMDB.normalize);
   const tnorm=norm(tmdbPop), ttop=norm(tmdbTop);
   movData=[...dbMov,...tnorm.filter(t=>!dbMov.find(d=>d.tmdb_id===t.tmdb_id))];
   const hero=movData.find(m=>m.backdrop_url)||tnorm[0];
   if(hero) setHero('mov',hero);
-  buildT10('movT10',ttop.slice(0,10));
+  buildT10('movT10',topTen(dbMov,ttop));
   buildPills('movGP',MOVGENRES,g=>{ if(LANG_PILLS[g]){ movF.lang=LANG_PILLS[g]; movF.genre=''; } else { movF.genre=g==='All'?'':g; if(g==='All') movF.lang=''; } movPage=0; applyFilters('movie'); });
   renderMov();
 }
@@ -662,6 +663,19 @@ function cHTML(m, isList) {
 }
 
 // ── TOP 10 ────────────────────────────────────────────────────
+// Top 10 = our own most-watched titles first, then this week's trending titles to fill the list
+function topTen(dbList, trending){
+  var out = [], seen = {};
+  (dbList||[]).filter(function(m){ return (m.views||0) > 0; })
+    .sort(function(a,b){ return (b.views||0)-(a.views||0); })
+    .slice(0,10).forEach(function(m){ seen[m.tmdb_id||('d'+m.id)] = 1; out.push(m); });
+  (trending||[]).forEach(function(m){
+    if (out.length >= 10 || seen[m.tmdb_id]) return;
+    seen[m.tmdb_id] = 1; out.push(m);
+  });
+  return out.slice(0,10);
+}
+
 function buildT10(elId, items) {
   var h = '';
   for (var i = 0; i < items.length; i++) {
@@ -707,11 +721,11 @@ function openMod(m) {
   var playBtn = document.getElementById('mPlayBtn');
   if (playBtn) {
     playBtn.dataset.mk = k; playBtn.dataset.tv = tvF;
-    playBtn.textContent = isTV ? '▶ Play S1 E1' : '▶ Play';
-    playBtn.onclick = function() {
-      if (_curMovie && _curMovie.type === 'tv') bPlayEp(1, 1); else play(_curMovie);
-    };
+    playBtn.textContent = '▶ Play';
+    playBtn.onclick = function() { play(_curMovie); };
+    if (isTV) bSetPlay(null);
   }
+  var _bx = document.getElementById('bTvExtras'); if (_bx) _bx.innerHTML = '';
 
   // My List button
   var mlBtn = document.getElementById('mAddBtn');
@@ -750,48 +764,73 @@ function closeMod() {
 }
 
 // ── EPISODE LOADER ────────────────────────────────────────────
+// Play button of the TV popup: "Resume S2 E4" if already watched, else "Play S1 E1"
+function bSetPlay(sn) {
+  var m = _curMovie, btn = document.getElementById('mPlayBtn');
+  if (!btn || !m || m.type !== 'tv') return;
+  var r = XTv.resume(m);
+  if (r && (sn == null || sn === r.s)) {
+    btn.textContent = '▶ Resume S' + r.s + ' E' + r.e;
+    btn.onclick = function() { bPlayEp(r.s, r.e); };
+  } else {
+    var s = sn || 1;
+    btn.textContent = '▶ Play S' + s + ' E1';
+    btn.onclick = function() { bPlayEp(s, 1); };
+  }
+}
+window.xvOpenSimilar = function(m) { openMod(_get(_reg(m))); var c = document.getElementById('modCard'); if (c) c.scrollTop = 0; };
+
 async function bLoadSeasons(m) {
   var sel = document.getElementById('bEpSeasonSel');
   var list = document.getElementById('bEpList');
   if (!sel || !list) return;
-  sel.innerHTML = ''; list.innerHTML = '<div style="padding:12px;color:rgba(255,255,255,.4);font-size:.8rem">Loading...</div>';
+  sel.innerHTML = ''; list.innerHTML = '<div class="ep-loading">Loading...</div>';
   try {
     var d = await TMDB.tvDetails(m.tmdb_id);
+    if (_curMovie !== m) return;
     var seasons = (d.seasons||[]).filter(function(s){ return s.season_number > 0; });
-    if (!seasons.length) { list.innerHTML='<div style="padding:12px;color:rgba(255,255,255,.4);font-size:.8rem">No seasons found.</div>'; return; }
+    if (!seasons.length) { list.innerHTML='<div class="ep-loading">No seasons found.</div>'; return; }
     sel.innerHTML = seasons.map(function(s){
       return '<option value="'+s.season_number+'">Season '+s.season_number+' ('+s.episode_count+' eps)</option>';
     }).join('');
-    bLoadEpisodes(1);
-  } catch(e) { list.innerHTML = '<div style="padding:12px;color:rgba(255,255,255,.4);font-size:.8rem">Could not load.</div>'; }
+    var ex = document.getElementById('bTvExtras'); if (ex) ex.innerHTML = XTv.extras(d);
+    var r = XTv.resume(m);
+    var first = (r && seasons.some(function(x){ return x.season_number === r.s; })) ? r.s : seasons[0].season_number;
+    sel.value = String(first);
+    bLoadEpisodes(first);
+  } catch(e) { list.innerHTML = '<div class="ep-loading">Could not load.</div>'; }
 }
 
 async function bLoadEpisodes(season) {
   var list = document.getElementById('bEpList');
   if (!list || !_curMovie) return;
-  list.innerHTML = '<div style="padding:12px;color:rgba(255,255,255,.4);font-size:.8rem">Loading episodes...</div>';
+  var show = _curMovie, showId = show.tmdb_id, sn = parseInt(season);
+  list.innerHTML = '<div class="ep-loading">Loading episodes...</div>';
+  bSetPlay(sn);
   try {
-    var d = await TMDB.fetch('/tv/'+_curMovie.tmdb_id+'/season/'+season);
-    var eps = d.episodes || [];
-    if (!eps.length) { list.innerHTML='<div style="padding:12px;color:rgba(255,255,255,.4);font-size:.8rem">No episodes.</div>'; return; }
-    var sn = parseInt(season), h = '';
+    var d = await TMDB.fetch('/tv/'+showId+'/season/'+sn);
+    if (_curMovie !== show) return;
+    var eps = (d && d.episodes) || [];
+    if (!eps.length) { list.innerHTML='<div class="ep-loading">No episodes.</div>'; return; }
+    var rs = XTv.resume(show), h = '';
     for (var i = 0; i < eps.length; i++) {
       var ep = eps[i], en = ep.episode_number;
       var thumb = ep.still_path ? 'https://image.tmdb.org/t/p/w300'+ep.still_path : '';
-      h += '<div class="ep-row" onclick="bPlayEp('+sn+','+en+')">'
-        + '<div class="ep-num">'+en+'</div>'
+      var cur = rs && rs.s === sn && rs.e === en;
+      var ov = (ep.overview || 'No description available.');
+      h += '<div class="ep-item'+(cur?' ep-cur':'')+'" onclick="bPlayEp('+sn+','+en+')">'
+        + '<div class="ep-num-badge">'+en+'</div>'
         + '<div class="ep-thumb">'
-        + (thumb ? '<img src="'+thumb+'" alt="" loading="lazy"><div class="ep-play">&#9654;</div>' : '<div class="ep-nothumb">&#9654;</div>')
-        + '</div>'
+        + (thumb ? '<img src="'+thumb+'" alt="" loading="lazy">' : '<div class="ep-thumb-ph">&#128250;</div>')
+        + '<div class="ep-play-icon"><div>&#9654;</div></div></div>'
         + '<div class="ep-info"><div class="ep-title-row">'
-        + '<span class="ep-name">'+(ep.name||'Episode '+en)+'</span>'
-        + (ep.runtime ? '<span class="ep-rt">'+ep.runtime+'m</span>' : '')
-        + '</div>'
-        + (ep.overview ? '<div class="ep-ov">'+ep.overview.slice(0,120)+(ep.overview.length>120?'...':'')+'</div>' : '')
-        + '</div></div>';
+        + '<div class="ep-title">'+XTv._esc(ep.name||'Episode '+en)+'</div>'
+        + (ep.runtime ? '<div class="ep-runtime">'+ep.runtime+'m</div>' : '')
+        + (XTv.seen(showId, sn, en) ? '<div class="ep-seen" title="Watched">&#10003;</div>' : '')
+        + '</div><div class="ep-overview">'+XTv._esc(ov)+'</div></div></div>';
     }
     list.innerHTML = h;
-  } catch(e) { list.innerHTML = '<div style="padding:12px;color:rgba(255,255,255,.4);font-size:.8rem">Could not load episodes.</div>'; }
+  } catch(e) { list.innerHTML = '<div class="ep-loading">Could not load episodes.</div>'; }
 }
 
 function bPlayEp(season, episode) {
