@@ -115,7 +115,8 @@ nav{background:#111;border-bottom:1px solid var(--border);padding:0 22px;height:
 .sl-ttl{font-weight:700;font-size:.82rem;color:#fff}
 .sl-sub{font-size:.68rem;color:var(--muted);margin-bottom:9px;line-height:1.45}
 .sl-row{display:flex;gap:8px;align-items:stretch}
-.sl-row input{flex:1;min-width:0}
+.sl-row input,.sl-row textarea{flex:1;min-width:0}
+.sl-row textarea{resize:vertical;min-height:40px;font-family:monospace;font-size:.76rem;line-height:1.45}
 .sl-test{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:#fff;border-radius:6px;padding:0 14px;font-size:.76rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit}
 .sl-test:hover{background:rgba(255,255,255,.15)}
 .sl-chip{font-size:.62rem;font-weight:700;padding:2px 9px;border-radius:10px;background:rgba(255,255,255,.08);color:var(--muted);white-space:nowrap}
@@ -717,6 +718,7 @@ window.addEventListener('load', async () => {
   buildGenreTags();
   document.getElementById('addEmbedBox').innerHTML = slBoxHTML({ freeId: 'manualEmbed', paidId: 'paidEmbed' });
   slInit('manualEmbed', 'paidEmbed');
+  document.getElementById('mType')?.addEventListener('change', () => slInit('manualEmbed', 'paidEmbed'));
   loadPaidMap();
   await loadDashboard();
   initModeratorAccess(); // show Moderators sidebar button for full admins
@@ -892,15 +894,52 @@ function slHost(url) {
   if (/youtube|youtu\.be/.test(u))                       return 'YouTube';
   return 'Custom link';
 }
+// Is the paid box of this input for a TV show? (Add form → Type select; Edit popup → the title being edited)
+function slPaidTv(inputId) {
+  if (inputId === 'paidEmbed') return document.getElementById('mType')?.value === 'tv';
+  if (inputId === 'ePaidEmbed') return ((window.allMovies || allMovies || []).find(x => x.id === editingId) || {}).type === 'tv';
+  return false;
+}
+// Checks a paid-embed value. Movie: ONE https link. TV show: one line per episode ("S1E1 https://…").
+function slCheckPaid(val, isTv) {
+  val = String(val || '').trim();
+  if (!val) return { empty: true, ok: true, count: 0 };
+  if (!isTv) return { ok: /^https:\/\/[^\s]+$/i.test(val), count: 1, msg: 'Paid embed must be one https:// link' };
+  const seasons = {}; const bad = []; let count = 0;
+  val.split(/\r?\n/).forEach((raw, i) => {
+    const line = raw.trim(); if (!line) return;
+    let m = line.match(/^(https:\/\/\S+)$/i);
+    if (m) { count++; return; }
+    m = line.match(/^(?:S(\d+)\s*[ ._-]?)?E?(\d+)\s*[:=\s-]\s*(https:\/\/\S+)$/i);
+    if (m) { count++; const k = m[1] ? +m[1] : 0; seasons[k] = (seasons[k] || 0) + 1; return; }
+    bad.push(i + 1);
+  });
+  if (bad.length) return { ok: false, count, bad, msg: 'Line ' + bad.slice(0, 5).join(', ') + ' is not valid. Use: S1E1 https://link (one episode per line)' };
+  return { ok: count > 0, count, seasons, msg: 'Add at least one episode link' };
+}
 function slChip(inputId, chipId, emptyLabel) {
-  const v = (document.getElementById(inputId)?.value || '').trim();
+  const el = document.getElementById(inputId);
+  const v = (el?.value || '').trim();
   const c = document.getElementById(chipId); if (!c) return;
+  if (el && el.tagName === 'TEXTAREA' && inputId.toLowerCase().indexOf('paid') !== -1) {
+    const r = slCheckPaid(v, slPaidTv(inputId));
+    if (r.empty)      { c.textContent = emptyLabel; c.className = 'sl-chip'; }
+    else if (!r.ok)   { c.textContent = '⚠ ' + (r.bad ? 'Check line ' + r.bad[0] : 'Must start with https://'); c.className = 'sl-chip bad'; }
+    else if (slPaidTv(inputId)) {
+      const parts = Object.keys(r.seasons || {}).filter(k => +k > 0).sort((a, b) => a - b).map(k => 'S' + k + ': ' + r.seasons[k]);
+      c.textContent = '✓ ' + r.count + ' episode link' + (r.count === 1 ? '' : 's') + (parts.length ? ' (' + parts.join(', ') + ')' : '');
+      c.className = 'sl-chip ok';
+    } else { c.textContent = '✓ ' + slHost(v); c.className = 'sl-chip ok'; }
+    return;
+  }
   if (!v)                          { c.textContent = emptyLabel; c.className = 'sl-chip'; }
   else if (!/^https:\/\/[^\s]+$/i.test(v)) { c.textContent = '⚠ Must start with https://'; c.className = 'sl-chip bad'; }
   else                             { c.textContent = '✓ ' + slHost(v); c.className = 'sl-chip ok'; }
 }
 function slTest(inputId, title, autoUrl) {
   let v = (document.getElementById(inputId)?.value || '').trim();
+  const m = v.match(/https:\/\/\S+/i);           // TV list: test the first episode link
+  v = m ? m[0] : '';
   if (!v && autoUrl) v = autoUrl;
   if (!/^https:\/\/[^\s]+$/i.test(v)) { showToast('❌ Paste a valid https:// link first'); return; }
   document.getElementById('testTitle').textContent = title;
@@ -920,9 +959,9 @@ function slBoxHTML({ freeId, paidId, freeVal = '', paidVal = '', auto = '', free
     </div>
     <div class="sl-card paid">
       <div class="sl-hd"><span class="sl-ttl">💰 Paid viewers</span><span class="sl-chip" id="${paidId}Chip">–</span></div>
-      <div class="sl-sub">Only users who buy this movie. When someone pays, they get this link automatically — no manual Give Access. You can change it anytime.</div>
+      <div class="sl-sub">Only users who buy this title. When someone pays, they get this automatically — no manual Give Access. You can change it anytime.<br><b>Movie:</b> one https:// link. <b>TV show:</b> one line per episode, e.g. <code>S1E1 https://filemoon.sx/e/xxxxx</code> — a Season buyer gets only that season, a Series buyer gets all. Add new episodes later and buyers get them automatically.</div>
       <div class="sl-row">
-        <input type="url" id="${paidId}" class="fi" value="${esc(paidVal)}" placeholder="https://filemoon.sx/e/xxxxx" oninput="slChip('${paidId}','${paidId}Chip','Not set')">
+        <textarea id="${paidId}" class="fi" rows="2" spellcheck="false" placeholder="Movie: https://filemoon.sx/e/xxxxx&#10;TV show: S1E1 https://filemoon.sx/e/xxxxx" oninput="slChip('${paidId}','${paidId}Chip','Not set')">${esc(paidVal)}</textarea>
         <button type="button" class="sl-test" onclick="slTest('${paidId}','Paid embed — test','')">▶ Test</button>
       </div>
     </div>
@@ -953,8 +992,8 @@ async function paidEmbedApi(payload, silent) {
     return d;
   } catch (e) { if (!silent) showToast('❌ Network error'); return null; }
 }
-async function savePaidEmbed(movieId, tmdbId, url) {
-  const out = await paidEmbedApi({ action: 'set', movie_id: movieId, tmdb_id: tmdbId, paid_url: url || '' });
+async function savePaidEmbed(movieId, tmdbId, url, mediaType) {
+  const out = await paidEmbedApi({ action: 'set', movie_id: movieId, tmdb_id: tmdbId, paid_url: url || '', media_type: mediaType === 'tv' ? 'tv' : 'movie' });
   if (out) { if (url) window._paidMap[movieId] = url; else delete window._paidMap[movieId]; }
   return out;
 }
@@ -981,7 +1020,7 @@ if (exists) {
   const _freeV = document.getElementById('manualEmbed')?.value.trim();
   const _paidV = document.getElementById('paidEmbed')?.value.trim();
   if (!_freeV && !_paidV) { showToast('❌ Add at least one embed — free or paid'); return; }
-  if (_paidV && !/^https:\/\/[^\s]+$/i.test(_paidV)) { showToast('❌ Paid embed must be one https:// link'); return; }
+  if (_paidV) { const _c = slCheckPaid(_paidV, document.getElementById('mType')?.value === 'tv'); if (!_c.ok) { showToast('❌ ' + _c.msg); return; } }
 
   btn.textContent = 'Adding...';
   btn.disabled = true;
@@ -1083,7 +1122,7 @@ if (exists) {
     showToast(`✅ "${title}" added!`);
 
     if (_paidV) {
-      const out = await savePaidEmbed(data.id, data.tmdb_id, _paidV);
+      const out = await savePaidEmbed(data.id, data.tmdb_id, _paidV, data.type);
       if (out) { showToast('💰 Paid embed saved'); }
     }
 
@@ -2218,7 +2257,7 @@ async function saveEdit() {
   if (!embedVal && !paidVal) {
     showToast('❌ Add at least one embed — free or paid'); return;
   }
-  if (paidVal && !/^https:\/\/[^\s]+$/i.test(paidVal)) { showToast('❌ Paid embed must be one https:// link'); return; }
+  if (paidVal) { const _c = slCheckPaid(paidVal, slPaidTv('ePaidEmbed')); if (!_c.ok) { showToast('❌ ' + _c.msg); return; } }
 
   if (embedVal && !validateEmbedUrl(embedVal)) {
   showToast('❌ Please enter a valid embed URL (https://...)');
@@ -2255,7 +2294,7 @@ async function saveEdit() {
 
   if (paidVal !== (window._origPaid || '')) {
     const mv = allMovies.find(x => x.id === editingId) || {};
-    const out = await savePaidEmbed(editingId, mv.tmdb_id, paidVal);
+    const out = await savePaidEmbed(editingId, mv.tmdb_id, paidVal, mv.type);
     if (out) showToast(paidVal ? `💰 Paid embed saved${out.updated_requests ? ` · ${out.updated_requests} buyer(s) updated` : ''}` : '💰 Paid embed removed');
     else return;
   }
