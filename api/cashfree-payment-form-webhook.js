@@ -39,6 +39,7 @@
 //   https://xwersemovies.bond/api/cashfree-payment-form-webhook
 
 const crypto = require('crypto');
+const EP = require('../lib/episode-links');
 
 // Keep in sync with xwerse-config.js's REQUEST_PRICES and
 // api/create-request-pending.js.
@@ -265,17 +266,38 @@ async function handler(req, res) {
 
     const newStatus = isSuccess ? 'paid' : 'failed';
 
-    // Instant access: a movie whose PAID embed the admin already set up is handed over
-    // the moment the payment is confirmed (no waiting for "Give Access").
+    // Instant access: a title whose PAID link the admin already set up is handed over the
+    // moment the payment is confirmed (no waiting for "Give Access").
+    //   movie           → the single paid link
+    //   season / series → the episode lines that purchase covers (see lib/episode-links.js)
     let paidUrl = null;
-    if (isSuccess && row.request_type === 'movie' && row.tmdb_id) {
+    if (isSuccess && row.tmdb_id) {
       try {
-        const pe = await fetch(
-          `${SUPABASE_URL}/rest/v1/movie_paid_embeds?tmdb_id=eq.${encodeURIComponent(row.tmdb_id)}&media_type=eq.movie&select=paid_url&limit=1`,
-          { headers: restHeaders }
-        );
-        const peRows = pe.ok ? await pe.json() : [];
-        paidUrl = (Array.isArray(peRows) && peRows[0]?.paid_url) || null;
+        if (row.request_type === 'movie') {
+          const pe = await fetch(
+            `${SUPABASE_URL}/rest/v1/movie_paid_embeds?tmdb_id=eq.${encodeURIComponent(row.tmdb_id)}&media_type=eq.movie&select=paid_url&limit=1`,
+            { headers: restHeaders }
+          );
+          const peRows = pe.ok ? await pe.json() : [];
+          paidUrl = (Array.isArray(peRows) && peRows[0]?.paid_url) || null;
+        } else if (row.request_type === 'season' || row.request_type === 'series') {
+          // find the TV show row first (TMDB ids can repeat between movies and shows)
+          const mv = await fetch(
+            `${SUPABASE_URL}/rest/v1/movies?tmdb_id=eq.${encodeURIComponent(row.tmdb_id)}&type=eq.tv&select=id&limit=1`,
+            { headers: restHeaders }
+          );
+          const mvRows = mv.ok ? await mv.json() : [];
+          const showId = Array.isArray(mvRows) && mvRows[0]?.id;
+          if (showId) {
+            const pe = await fetch(
+              `${SUPABASE_URL}/rest/v1/movie_paid_embeds?movie_id=eq.${showId}&select=paid_url&limit=1`,
+              { headers: restHeaders }
+            );
+            const peRows = pe.ok ? await pe.json() : [];
+            const text = (Array.isArray(peRows) && peRows[0]?.paid_url) || '';
+            paidUrl = text ? EP.forRequest(text, row.request_type, row.season_number) : null;
+          }
+        }
       } catch (e) { console.error('cashfree-payment-form-webhook: paid-embed lookup failed (non-fatal)', e); }
     }
 
@@ -298,7 +320,7 @@ async function handler(req, res) {
 
     // Notify the user — success or failure, they should know either way.
     const notifBody = paidUrl
-      ? `Payment received. "${row.title}" is ready to watch — open My Requests and tap Watch Now.`
+      ? `Payment received. "${row.title}" is ready to watch — open My Purchases and tap Watch Now.`
       : isSuccess
       ? `Payment received for "${row.title}". We are processing your request and you will get access within 24 hours.`
       : `Your payment for "${row.title}" didn't go through. No amount was charged — please try again.`;
