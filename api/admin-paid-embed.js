@@ -10,6 +10,8 @@
 //                                                         and updates buyers that were auto-granted
 // Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 
+const EP = require('../lib/episode-links');
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -33,7 +35,8 @@ module.exports = async function handler(req, res) {
       return res.status(403).json({ error: 'Admins only' });
     }
 
-    const { action, movie_id, tmdb_id, paid_url } = req.body || {};
+    const { action, movie_id, tmdb_id, paid_url, media_type } = req.body || {};
+    const isTV = media_type === 'tv';
 
     // All paid embeds at once (the admin panel loads this once, so Edit opens instantly)
     if (action === 'list') {
@@ -65,7 +68,7 @@ module.exports = async function handler(req, res) {
 
     if (action !== 'set') return res.status(400).json({ error: 'Invalid action' });
 
-    const url = String(paid_url || '').trim();
+    let url = String(paid_url || '').trim();
     const tid = parseInt(tmdb_id, 10) || null;
 
     if (!url) {
@@ -73,28 +76,55 @@ module.exports = async function handler(req, res) {
       if (!d.ok) return res.status(500).json({ error: 'Could not remove paid embed' });
       return res.status(200).json({ success: true, removed: true });
     }
-    if (!/^https:\/\/[^\s]+$/i.test(url)) return res.status(400).json({ error: 'Paid embed must be one https:// link' });
-    if (!tid) return res.status(400).json({ error: 'This movie has no TMDB ID — a paid embed needs it to match purchases' });
+    if (isTV) {
+      if (url.length > 60000) return res.status(400).json({ error: 'Episode list is too long' });
+      const v = EP.validate(url);
+      if (v.bad.length) return res.status(400).json({ error: `Line ${v.bad.slice(0, 5).join(', ')} is not valid. Use: S1E1 https://link` });
+      if (!v.ok) return res.status(400).json({ error: 'Add at least one episode link' });
+      url = EP.parse(url).lines.join('\n');           // tidy: trimmed, no blank lines
+    } else if (!/^https:\/\/[^\s]+$/i.test(url)) {
+      return res.status(400).json({ error: 'Paid embed must be one https:// link' });
+    }
+    if (!tid) return res.status(400).json({ error: 'This title has no TMDB ID — a paid embed needs it to match purchases' });
 
-    const up = await fetch(`${SUPABASE_URL}/rest/v1/movie_paid_embeds?on_conflict=movie_id`, {
+    const saveRow = (mt) => fetch(`${SUPABASE_URL}/rest/v1/movie_paid_embeds?on_conflict=movie_id`, {
       method: 'POST',
       headers: { ...H, Prefer: 'resolution=merge-duplicates,return=minimal' },
-      body: JSON.stringify({ movie_id: mid, tmdb_id: tid, media_type: 'movie', paid_url: url, updated_at: new Date().toISOString() }),
+      body: JSON.stringify({ movie_id: mid, tmdb_id: tid, media_type: mt, paid_url: url, updated_at: new Date().toISOString() }),
     });
+    let up = await saveRow(isTV ? 'tv' : 'movie');
+    if (!up.ok && isTV) up = await saveRow('movie');   // older table with a movie-only check: the webhook finds TV rows by movie_id anyway
     if (!up.ok) {
       const t = (await up.text()).slice(0, 220);
       console.error('admin-paid-embed: upsert failed', up.status, t);
       return res.status(500).json({ error: `Could not save paid embed [${up.status}] ${t}` });
     }
 
-    // Embed changed → everyone who was auto-granted this movie gets the new link too.
+    // Embed changed → everyone who was auto-granted this title gets the new link(s) too.
     let updated = 0;
-    const pr = await fetch(
-      `${SUPABASE_URL}/rest/v1/requests?request_type=eq.movie&tmdb_id=eq.${tid}&payment_status=eq.paid`
-      + `&admin_notes=like.${encodeURIComponent('[AUTO]')}*&select=id`,
-      { method: 'PATCH', headers: { ...H, Prefer: 'return=representation' }, body: JSON.stringify({ watch_url: url }) }
-    );
-    if (pr.ok) { const rows = await pr.json(); updated = Array.isArray(rows) ? rows.length : 0; }
+    if (!isTV) {
+      const pr = await fetch(
+        `${SUPABASE_URL}/rest/v1/requests?request_type=eq.movie&tmdb_id=eq.${tid}&payment_status=eq.paid`
+        + `&admin_notes=like.${encodeURIComponent('[AUTO]')}*&select=id`,
+        { method: 'PATCH', headers: { ...H, Prefer: 'return=representation' }, body: JSON.stringify({ watch_url: url }) }
+      );
+      if (pr.ok) { const rows = await pr.json(); updated = Array.isArray(rows) ? rows.length : 0; }
+    } else {
+      // each buyer gets what their purchase covers (whole series, or just their season)
+      const gr = await fetch(
+        `${SUPABASE_URL}/rest/v1/requests?request_type=in.(season,series)&tmdb_id=eq.${tid}&payment_status=eq.paid`
+        + `&admin_notes=like.${encodeURIComponent('[AUTO]')}*&select=id,request_type,season_number&limit=1000`,
+        { headers: H }
+      );
+      const buyers = gr.ok ? await gr.json() : [];
+      const results = await Promise.all((Array.isArray(buyers) ? buyers : []).map(async (b) => {
+        const mine = EP.forRequest(url, b.request_type, b.season_number);
+        if (!mine) return false;
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/requests?id=eq.${b.id}`, { method: 'PATCH', headers: H, body: JSON.stringify({ watch_url: mine }) });
+        return r.ok;
+      }));
+      updated = results.filter(Boolean).length;
+    }
 
     return res.status(200).json({ success: true, updated_requests: updated });
   } catch (err) {
