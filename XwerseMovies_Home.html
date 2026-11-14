@@ -733,6 +733,7 @@ async function playMovie(m, season, episode) {
 
   // TV show opened without a chosen episode (e.g. Continue Watching card): resume where they left off
   if (m.type === 'tv' && !season) {
+    await XTv.pull(XTv.tid(m));
     const r = XTv.resume(m);
     if (r) { season = r.s; episode = r.e; }
   }
@@ -908,7 +909,8 @@ async function loadTVSeasons(m) {
   }
 
   // Fetch TV details to get season list
-  const details = await TMDB.tvDetails(tmdbId);
+  const [details] = await Promise.all([TMDB.tvDetails(tmdbId), XTv.pull(tmdbId)]);
+  if (modalMovie === m) setModalPlay(null);
   if (!details) {
     listEl.innerHTML = `<div class="ep-loading" style="color:#ff6b6b">Could not load episode data.</div>`;
     return;
