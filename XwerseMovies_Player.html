@@ -23,8 +23,8 @@
 <meta name="twitter:image" content="https://xwersemovies.bond/og-image.png">
 
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="icon" type="image/png" href="favicon.png">
-<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#000000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -35,7 +35,7 @@
 <script>if('serviceWorker'in navigator){var _xvR=false;navigator.serviceWorker.addEventListener('controllerchange',function(){if(!_xvR){_xvR=true;location.reload();}});}</script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="xwerse-config.js"></script>
+<script src="/xwerse-config.js"></script>
 
 <style>
 :root{ --red:#E50914; }
@@ -279,13 +279,35 @@ const $ = (id) => document.getElementById(id);
   currentUser = await requireAuth();
   if (!currentUser) return;
 
-  const p          = new URLSearchParams(location.search);
+  const p          = XPlay.read();          // short /watch/… link → full details
+  window._playQ    = p;
   const movieId    = p.get('id');
   const urlSeason  = parseInt(p.get('season'))  || 1;
   const urlEpisode = parseInt(p.get('episode')) || 1;
 
   let movie = null;
   if (movieId) movie = await DB.getMovie(parseInt(movieId));
+
+  // Opened from a bare /watch/… link (refresh, shared link): look the title up ourselves
+  if (!movie && !p.get('title') && p.get('tmdb_id')) {
+    const tid = parseInt(p.get('tmdb_id')), ty = p.get('type') === 'tv' ? 'tv' : 'movie';
+    try {
+      const { data } = await getSB().from('movies').select('*').eq('tmdb_id', tid).eq('type', ty).limit(1);
+      if (data && data[0]) movie = data[0];
+    } catch (e) {}
+    if (!movie) {
+      let t = {};
+      try { t = (ty === 'tv' ? await TMDB.tvDetails(tid) : await TMDB.movieDetails(tid)) || {}; } catch (e) {}
+      movie = {
+        id: null, tmdb_id: tid, type: ty,
+        title: t.title || t.name || (ty === 'tv' ? 'TV Show' : 'Movie'),
+        year: String(t.release_date || t.first_air_date || '').slice(0, 4),
+        quality: '', age_rating: 'UA', duration: t.runtime ? t.runtime + 'm' : '', embed_url: '',
+        poster_url:   t.poster_path   ? 'https://image.tmdb.org/t/p/w500'   + t.poster_path   : '',
+        backdrop_url: t.backdrop_path ? 'https://image.tmdb.org/t/p/w1280' + t.backdrop_path : '',
+      };
+    }
+  }
 
   if (!movie) {
     movie = {
@@ -708,11 +730,15 @@ function tvId() { return movieData && (movieData.tmdb_id || (movieData.type === 
 
 /* Open another episode of this show in the player */
 function goEpisode(s, e) {
-  const params = new URLSearchParams(location.search);
-  params.set('season', s);
-  params.set('episode', e);
-  params.delete('embed');   // force auto-build embed for the new episode
-  location.replace('/Player?' + params.toString());   // replace: Back goes to the title, not the previous episode
+  const q = new URLSearchParams(window._playQ ? window._playQ.toString() : '');
+  const m = movieData || {};
+  // make sure the new page can identify the show even when we arrived via a bare /watch/… link
+  [['id', m.id], ['tmdb_id', m.tmdb_id], ['type', m.type], ['title', m.title], ['year', m.year],
+   ['poster', m.poster_url], ['backdrop', m.backdrop_url]].forEach(([k, v]) => { if (!q.get(k) && v) q.set(k, v); });
+  q.set('season', s);
+  q.set('episode', e);
+  q.delete('embed');          // force auto-build embed for the new episode
+  location.replace(XPlay.href(q));   // replace: Back goes to the title, not the previous episode
 }
 
 /* Marks this episode as watched, shows the Episodes button and works out
