@@ -355,6 +355,7 @@ nav.solid{background:rgba(8,8,8,.97);backdrop-filter:blur(10px);border-bottom:1p
         <div id="epList">
           <!-- Episodes injected by JS -->
         </div>
+        <div id="tvExtras"></div>
       </div>
     </div>
   </div>
@@ -730,6 +731,12 @@ function cwCardHTML(m) {
 async function playMovie(m, season, episode) {
   if (!currentUser) return;
 
+  // TV show opened without a chosen episode (e.g. Continue Watching card): resume where they left off
+  if (m.type === 'tv' && !season) {
+    const r = XTv.resume(m);
+    if (r) { season = r.s; episode = r.e; }
+  }
+
   // History is saved here; the VIEW COUNT is incremented only once, by
   // /Player when the player actually loads. (Counting it
   // here as well made every watch from Home count twice.)
@@ -835,8 +842,12 @@ function openModal(m) {
   document.getElementById('modalThumbsSlot').innerHTML = m.tmdb_id ? Ratings.thumbsHTML(m.tmdb_id, m.type) : '';
 
   // Play button — for TV shows, Play plays S1E1 by default
-  document.getElementById('modalPlayBtn').textContent  = isTV ? '▶ Play S1 E1' : '▶ Play';
-  document.getElementById('modalPlayBtn').onclick = () => { closeModal(); playMovie(m, 1, 1); };
+  if (isTV) setModalPlay(null);
+  else {
+    document.getElementById('modalPlayBtn').textContent = '▶ Play';
+    document.getElementById('modalPlayBtn').onclick = () => { closeModal(); playMovie(m, 1, 1); };
+  }
+  const _ex = document.getElementById('tvExtras'); if (_ex) _ex.innerHTML = '';
   document.getElementById('modalAddBtn').onclick = () => mlToggle(m);
   document.getElementById('modalShareIco').innerHTML = XShare.ICON;
 
@@ -859,6 +870,22 @@ function closeModal() {
   document.getElementById('modalBg').classList.remove('open');
   document.body.style.overflow = '';
 }
+
+// Play button of the TV modal: "Resume S2 E4" if the user already watched something, else "Play S1 E1"
+function setModalPlay(sn) {
+  const m = modalMovie, btn = document.getElementById('modalPlayBtn');
+  if (!btn || !m || m.type !== 'tv') return;
+  const r = XTv.resume(m);
+  if (r && (sn == null || sn === r.s)) {
+    btn.textContent = `▶ Resume S${r.s} E${r.e}`;
+    btn.onclick = () => { closeModal(); playMovie(m, r.s, r.e); };
+  } else {
+    const s = sn || 1;
+    btn.textContent = `▶ Play S${s} E1`;
+    btn.onclick = () => { closeModal(); playMovie(m, s, 1); };
+  }
+}
+window.xvOpenSimilar = m => { openModal(m); const c = document.getElementById('modalCard'); if (c) c.scrollTop = 0; };
 
 // Load seasons for current TV show
 async function loadTVSeasons(m) {
@@ -896,8 +923,14 @@ async function loadTVSeasons(m) {
     .map(s => `<option value="${s.season_number}">Season ${s.season_number} (${s.episode_count} eps)</option>`)
     .join('');
 
-  // Load first season episodes
-  await loadEpisodes(1);
+  // Status / cast / More like this
+  if (modalMovie === m) { const ex = document.getElementById('tvExtras'); if (ex) ex.innerHTML = XTv.extras(details); }
+
+  // Open on the season the user was watching, else the first one
+  const res = XTv.resume(m);
+  const first = (res && tvSeasons.some(x => x.season_number === res.s)) ? res.s : tvSeasons[0].season_number;
+  selEl.value = String(first);
+  await loadEpisodes(first);
 }
 
 // Load episodes for a given season number
@@ -918,11 +951,11 @@ async function loadEpisodes(seasonNum) {
 
   if (!tvTmdbId) return;
 
-  // Update play button to match selected season
-  const playBtn = document.getElementById('modalPlayBtn');
-  if (playBtn) playBtn.textContent = `▶ Play S${sn} E1`;
+  setModalPlay(sn);
 
+  const showId = tvTmdbId;
   const data = await TMDB.tvSeason(tvTmdbId, sn);
+  if (showId !== tvTmdbId) return;      // modal switched to another show meanwhile
 
   if (!data || !data.episodes?.length) {
     listEl.innerHTML = `<div class="ep-loading">No episodes found for Season ${sn}.</div>`;
@@ -934,8 +967,11 @@ async function loadEpisodes(seasonNum) {
       ? `https://image.tmdb.org/t/p/w300${ep.still_path}`
       : null;
 
+    const seen = XTv.seen(showId, sn, ep.episode_number);
+    const rs = XTv.resume(modalMovie);
+    const cur = rs && rs.s === sn && rs.e === ep.episode_number;
     return `
-      <div class="ep-item" onclick="closeModal();playMovie(modalMovie,${sn},${ep.episode_number})">
+      <div class="ep-item${cur ? ' ep-cur' : ''}" onclick="closeModal();playMovie(modalMovie,${sn},${ep.episode_number})">
         <div class="ep-num-badge">${ep.episode_number}</div>
         <div class="ep-thumb">
           ${thumb
@@ -947,16 +983,13 @@ async function loadEpisodes(seasonNum) {
           <div class="ep-title-row">
             <div class="ep-title">${ep.name || 'Episode ' + ep.episode_number}</div>
             ${ep.runtime ? `<div class="ep-runtime">${ep.runtime}m</div>` : ''}
+            ${seen ? '<div class="ep-seen" title="Watched">&#10003;</div>' : ''}
           </div>
           <div class="ep-overview">${ep.overview || 'No description available.'}</div>
         </div>
       </div>`;
   }).join('');
 
-  // Update play button to current season
-  if (playBtn) {
-    playBtn.onclick = () => { closeModal(); playMovie(modalMovie, sn, 1); };
-  }
 }
 
 // ─────────────────────────────────────────
