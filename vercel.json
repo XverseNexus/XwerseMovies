@@ -160,6 +160,17 @@
       "destination": "/XwerseMovies_Contact.html"
     },
     {
+      "source": "/watch/:type/:t/:rest*",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(WhatsApp|facebookexternalhit|Facebot|TelegramBot|Viber|Discord|Slack|LinkedIn|Skype|Pinterest|Embedly|Iframely|Mastodon|Signal|[Bb]ot|[Cc]rawl|[Ss]pider|[Pp]review).*"
+        }
+      ],
+      "destination": "/api/share?type=:type&t=:t"
+    },
+    {
       "source": "/watch/:type/:rest*",
       "destination": "/XwerseMovies_Player.html"
     },
