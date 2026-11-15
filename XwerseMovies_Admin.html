@@ -1306,34 +1306,35 @@ function fillFormFromTMDB(data, type) {
   //  STATUS — always Active for newly added content
   set('mStatus', 'active');
 
-  //  FEATURED IN HERO — auto-yes if highly popular or highly rated
+  //  FEATURED IN HERO — never switched on automatically. The Hero banner is chosen
+  //  by the admin (and the Home hero already pulls trending titles from TMDB by itself),
+  //  so every fill resets this to "No".
+  set('mFeatured', 'false');
+  const voteAvg   = parseFloat(rating) || 0;
   const pop       = data.popularity || 0;
   const voteCount = data.vote_count || 0;
-  const voteAvg   = parseFloat(rating) || 0;
-  const autoFeat  = pop > 80 || (voteCount > 500 && voteAvg >= 7.5);
-  set('mFeatured', autoFeat ? 'true' : 'false');
 
   //  AGE RATING — map TMDB certification to Indian CBFC ratings
   //  Movie: release_dates → IN cert first, then US cert
   //  TV:    content_ratings → IN cert first, then US cert
-  let cert = '';
+  // TMDB lists a certificate per country, and a movie can have several release entries per country
+  // (festival, theatrical, digital …) where the first one is often blank — take the first NON-blank one.
+  const firstCert = (arr, key) => (arr || []).map(x => String(x[key] || '').trim()).find(Boolean) || '';
+  let cert = '', certFrom = '';
   if (type === 'movie') {
-    const rdates = data.release_dates?.results || [];
-    const inRel  = rdates.find(r => r.iso_3166_1 === 'IN');
-    const usRel  = rdates.find(r => r.iso_3166_1 === 'US');
-    cert = inRel?.release_dates?.[0]?.certification
-        || usRel?.release_dates?.[0]?.certification
-        || '';
+    const rd = data.release_dates?.results || [];
+    const pick = cc => firstCert((rd.find(r => r.iso_3166_1 === cc)?.release_dates) || [], 'certification');
+    if ((cert = pick('IN'))) certFrom = 'India'; else if ((cert = pick('US'))) certFrom = 'US'; else if ((cert = pick('GB'))) certFrom = 'UK';
   } else {
-    const crs  = data.content_ratings?.results || [];
-    const inCR = crs.find(r => r.iso_3166_1 === 'IN');
-    const usCR = crs.find(r => r.iso_3166_1 === 'US');
-    cert = inCR?.rating || usCR?.rating || '';
+    const cr = data.content_ratings?.results || [];
+    const pick = cc => String(cr.find(r => r.iso_3166_1 === cc)?.rating || '').trim();
+    if ((cert = pick('IN'))) certFrom = 'India'; else if ((cert = pick('US'))) certFrom = 'US'; else if ((cert = pick('GB'))) certFrom = 'UK';
   }
 
   // Map to Indian ratings
   const ageRating = mapCertToAge(cert, data.adult, voteAvg, genres);
   set('mAge', ageRating);
+  const ageNote = cert ? `${cert} (${certFrom})` : 'estimated — no certificate on TMDB';
 
   const releaseYear = parseInt(year) || 2000;
   const currentYear = new Date().getFullYear();
@@ -1361,34 +1362,36 @@ function fillFormFromTMDB(data, type) {
   set('mTags', [...new Set(autoTags)].slice(0, 8).join(', '));
 
   // Show auto-fill summary toast
-  const featMsg = autoFeat ? '⭐ Featured' : '';
-  showToast(`✅ ${title} — Age: ${ageRating}${featMsg ? ', ' + featMsg : ''}`);
+  showToast(`✅ ${title} — Age: ${ageRating} · from ${ageNote}`);
 }
 
 // ─────────────────────────────────────────
 //  CERT → INDIAN AGE RATING MAPPER
 // ─────────────────────────────────────────
 function mapCertToAge(cert, isAdult, voteAvg, genres) {
-  if (!cert) cert = '';
-  const c = cert.toUpperCase().trim();
+  const c = String(cert || '').toUpperCase().replace(/\s+/g, ' ').trim();
 
-  // Direct Indian CBFC mappings
-  if (c === 'U')   return 'U';
-  if (c === 'UA')  return 'UA 13+';
+  // Indian CBFC certificates (as TMDB writes them)
+  if (c === 'U')                        return 'U';
+  if (c === 'UA 7+' || c === 'UA7+')    return 'UA 7+';
+  if (c === 'UA 13+' || c === 'UA13+')  return 'UA 13+';
+  if (c === 'UA 16+' || c === 'UA16+')  return 'UA 16+';
+  if (c === 'UA')                       return 'UA 13+';
+  if (c === 'A' || c === 'S' || c === 'A/18+') return 'A/18+';
 
-  // US → Indian equivalents
-  if (c === 'G')   return 'U';
-  if (c === 'PG')  return 'UA 7+';
-  if (['PG-13', 'PG13', '12', '12A', 'TV-14'].includes(c)) return 'UA 13+';
-  if (['TV-MA', 'MA', '15', '16', 'R', 'NC-17'].includes(c)) return 'UA 16+';
-  if (['18', '18+', 'X', 'NR'].includes(c)) return 'A/18+';
+  // US / UK / TV equivalents
+  if (['G', 'TV-G', 'TV-Y', 'TV-Y7', 'U'].includes(c))            return 'U';
+  if (['PG', 'TV-PG'].includes(c))                                 return 'UA 7+';
+  if (['PG-13', 'PG13', '12', '12A', 'TV-14'].includes(c))        return 'UA 13+';
+  if (['R', 'TV-MA', 'MA', '15', '16', 'MA15+', 'M'].includes(c)) return 'UA 16+';
+  if (['NC-17', '18', '18+', 'X', 'R18'].includes(c))             return 'A/18+';
 
-  // Fallback: derive from adult flag + genres
+  // No usable certificate: estimate from the adult flag and genres
   if (isAdult) return 'A/18+';
-  const matureGenres = ['Horror','Thriller','Crime'];
-  if (genres.some(g => matureGenres.includes(g))) return 'UA 16+';
-  if (voteAvg < 5) return 'UA 13+';
-  return 'UA 16+'; // safe default
+  const g = genres || [];
+  if (g.some(x => ['Horror', 'Thriller', 'Crime'].includes(x))) return 'UA 16+';
+  if (g.includes('Animation') || g.includes('Family')) return 'UA 7+';
+  return 'UA 13+';
 }
 
 // ─────────────────────────────────────────
