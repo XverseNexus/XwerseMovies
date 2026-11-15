@@ -2126,14 +2126,29 @@ const XShare = {
     try { history.replaceState(null, '', location.pathname); } catch (e) {}
   },
 
-  /* Not logged in when the link was opened? Remember it, send them back after login. */
+  /* Not logged in when the link was opened? Remember it (title page link or /watch/ player link)
+     and send them back after login. Kept in sessionStorage AND localStorage (6 h): a sign-up
+     confirmation e-mail often opens in a new tab or another browser, where sessionStorage is empty. */
+  _NEXT_OK: [/^\/Home\?t=\d+&type=(movie|tv)$/, /^\/watch\/(movie|tv)\/(\d+|id-\d+)(\/s\d+e\d+)?$/],
   rememberNext() {
-    try { if (/[?&]t=\d+/.test(location.search)) sessionStorage.setItem('xv_next', '/Home' + location.search); } catch (e) {}
+    let n = null;
+    const q = new URLSearchParams(location.search);
+    const t = parseInt(q.get('t'), 10);
+    if (t) n = '/Home?t=' + t + '&type=' + (q.get('type') === 'tv' ? 'tv' : 'movie');
+    else { const m = location.pathname.match(/^\/watch\/(movie|tv)\/([^\/]+)(\/s\d+e\d+)?\/?$/); if (m) n = '/watch/' + m[1] + '/' + m[2] + (m[3] || ''); }
+    if (!n || !this._NEXT_OK.some(r => r.test(n))) return;
+    try { sessionStorage.setItem('xv_next', n); } catch (e) {}
+    try { localStorage.setItem('xv_next_ls', JSON.stringify({ u: n, at: Date.now() })); } catch (e) {}
   },
   afterLoginUrl() {
     let n = null;
     try { n = sessionStorage.getItem('xv_next'); sessionStorage.removeItem('xv_next'); } catch (e) {}
-    return (n && /^\/Home\?t=\d+&type=(movie|tv)$/.test(n)) ? n : '/Home';
+    try {
+      const ls = JSON.parse(localStorage.getItem('xv_next_ls') || 'null');
+      localStorage.removeItem('xv_next_ls');
+      if (!n && ls && ls.u && Date.now() - ls.at < 6 * 3600 * 1000) n = ls.u;
+    } catch (e) {}
+    return (n && this._NEXT_OK.some(r => r.test(n))) ? n : '/Home';
   },
 };
 
@@ -2454,7 +2469,7 @@ const PwdMeter = {
 //  Prevents "XvNotif is not defined" from stale SW cache.
 // ─────────────────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
-  var _xvSwRefreshing = false;
+  var _xvSwRefreshing = !navigator.serviceWorker.controller;   // first-ever install: nothing stale to refresh
   navigator.serviceWorker.addEventListener('controllerchange', function() {
     if (!_xvSwRefreshing) {
       _xvSwRefreshing = true;
