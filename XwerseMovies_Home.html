@@ -19,7 +19,7 @@
 <meta name="twitter:title" content="XwerseMovies — Home">
 <meta name="twitter:description" content="Stream trending movies, TV shows and Bollywood hits — anytime, anywhere on XwerseMovies.">
 <meta name="twitter:image" content="https://xwersemovies.bond/og-image.png">
-<script>/* SW update → auto-reload so fresh xwerse-config.js loads immediately */if('serviceWorker'in navigator){var _xvR=false;navigator.serviceWorker.addEventListener('controllerchange',function(){if(!_xvR){_xvR=true;location.reload();}});}</script>
+<script>/* SW update → auto-reload so fresh xwerse-config.js loads immediately */if('serviceWorker'in navigator){var _xvR=!navigator.serviceWorker.controller;navigator.serviceWorker.addEventListener('controllerchange',function(){if(!_xvR){_xvR=true;location.reload();}});}</script>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="manifest" href="manifest.json">
@@ -482,7 +482,6 @@ let _cachedRowData = null;
 async function openSharedTitle(adminMovies) {
   const tgt = XShare.linkTarget();
   if (!tgt) return;
-  XShare.clearLink();
   try {
     let m = (adminMovies || []).find(x => String(x.tmdb_id) === String(tgt.id) && (x.type === tgt.type || !x.type));
     if (!m) {
@@ -868,6 +867,7 @@ function openModal(m) {
 }
 
 function closeModal() {
+  if (XShare.linkTarget()) XShare.clearLink();      // shared-link title closed → tidy the address bar
   document.getElementById('modalBg').classList.remove('open');
   document.body.style.overflow = '';
 }
