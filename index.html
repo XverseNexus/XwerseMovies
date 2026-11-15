@@ -109,9 +109,17 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:cen
 .msg.show{display:block}
 .msg.err{background:rgba(229,9,20,.12);border:1px solid rgba(229,9,20,.35);color:#ff7070}
 .msg.ok{background:rgba(70,211,105,.1);border:1px solid rgba(70,211,105,.3);color:var(--green)}
-.opts-row{display:flex;align-items:center;justify-content:space-between;margin-top:12px}
-.remember{display:flex;align-items:center;gap:7px;font-size:.8rem;color:var(--muted);cursor:pointer}
-.remember input{accent-color:var(--red)}
+.opts-row{display:flex;align-items:center;justify-content:flex-end;margin-top:12px}
+/* password show / hide */
+.field.has-eye input{padding-right:48px}
+.eye{position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:0;color:#9a9a9a;cursor:pointer;padding:9px;line-height:0;border-radius:4px}
+.eye:hover{color:#fff}
+.eye:focus-visible{outline:2px solid #fff;outline-offset:-2px}
+.eye svg{width:20px;height:20px;display:block}
+/* inline field errors (Netflix-style: plain text under the field, no emoji) */
+.field.bad input{border-color:#e87c03}
+.ferr{display:none;font-size:.76rem;color:#e87c03;margin:-8px 0 13px;padding-left:2px;line-height:1.35}
+.field input:focus-visible,.btn-red:focus-visible,.btn-google:focus-visible,.link-btn:focus-visible{outline:2px solid #fff;outline-offset:2px}
 .link-btn{font-size:.8rem;color:var(--muted);background:none;border:none;cursor:pointer;font-family:'Barlow',sans-serif;transition:color .2s;padding:0}
 .link-btn:hover{color:#fff}
 .divider{text-align:center;color:var(--muted);font-size:.8rem;margin:16px 0;position:relative}
@@ -121,10 +129,6 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:cen
 .btn-google:hover{background:rgba(255,255,255,.07)}
 .box-footer{margin-top:20px;font-size:.82rem;color:var(--muted)}
 .box-footer a{color:#fff;text-decoration:none;font-weight:600;cursor:pointer}
-.step-bar{display:flex;gap:5px;margin-bottom:26px}
-.sdot{height:4px;border-radius:2px;background:rgba(255,255,255,.18);flex:1;transition:background .3s}
-.sdot.active{background:var(--red)}
-.sdot.done{background:var(--green)}
 .prof-grid{display:flex;gap:22px;flex-wrap:wrap;justify-content:center;margin-bottom:32px}
 .prof-item{display:flex;flex-direction:column;align-items:center;gap:9px;cursor:pointer}
 .prof-av{width:88px;height:88px;border-radius:6px;overflow:hidden;border:3px solid transparent;transition:all .22s;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',cursive;font-size:2.4rem;color:#fff;position:relative}
@@ -165,9 +169,10 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:cen
   <h1 class="land-title">Movies, Shows & More<br>Without Limits</h1>
   <p class="land-sub">Watch anywhere. Free to join.</p>
   <div class="land-form">
-    <input class="land-email" id="landEmail" type="email" placeholder="Your email address" onkeydown="if(event.key==='Enter')handleGetStarted()">
+    <input class="land-email" id="landEmail" type="email" placeholder="Your email address" aria-label="Your email address" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" oninput="document.getElementById('landEmailErr').style.display='none'" onkeydown="if(event.key==='Enter')handleGetStarted()">
     <button class="btn-red" onclick="handleGetStarted()">Get Started ›</button>
   </div>
+  <div class="ferr" id="landEmailErr" role="alert" style="margin:10px 0 0;text-align:center"></div>
   <div style="margin-top:14px;font-size:.84rem;color:var(--muted)">Already a member? <span style="color:#fff;cursor:pointer;font-weight:600" onclick="showPage('login')">Sign In</span></div>
   <div class="or-row"><span>OR</span></div>
   <button class="btn-google-big" onclick="googleSignIn()">
@@ -180,13 +185,14 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:cen
 <div class="page" id="page-login">
   <div class="box">
     <h2 class="box-title">Sign In</h2>
-    <div class="msg err" id="loginMsg"></div>
+    <div class="msg err" id="loginMsg" role="alert" aria-live="polite"></div>
     <button class="link-btn" id="resendBtn" style="display:none;margin:-4px 0 10px" onclick="resendConfirm()">Resend confirmation email</button>
-    <div class="field"><input type="email" id="liEmail" placeholder="e" autocomplete="email"><label>Email address</label></div>
-    <div class="field"><input type="password" id="liPass" placeholder="p" autocomplete="current-password" onkeydown="if(event.key==='Enter')emailLogin()"><label>Password</label></div>
+    <div class="field"><input type="email" id="liEmail" placeholder="e" autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false" required aria-describedby="liEmailErr" onblur="checkEmailField('liEmail')" oninput="clearFieldErr('liEmail')"><label for="liEmail">Email address</label></div>
+    <div class="ferr" id="liEmailErr" role="alert"></div>
+    <div class="field has-eye"><input type="password" id="liPass" placeholder="p" autocomplete="current-password" required aria-describedby="liPassErr" oninput="clearFieldErr('liPass')" onkeydown="if(event.key==='Enter')emailLogin()"><label for="liPass">Password</label><button type="button" class="eye" aria-label="Show password" onclick="togglePw(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+    <div class="ferr" id="liPassErr" role="alert"></div>
     <button class="btn-red" style="width:100%;margin-top:4px" id="loginBtn" onclick="emailLogin()">Sign In</button>
     <div class="opts-row">
-      <label class="remember"><input type="checkbox" checked> Remember me</label>
       <button class="link-btn" onclick="forgotPass()">Forgot password?</button>
     </div>
     <div class="divider"><span>OR</span></div>
@@ -201,28 +207,23 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:cen
 <!-- SIGNUP -->
 <div class="page" id="page-signup">
   <div class="box">
-    <div class="step-bar"><div class="sdot active" id="sd1"></div><div class="sdot" id="sd2"></div></div>
     <div id="su1">
       <h2 class="box-title">Create Account</h2>
-      <p style="font-size:.78rem;color:var(--muted);margin-bottom:18px">Step 1 of 2 — Your details</p>
-      <div class="field"><input type="text" id="suName" placeholder="n" autocomplete="name" onkeydown="if(event.key==='Enter')document.getElementById('suEmail').focus()"><label>Full Name</label></div>
-      <div class="field"><input type="email" id="suEmail" placeholder="e" autocomplete="email" onkeydown="if(event.key==='Enter')document.getElementById('suPass').focus()"><label>Email address</label></div>
-      <div class="field"><input type="password" id="suPass" placeholder="p" onkeydown="if(event.key==='Enter')suStep1()"><label>Password (min 6 chars)</label></div>
-      <div class="msg err" id="su1Msg"></div>
-      <button class="btn-red" style="width:100%;margin-top:4px" onclick="suStep1()">Continue</button>
+      <p style="font-size:.8rem;color:var(--muted);margin:-14px 0 18px">Free to join. No card required.</p>
+      <div class="msg err" id="su1Msg" role="alert" aria-live="polite"></div>
+      <div class="field"><input type="text" id="suName" placeholder="n" autocomplete="name" required aria-describedby="suNameErr" oninput="clearFieldErr('suName')" onkeydown="if(event.key==='Enter')document.getElementById('suEmail').focus()"><label for="suName">Full name</label></div>
+      <div class="ferr" id="suNameErr" role="alert"></div>
+      <div class="field"><input type="email" id="suEmail" placeholder="e" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" required aria-describedby="suEmailErr" onblur="checkEmailField('suEmail')" oninput="clearFieldErr('suEmail')" onkeydown="if(event.key==='Enter')document.getElementById('suPass').focus()"><label for="suEmail">Email address</label></div>
+      <div class="ferr" id="suEmailErr" role="alert"></div>
+      <div class="field has-eye"><input type="password" id="suPass" placeholder="p" autocomplete="new-password" required minlength="6" aria-describedby="suPassErr" oninput="clearFieldErr('suPass')" onkeydown="if(event.key==='Enter')suCreate()"><label for="suPass">Password (6+ characters)</label><button type="button" class="eye" aria-label="Show password" onclick="togglePw(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+      <div class="ferr" id="suPassErr" role="alert"></div>
+      <button class="btn-red" style="width:100%;margin-top:4px" id="suBtn" onclick="suCreate()">Create Account</button>
       <div class="divider"><span>OR</span></div>
       <button class="btn-google" onclick="googleSignIn()">
         <svg class="g-ico" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
         Continue with Google
       </button>
-      <p class="box-footer" style="margin-top:16px">Already have account? <a onclick="showPage('login')">Sign in</a></p>
-    </div>
-    <div id="su3" style="display:none">
-      <h2 class="box-title">Almost Done!</h2>
-      <p style="font-size:.78rem;color:var(--muted);margin-bottom:18px">Step 2 of 2 — Confirm & Start</p>
-      <div id="su3Summary" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:6px;padding:13px 15px;margin-bottom:16px;font-size:.82rem;color:rgba(255,255,255,.72);line-height:2"></div>
-      <button class="btn-red" style="width:100%" id="su3Btn" onclick="suStep3()">Start Watching →</button>
-      <p style="font-size:.68rem;color:var(--muted);margin-top:10px;text-align:center;line-height:1.6">Streaming is 100% free — no card required.</p>
+      <p class="box-footer" style="margin-top:16px">Already have an account? <a onclick="showPage('login')">Sign in</a></p>
     </div>
   </div>
 </div>
@@ -232,9 +233,9 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:cen
   <div class="box">
     <h2 class="box-title">Set New Password</h2>
     <p style="font-size:.78rem;color:var(--muted);margin-bottom:18px">Choose a new password for your account.</p>
-    <div class="msg err" id="rcMsg"></div>
-    <div class="field"><input type="password" id="rcPass" placeholder="p" autocomplete="new-password"><label>New password (min 6 chars)</label></div>
-    <div class="field"><input type="password" id="rcPass2" placeholder="p" autocomplete="new-password" onkeydown="if(event.key==='Enter')submitNewPassword()"><label>Confirm new password</label></div>
+    <div class="msg err" id="rcMsg" role="alert" aria-live="polite"></div>
+    <div class="field has-eye"><input type="password" id="rcPass" placeholder="p" autocomplete="new-password" required minlength="6"><label for="rcPass">New password (6+ characters)</label><button type="button" class="eye" aria-label="Show password" onclick="togglePw(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+    <div class="field has-eye"><input type="password" id="rcPass2" placeholder="p" autocomplete="new-password" required onkeydown="if(event.key==='Enter')submitNewPassword()"><label for="rcPass2">Confirm new password</label><button type="button" class="eye" aria-label="Show password" onclick="togglePw(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
     <button class="btn-red" style="width:100%;margin-top:4px" id="rcBtn" onclick="submitNewPassword()">Update Password</button>
   </div>
 </div>
@@ -312,7 +313,7 @@ PwdMeter.attach(document.getElementById('suPass'));
   if (!session && (linkErr || _recoveryMode)) {
     _recoveryMode = false;
     hideLoader(); showPage('login');
-    showMsg('loginMsg', '⚠️ This email link has expired or was already used. Use "Forgot password?" to get a new reset link, or resend the confirmation email.');
+    showMsg('loginMsg', 'This email link has expired or was already used. Use "Forgot password?" to get a new reset link, or resend the confirmation email.');
     document.getElementById('resendBtn').style.display = 'inline-block';
     history.replaceState(null, '', location.pathname);
   } else if (session && _recoveryMode) {
@@ -326,7 +327,7 @@ PwdMeter.attach(document.getElementById('suPass'));
 
   getSB().auth.onAuthStateChange(async (event, session) => {
     if (event === 'PASSWORD_RECOVERY') { _recoveryMode = true; hideLoader(); showPage('recover'); return; }
-    // Don't interfere while suStep3 is creating the account, or while the user is setting a new password
+    // Don't interfere while suCreate is creating the account, or while the user is setting a new password
     if (_inSignupFlow || _recoveryMode) return;
     if (event === 'SIGNED_IN' && session) await handleSession(session);
   });
@@ -373,7 +374,7 @@ async function handleSession(session) {
     // Only show signup if we're not already mid-signup
     if (!_inSignupFlow) {
       signupData = { isGoogle:true, name: session.user.user_metadata?.full_name || session.user.email, email: session.user.email, uid };
-      hideLoader(); showPage('signup'); jumpStep(2);
+      finishSignup();   // Google new user: create profile automatically, go straight to Who's watching
     }
   }
 }
@@ -386,6 +387,7 @@ function hideLoader() { document.getElementById('initLoader').style.display='non
 function handleGetStarted() {
   const e = document.getElementById('landEmail').value.trim();
   // Pre-fill both signup and login email fields
+  if (e && !EMAIL_RE.test(e)) { fieldErr('landEmail', 'Please enter a valid email address.', 'landEmailErr'); return; }
   if (e) {
     const suEl = document.getElementById('suEmail');
     const liEl = document.getElementById('liEmail');
@@ -398,14 +400,18 @@ function handleGetStarted() {
 // ── GOOGLE ────────────────────────────────────────
 async function googleSignIn() {
   const { error } = await Auth.googleSignIn();
-  if (error) showMsg('loginMsg', error.message);
+  if (error) showMsg('loginMsg', errText(error.message));
 }
 
 // ── EMAIL LOGIN ───────────────────────────────────
 async function emailLogin() {
   const email = document.getElementById('liEmail').value.trim();
   const pass  = document.getElementById('liPass').value;
-  if (!email || !pass) { showMsg('loginMsg','Please enter your email and password'); return; }
+  document.getElementById('loginMsg').className = 'msg err';
+  let bad = false;
+  if (!EMAIL_RE.test(email)) { fieldErr('liEmail', email ? 'Please enter a valid email address.' : 'Please enter your email address.'); bad = true; }
+  if (!pass) { fieldErr('liPass', 'Please enter your password.'); bad = true; }
+  if (bad) { (document.querySelector('#page-login .bad input') || {focus(){}}).focus(); return; }
   const btn = document.getElementById('loginBtn');
   btn.textContent='Signing in...'; btn.disabled=true;
   const { error } = await Auth.signIn(email, pass);
@@ -419,25 +425,25 @@ async function emailLogin() {
 
 async function resendConfirm() {
   const email = document.getElementById('liEmail').value.trim();
-  if (!email) { showMsg('loginMsg','Please enter your email first'); return; }
+  if (!EMAIL_RE.test(email)) { fieldErr('liEmail', 'Please enter your email address first.'); return; }
   const btn = document.getElementById('resendBtn');
   btn.disabled = true;
   const { error } = await Auth.resendConfirmation(email);
   if (error) showMsg('loginMsg', errText(error.message));
-  else showMsg('loginMsg', '✅ Confirmation email sent to ' + email + '. Check Inbox and Spam/Promotions.', true);
+  else showMsg('loginMsg', 'Confirmation email sent to ' + email + '. Check Inbox and Spam/Promotions.', true);
   setTimeout(() => { btn.disabled = false; }, 60000);   // Supabase allows one email per minute
 }
 
 async function submitNewPassword() {
   const p1 = document.getElementById('rcPass').value;
   const p2 = document.getElementById('rcPass2').value;
-  if (p1.length < 6) { showMsg('rcMsg','Password must be at least 6 characters'); return; }
-  if (p1 !== p2)     { showMsg('rcMsg','Passwords do not match'); return; }
+  if (p1.length < 6) { showMsg('rcMsg','Password must be at least 6 characters.'); return; }
+  if (p1 !== p2)     { showMsg('rcMsg','Passwords do not match.'); return; }
   const btn = document.getElementById('rcBtn');
   btn.textContent = 'Updating...'; btn.disabled = true;
   const { error } = await getSB().auth.updateUser({ password: p1 });
   if (error) { showMsg('rcMsg', errText(error.message)); btn.textContent = 'Update Password'; btn.disabled = false; return; }
-  showMsg('rcMsg', '✅ Password updated! Signing you in…', true);
+  showMsg('rcMsg', 'Password updated! Signing you in…', true);
   _recoveryMode = false;
   const { data: { session } } = await getSB().auth.getSession();
   setTimeout(() => { if (session) handleSession(session); else showPage('login'); }, 900);
@@ -446,63 +452,68 @@ async function submitNewPassword() {
 // ── FORGOT ────────────────────────────────────────
 async function forgotPass() {
   const email = document.getElementById('liEmail').value.trim();
-  if (!email) { showMsg('loginMsg','Please enter your email first'); return; }
+  if (!EMAIL_RE.test(email)) { fieldErr('liEmail', 'Please enter your email address first.'); return; }
   const { error } = await Auth.resetPassword(email);
   if (error) showMsg('loginMsg', errText(error.message));
-  else showMsg('loginMsg','✅ If this email is registered, a reset link is on its way. Check Inbox and Spam/Promotions.', true);
+  else showMsg('loginMsg','If this email is registered, a reset link is on its way. Check Inbox and Spam/Promotions.', true);
 }
 
 // ── SIGNUP ────────────────────────────────────────
-function suStep1() {
-  const name=document.getElementById('suName').value.trim(), email=document.getElementById('suEmail').value.trim(), pass=document.getElementById('suPass').value;
-  if (!name) { showMsg('su1Msg','Please enter your name'); return; }
-  if (!/\S+@\S+\.\S+/.test(email)) { showMsg('su1Msg','Please enter a valid email'); return; }
-  if (pass.length<6) { showMsg('su1Msg','Password min 6 chars'); return; }
-  signupData={name,email,pass};
-  document.getElementById('su3Summary').innerHTML=`<div>👤 <b>${signupData.name||'Google User'}</b></div><div>📧 ${signupData.email||'Google Account'}</div><div>🎬 Unlimited free streaming — no plan, no card</div>`;
-  jumpStep(2);
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+async function suCreate() {
+  document.getElementById('su1Msg').className = 'msg err';
+  const name = document.getElementById('suName').value.trim();
+  const email = document.getElementById('suEmail').value.trim();
+  const pass = document.getElementById('suPass').value;
+  let first = null;
+  if (!name)  { fieldErr('suName', 'Please enter your name.'); first = first || 'suName'; }
+  if (!EMAIL_RE.test(email)) { fieldErr('suEmail', email ? 'Please enter a valid email address.' : 'Please enter your email address.'); first = first || 'suEmail'; }
+  if (pass.length < 6) { fieldErr('suPass', 'Password must be at least 6 characters.'); first = first || 'suPass'; }
+  if (first) { document.getElementById(first).focus(); return; }
+  signupData = { name, email, pass };
+  await finishSignup();
 }
 
-async function suStep3() {
+async function finishSignup() {
   _inSignupFlow = true; // Block onAuthStateChange from interfering
-  const btn = document.getElementById('su3Btn');
+  const btn = document.getElementById('suBtn');
   btn.textContent = 'Creating account...'; btn.disabled = true;
+  const reset = () => { _inSignupFlow = false; btn.textContent = 'Create Account'; btn.disabled = false; };
 
   let uid = signupData.uid;
 
   if (!uid && signupData.pass) {
     const { data, error } = await Auth.signUp(signupData.email, signupData.pass, signupData.name);
     if (error) {
-      _inSignupFlow = false;
-      showMsg('su1Msg', errText(error.message));
-      btn.textContent = 'Start Watching →'; btn.disabled = false;
-      jumpStep(1); return;
+      reset();
+      const t = errText(error.message);
+      if (/already registered/i.test(error.message)) fieldErr('suEmail', 'This email is already registered. Please sign in.');
+      else if (/at least 6/i.test(error.message)) fieldErr('suPass', t);
+      else showMsg('su1Msg', t);
+      return;
     }
     // Supabase hides "email already registered" (anti-enumeration): it returns a user with NO identities
-    // and sends no email. Without this check the user is told "account created" and waits for a mail that never comes.
+    // and sends no email. Catch it right away so the user is not told "account created" for a mail that never comes.
     if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
-      _inSignupFlow = false;
-      btn.textContent = 'Start Watching →'; btn.disabled = false;
-      jumpStep(1);
+      reset();
       document.getElementById('liEmail').value = signupData.email;
       showPage('login');
-      showMsg('loginMsg', '⚠️ This email is already registered. Please sign in, or use "Forgot password?".');
+      showMsg('loginMsg', 'This email is already registered. Please sign in, or use "Forgot password?".');
       return;
     }
     uid = data.user?.id;
     if (!data.session) {
-      _inSignupFlow = false;
-      btn.textContent = 'Start Watching →'; btn.disabled = false;
-      jumpStep(1);
+      reset();
       document.getElementById('liEmail').value = signupData.email;
       showPage('login');
-      showMsg('loginMsg', '✅ Account created! We sent a confirmation link to ' + signupData.email + '. Check Inbox and Spam/Promotions, confirm, then sign in.', true);
+      showMsg('loginMsg', 'Account created! We sent a confirmation link to ' + signupData.email + '. Check Inbox and Spam/Promotions, confirm, then sign in.', true);
       document.getElementById('resendBtn').style.display = 'inline-block';
       return;
     }
   }
 
-  if (!uid) { _inSignupFlow = false; btn.textContent = 'Start Watching →'; btn.disabled = false; return; }
+  if (!uid) { reset(); return; }
 
   // Wait briefly for DB trigger to create profile row
   await new Promise(r => setTimeout(r, 800));
@@ -518,7 +529,6 @@ async function suStep3() {
   }
 
   _inSignupFlow = false; // Unlock AFTER we have the profile
-
   await renderProfileSelect(user, profile || { name: signupData.name });
 }
 
@@ -554,32 +564,49 @@ async function renderProfileSelect(user, profile) {
 }
 
 // ── HELPERS ───────────────────────────────────────
-function jumpStep(n) {
-  ['su1','su3'].forEach((id,i)=>document.getElementById(id).style.display=i+1===n?'block':'none');
-  ['sd1','sd2'].forEach((id,i)=>{const el=document.getElementById(id);el.className='sdot'+(i+1<n?' done':i+1===n?' active':'');});
+function fieldErr(id, msg, errId) {
+  const inp = document.getElementById(id), er = document.getElementById(errId || id + 'Err');
+  if (inp) { inp.setAttribute('aria-invalid', 'true'); if (inp.parentElement.classList.contains('field')) inp.parentElement.classList.add('bad'); }
+  if (er) { er.textContent = msg; er.style.display = 'block'; }
+}
+function clearFieldErr(id) {
+  const inp = document.getElementById(id), er = document.getElementById(id + 'Err');
+  if (inp) { inp.removeAttribute('aria-invalid'); inp.parentElement.classList.remove('bad'); }
+  if (er) er.style.display = 'none';
+}
+function checkEmailField(id) {
+  const v = document.getElementById(id).value.trim();
+  if (v && !EMAIL_RE.test(v)) fieldErr(id, 'Please enter a valid email address.');
+}
+function togglePw(btn) {
+  const inp = btn.parentElement.querySelector('input');
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+  btn.style.color = show ? '#fff' : '';
 }
 function showMsg(id,msg,ok=false) { const el=document.getElementById(id);if(!el)return;el.textContent=msg;el.className='msg show '+(ok?'ok':'err'); }
 function errText(m) {
   const map = {
-    'Invalid login credentials':              '❌ Incorrect email or password',
-    'Email not confirmed':                    '⚠️ Please confirm your email first',
-    'User already registered':                '⚠️ Email already registered — please sign in',
-    'Password should be at least 6 characters': '⚠️ Password must be at least 6 characters',
-    'Email rate limit exceeded':              '⏳ Too many attempts — please try again later',
-    'signup_disabled':                        '⚠️ Registration is currently disabled',
-    'over_request_rate_limit':                '⏳ Too many requests — please wait a moment',
-    'Network request failed':                 '🌐 Please check your internet connection',
-    'only request this after':                '⏳ Please wait a minute before requesting another email',
-    'rate limit':                             '⏳ Too many emails requested — please try again later',
-    'not authorized':                         '⚠️ We could not send the email right now. Please try again later or contact support.',
-    'error sending':                          '⚠️ We could not send the email right now. Please try again later or contact support.',
-    'should be different from the old':       '⚠️ Please choose a password different from your old one',
-    'session missing':                        '⚠️ This reset link has expired. Please request a new one.',
+    'Invalid login credentials':              'Incorrect email or password',
+    'Email not confirmed':                    'Please confirm your email first',
+    'User already registered':                'Email already registered — please sign in',
+    'Password should be at least 6 characters': 'Password must be at least 6 characters',
+    'Email rate limit exceeded':              'Too many attempts — please try again later',
+    'signup_disabled':                        'Registration is currently disabled',
+    'over_request_rate_limit':                'Too many requests — please wait a moment',
+    'Network request failed':                 'Please check your internet connection',
+    'only request this after':                'Please wait a minute before requesting another email',
+    'rate limit':                             'Too many emails requested — please try again later',
+    'not authorized':                         'We could not send the email right now. Please try again later or contact support.',
+    'error sending':                          'We could not send the email right now. Please try again later or contact support.',
+    'should be different from the old':       'Please choose a password different from your old one',
+    'session missing':                        'This reset link has expired. Please request a new one.',
   };
   for (const [k, v] of Object.entries(map)) {
     if (m.toLowerCase().includes(k.toLowerCase())) return v;
   }
-  return '❌ ' + m;
+  return '' + m;
 }
 </script>
 <script>if("serviceWorker"in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){});});}</script>
