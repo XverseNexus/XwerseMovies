@@ -181,6 +181,18 @@
   ],
   "redirects": [
     {
+      "source": "/s/:type/:t",
+      "missing": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(WhatsApp|facebookexternalhit|Facebot|TelegramBot|Viber|Discord|Slack|LinkedIn|Skype|Pinterest|Embedly|Iframely|Mastodon|Signal|[Bb]ot|[Cc]rawl|[Ss]pider|[Pp]review).*"
+        }
+      ],
+      "destination": "/Home?t=:t&type=:type",
+      "permanent": false
+    },
+    {
       "source": "/XwerseMovies_Home.html",
       "destination": "/Home",
       "permanent": true
