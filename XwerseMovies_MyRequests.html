@@ -286,7 +286,7 @@ function reqCardHTML(r) {
 
     // Direct-stream requests open the built-in player by request id; the
     // Player re-checks ownership + payment itself, nothing sensitive is in the URL.
-    if (r.direct_url) playParams.set('req', r.id);
+    playParams.set('req', r.id);   // purchased copies play only when opened from here (the player checks ownership)
 
     actions = `<div class="req-actions">`;
     if (r.direct_url || r.watch_url) {
