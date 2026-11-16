@@ -794,12 +794,13 @@ async function bLoadSeasons(m) {
     var seasons = (d.seasons||[]).filter(function(s){ return s.season_number > 0; });
     if (!seasons.length) { list.innerHTML='<div class="ep-loading">No seasons found.</div>'; return; }
     sel.innerHTML = seasons.map(function(s){
-      return '<option value="'+s.season_number+'">Season '+s.season_number+' ('+s.episode_count+' eps)'+XOwned.sfx(m.tmdb_id, s.season_number)+'</option>';
+      return '<option value="'+s.season_number+'"'+XOwned.optAttr(m.tmdb_id, s.season_number)+'>Season '+s.season_number+' ('+s.episode_count+' eps)</option>';
     }).join('');
     var ex = document.getElementById('bTvExtras'); if (ex) ex.innerHTML = XTv.extras(d);
     var r = XTv.resume(m);
     var first = (r && seasons.some(function(x){ return x.season_number === r.s; })) ? r.s : seasons[0].season_number;
     sel.value = String(first);
+    XOwned.paintSel(sel, m.tmdb_id);
     bLoadEpisodes(first);
   } catch(e) { list.innerHTML = '<div class="ep-loading">Could not load.</div>'; }
 }
