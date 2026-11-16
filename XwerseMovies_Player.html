@@ -773,9 +773,11 @@ async function openEps() {
   $('eppTitle').textContent = movieData.title || 'Episodes';
   const t = tvId();
   const list = await XTv.seasons(t);
+  await XOwned.load();
   if (!list) { $('eppList').innerHTML = '<div class="epp-msg">Episodes are not available for this show.</div>'; _eppReady = false; return; }
   const cur = movieData._season || 1;
-  $('eppSeason').innerHTML = list.map(x => '<option value="' + x.n + '"' + (x.n === cur ? ' selected' : '') + '>Season ' + x.n + '</option>').join('');
+  $('eppSeason').innerHTML = list.map(x => '<option value="' + x.n + '"' + (x.n === cur ? ' selected' : '') + '' + XOwned.optAttr(t, x.n) + '>Season ' + x.n + '</option>').join('');
+  XOwned.paintSel($('eppSeason'), t);
   eppLoad(list.some(x => x.n === cur) ? cur : list[0].n);
 }
 function _esc(x) { return String(x == null ? '' : x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
@@ -787,10 +789,11 @@ async function eppLoad(season) {
   const eps = (d && d.episodes) || [];
   if (!eps.length) { box.innerHTML = '<div class="epp-msg">No episodes found.</div>'; return; }
   const curS = movieData._season || 1, curE = movieData._episode || 1;
+  await XOwned.load();
   box.innerHTML = eps.map(ep => {
     const n = ep.episode_number, isCur = sn === curS && n === curE;
     const th = ep.still_path ? ' style="background-image:url(https://image.tmdb.org/t/p/w300' + ep.still_path + ')"' : '';
-    return '<div class="epp-row' + (isCur ? ' cur' : '') + '" onclick="' + (isCur ? 'closeEps()' : 'goEpisode(' + sn + ',' + n + ')') + '">'
+    return '<div class="epp-row' + (isCur ? ' cur' : '') + XOwned.epCls(t, sn, n) + '" onclick="' + (isCur ? 'closeEps()' : 'goEpisode(' + sn + ',' + n + ')') + '">'
       + '<div class="epp-n">' + n + '</div><div class="epp-th"' + th + '></div>'
       + '<div class="epp-inf"><div class="epp-nm"><span class="t">' + _esc(ep.name || 'Episode ' + n) + '</span>'
       + (ep.runtime ? '<span class="epp-rt">' + ep.runtime + 'm</span>' : '')
