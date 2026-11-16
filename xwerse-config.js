@@ -2234,7 +2234,7 @@ const XOwned = {
         const uid = s && s.session && s.session.user && s.session.user.id;
         if (!uid) return (this._list = []);
         const { data, error } = await getSB().from('requests')
-          .select('tmdb_id, request_type, season_number')
+          .select('tmdb_id, request_type, season_number, watch_url')
           .eq('user_id', uid).eq('payment_status', 'paid').eq('status', 'completed');
         this._list = error ? [] : (data || []);
       } catch (e) { this._list = []; }
@@ -2254,6 +2254,26 @@ const XOwned = {
     const i = this.info(tmdb, 'tv');
     return !!(i && (i.series || i.seasons.includes(Number(season))));
   },
+  /* Which episodes of a season are bought. true = every episode (no per-episode list saved), Set = those episode numbers */
+  _eps(tmdb, season) {
+    const rows = (this._list || []).filter(r => String(r.tmdb_id) === String(tmdb) && r.request_type !== 'movie');
+    const got = new Set(); let all = false;
+    rows.forEach(r => {
+      const isSeries = r.request_type === 'series';
+      if (!isSeries && (Number(r.season_number) || 1) !== Number(season)) return;
+      const p = Xwerse.parseEpisodeLinks(r.watch_url || '');
+      const mine = p.eps.filter(e => isSeries ? e.season === Number(season) : true);
+      if (mine.length) mine.forEach(e => got.add(e.ep)); else if (p.fallback || !p.eps.length) all = true;
+    });
+    return all ? true : got;
+  },
+  epOwned(tmdb, season, ep) {
+    if (!this.owns(tmdb, season)) return false;
+    const e = this._eps(tmdb, season);
+    return e === true || e.has(Number(ep));
+  },
+  epCls(tmdb, season, ep) { return this.epOwned(tmdb, season, ep) ? ' xown-ep' : ''; },
+  epTag(tmdb, season, ep) { return this.epOwned(tmdb, season, ep) ? '<span class="xown-pill">&#10003; Purchased</span>' : ''; },
   /* " · Purchased" for the season dropdown (call after load()) */
   sfx(tmdb, season) { return this.owns(tmdb, season) ? ' · Purchased' : ''; },
   _css() {
@@ -2261,11 +2281,13 @@ const XOwned = {
     const st = document.createElement('style'); st.id = 'xownCss';
     st.textContent = '.xown{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 14px;padding:11px 14px;border-radius:8px;background:rgba(70,211,105,.08);border:1px solid rgba(70,211,105,.35)}' +
       '.xown-t{flex:1;min-width:180px;font-size:.82rem;color:#fff;line-height:1.4}.xown-t b{color:#46d369}.xown-t span{display:block;color:rgba(255,255,255,.6);font-size:.74rem;margin-top:2px}' +
-      '.xown a{background:#46d369;color:#000;font-weight:700;font-size:.78rem;padding:8px 14px;border-radius:5px;text-decoration:none;white-space:nowrap}';
+      '.xown-pill{display:inline-block;margin-left:8px;font-size:.62rem;font-weight:800;letter-spacing:.3px;color:#000;background:#46d369;padding:2px 7px;border-radius:3px;white-space:nowrap;vertical-align:middle}' +
+      '.xown-ep{box-shadow:inset 3px 0 0 #46d369,0 0 14px rgba(70,211,105,.22)!important;background:rgba(70,211,105,.07)!important;border-radius:6px}';
     document.head.appendChild(st);
   },
   /* Puts the banner just above the popup's button row. `playBtn` = the popup's Play button. */
   async mount(playBtn, tmdb, type) {
+    this._css();
     document.querySelectorAll('.xown').forEach(n => n.remove());
     if (!playBtn || !tmdb) return;
     const tok = ++this._tok;
@@ -2277,10 +2299,9 @@ const XOwned = {
     if (type !== 'tv') what = 'this movie';
     else if (i.series) what = 'the full series';
     else what = i.seasons.map(n => 'Season ' + n).join(', ');
-    this._css();
     const d = document.createElement('div');
     d.className = 'xown';
-    d.innerHTML = '<div class="xown-t">✓ <b>Purchased</b> — you own ' + what + '.<span>Your purchased copy plays from My Purchases. Playing from here opens the free version.</span></div><a href="/MyPurchases">Open My Purchases</a>';
+    d.innerHTML = '<div class="xown-t">✓ <b>Purchased</b> — you own ' + what + '.<span>' + (type === 'tv' ? 'Your purchased episodes are highlighted below.' : 'Playing from here opens your purchased copy.') + '</span></div>';
     const row = playBtn.parentElement;
     row.parentElement.insertBefore(d, row);
   },
