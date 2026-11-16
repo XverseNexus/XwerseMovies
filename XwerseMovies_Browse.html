@@ -744,6 +744,7 @@ function openMod(m) {
     };
   }
 
+  XOwned.mount(document.getElementById('mPlayBtn'), m.tmdb_id, m.type);
   // Episode picker visibility
   var epWrap = document.getElementById('bEpWrap');
   if (epWrap) {
@@ -786,14 +787,14 @@ async function bLoadSeasons(m) {
   if (!sel || !list) return;
   sel.innerHTML = ''; list.innerHTML = '<div class="ep-loading">Loading...</div>';
   try {
-    var _r = await Promise.all([TMDB.tvDetails(m.tmdb_id), XTv.pull(m.tmdb_id)]);
+    var _r = await Promise.all([TMDB.tvDetails(m.tmdb_id), XTv.pull(m.tmdb_id), XOwned.load()]);
     var d = _r[0];
     if (_curMovie !== m) return;
     bSetPlay(null);
     var seasons = (d.seasons||[]).filter(function(s){ return s.season_number > 0; });
     if (!seasons.length) { list.innerHTML='<div class="ep-loading">No seasons found.</div>'; return; }
     sel.innerHTML = seasons.map(function(s){
-      return '<option value="'+s.season_number+'">Season '+s.season_number+' ('+s.episode_count+' eps)</option>';
+      return '<option value="'+s.season_number+'">Season '+s.season_number+' ('+s.episode_count+' eps)'+XOwned.sfx(m.tmdb_id, s.season_number)+'</option>';
     }).join('');
     var ex = document.getElementById('bTvExtras'); if (ex) ex.innerHTML = XTv.extras(d);
     var r = XTv.resume(m);
