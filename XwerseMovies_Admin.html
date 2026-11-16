@@ -407,7 +407,7 @@ nav{background:#111;border-bottom:1px solid var(--border);padding:0 22px;height:
           <div class="fw"><label>Duration</label><input type="text" id="mDur" placeholder="2h 32m"></div>
         </div>
         <div class="fg">
-          <div class="fw"><label>Language</label><select id="mLang"><option value="hi">Hindi</option><option value="en">English</option><option value="te">Telugu</option><option value="ta">Tamil</option><option value="kn">Kannada</option><option value="ml">Malayalam</option><option value="bn">Bengali</option><option value="ko">Korean</option><option value="ja">Japanese</option></select></div>
+          <div class="fw"><label>Language</label><select id="mLang"><option value="hi">Hindi</option><option value="en">English</option><option value="te">Telugu</option><option value="ta">Tamil</option><option value="kn">Kannada</option><option value="ml">Malayalam</option><option value="bn">Bengali</option><option value="mr">Marathi</option><option value="pa">Punjabi</option><option value="gu">Gujarati</option><option value="ko">Korean</option><option value="ja">Japanese</option></select></div>
           <div class="fw"><label>Quality</label><select id="mQuality"><option value="1080p" selected>1080p Full HD</option><option value="720p">720p HD</option><option value="480p">480p</option></select></div>
         </div>
         <div class="fg c1"><div class="fw"><label>Overview / Description</label><textarea id="mOverview" placeholder="Movie ki short description..."></textarea></div></div>
@@ -1277,7 +1277,15 @@ function fillFormFromTMDB(data, type) {
   const rating   = data.vote_average?.toFixed(1) || '';
   const poster   = data.poster_path   ? `https://image.tmdb.org/t/p/w500${data.poster_path}`    : '';
   const backdrop = data.backdrop_path ? `https://image.tmdb.org/t/p/original${data.backdrop_path}` : '';
-  const genres   = (data.genres || []).map(g => g.name);
+  // TMDB genre names -> the names this site uses (TV uses "Action & Adventure", "Sci-Fi & Fantasy" etc.)
+  const GMAP = { 'Science Fiction':['Sci-Fi'], 'Sci-Fi & Fantasy':['Sci-Fi','Fantasy'], 'Action & Adventure':['Action','Adventure'],
+                 'Mystery':['Thriller'], 'History':['Drama'], 'War & Politics':['Drama'], 'Music':[], 'Documentary':['Biography'] };
+  const genres   = [...new Set((data.genres || []).flatMap(g => (g.name in GMAP) ? GMAP[g.name] : [g.name]))].filter(g => GENRES.includes(g));
+  const lang     = data.original_language || '';
+  const LANG_GENRE = { hi:'Hindi', te:'Telugu', ta:'Tamil', kn:'Kannada', ml:'Malayalam' };
+  if (LANG_GENRE[lang]) genres.push(LANG_GENRE[lang]);
+  if (['te','ta','kn','ml'].includes(lang)) genres.push('South Indian');
+  if (lang === 'hi' && type === 'movie') genres.push('Bollywood');
   const cast     = (data.credits?.cast || []).slice(0, 5).map(c => c.name).join(', ');
   const director = (data.credits?.crew || []).find(c => c.job === 'Director')?.name || '';
 
@@ -1291,6 +1299,20 @@ function fillFormFromTMDB(data, type) {
   set('mCast',     cast);
   set('mDirector', director);
   if (type === 'tv') { const mt = document.getElementById('mType'); if (mt) mt.value = 'tv'; }
+
+  // LANGUAGE — from TMDB original language (only if the dropdown has it; otherwise left as is)
+  const ml = document.getElementById('mLang');
+  let langNote = '';
+  if (ml && lang) {
+    if ([...ml.options].some(o => o.value === lang)) { ml.value = lang; langNote = ml.options[ml.selectedIndex].text; }
+    else langNote = 'language "' + lang + '" not in list — set manually';
+  }
+  // DURATION — movie: runtime as "2h 32m"; TV: typical episode length as "45m"
+  const fmtDur = m => { m = Math.round(m); return m >= 60 ? Math.floor(m / 60) + 'h' + (m % 60 ? ' ' + (m % 60) + 'm' : '') : m + 'm'; };
+  const mins = type === 'tv'
+    ? ((data.episode_run_time || []).find(x => x > 0) || data.last_episode_to_air?.runtime || 0)
+    : (data.runtime || 0);
+  if (mins > 0) set('mDur', fmtDur(mins));
 
   if (poster)   prevImg(poster,   'posterPrev',   'pp');
   if (backdrop) prevImg(backdrop, 'backdropPrev', 'bp');
@@ -1362,7 +1384,7 @@ function fillFormFromTMDB(data, type) {
   set('mTags', [...new Set(autoTags)].slice(0, 8).join(', '));
 
   // Show auto-fill summary toast
-  showToast(`✅ ${title} — Age: ${ageRating} · from ${ageNote}`);
+  showToast(`✅ ${title} — Age: ${ageRating} (${ageNote}) · Language: ${langNote || '—'}${mins > 0 ? ' · ' + fmtDur(mins) : ''}`);
 }
 
 // ─────────────────────────────────────────
@@ -1942,6 +1964,48 @@ async function loadRequests() {
   }
 
   el.innerHTML = items.map(r => reqCardHTML(r)).join('');
+  items.forEach(r => { if (r.request_type !== 'movie' && r.status !== 'rejected') loadReqEpisodes(r); });
+}
+
+// TV requests: one input per episode (count + titles come from TMDB), filled from any links already saved.
+async function loadReqEpisodes(r) {
+  const box = document.getElementById('reqEps-' + r.id);
+  if (!box) return;
+  const isSeries = r.request_type === 'series';
+  const saved = Xwerse.parseEpisodeLinks(r.watch_url || '');
+  const savedUrl = (s, e) => {
+    const x = saved.eps.find(v => v.ep === e && v.season === s) || saved.eps.find(v => v.ep === e && v.season == null && (!isSeries ? true : s === 1));
+    return x ? x.url : '';
+  };
+  try {
+    let seasons = [];
+    if (isSeries) {
+      const d = await TMDB.tvDetails(r.tmdb_id);
+      const list = (d?.seasons || []).filter(x => x.season_number > 0 && x.episode_count > 0).map(x => x.season_number);
+      seasons = await Promise.all(list.map(async n => ({ n, eps: (await TMDB.tvSeason(r.tmdb_id, n))?.episodes || [] })));
+    } else {
+      const n = Number(r.season_number) || 1;
+      seasons = [{ n, eps: (await TMDB.tvSeason(r.tmdb_id, n))?.episodes || [] }];
+    }
+    seasons = seasons.filter(x => x.eps.length);
+    if (!seasons.length) throw new Error('no episodes');
+    const total = seasons.reduce((a, x) => a + x.eps.length, 0);
+    box.style.color = ''; box.style.padding = '0';
+    box.dataset.season = isSeries ? '' : String(seasons[0].n);
+    box.innerHTML =
+      `<div style="font-size:.72rem;color:var(--muted);margin-bottom:8px">${isSeries ? 'All seasons' : 'Season ' + seasons[0].n} · <b style="color:#fff">${total}</b> episode${total === 1 ? '' : 's'} — fill every field (empty ones are skipped)</div>` +
+      seasons.map(sn => (isSeries ? `<div style="font-weight:700;color:#fff;font-size:.8rem;margin:12px 0 6px">Season ${sn.n} <span style="color:var(--muted);font-weight:400">· ${sn.eps.length} episodes</span></div>` : '') +
+        sn.eps.map(ep => `
+        <div style="margin-bottom:8px">
+          <div style="font-size:.72rem;color:rgba(255,255,255,.7);margin-bottom:3px">${isSeries ? 'S' + sn.n + ' ' : ''}E${ep.episode_number}${ep.name ? ' · ' + escHtml(ep.name) : ''}</div>
+          <input type="text" class="reqEpIn" data-s="${sn.n}" data-e="${ep.episode_number}" value="${escAttr(savedUrl(sn.n, ep.episode_number))}" placeholder="https://..." style="font-family:monospace;font-size:.76rem;width:100%">
+        </div>`).join('')).join('');
+  } catch (e) {
+    // TMDB unavailable → fall back to one-line-per-episode text box
+    box.style.color = ''; box.style.padding = '0';
+    box.innerHTML = `<div style="font-size:.72rem;color:#f5c518;margin-bottom:6px">Could not load the episode list. One line per episode: <code>${isSeries ? 'S1E1' : 'E1'} https://…</code></div>
+      <textarea id="reqWatch-${r.id}" rows="6" style="font-family:monospace;font-size:.76rem;width:100%">${escHtml(r.watch_url || '')}</textarea>`;
+  }
 }
 
 function reqCardHTML(r) {
@@ -1951,11 +2015,6 @@ function reqCardHTML(r) {
     : (Xwerse.REQUEST_PRICES[r.request_type]?.label || r.request_type);
   const date = new Date(r.created_at).toLocaleString('en-IN', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
   const done = r.status === 'completed', rejected = r.status === 'rejected';
-  const hint = r.request_type === 'movie'
-    ? 'Paste the Voe / Filemoon embed link (one link).'
-    : (r.request_type === 'series'
-        ? 'One line per episode: <code>S1E1 https://…</code> then <code>S1E2 https://…</code>'
-        : 'One line per episode: <code>E1 https://…</code> then <code>E2 https://…</code>');
 
   return `
     <div class="unavail-row" style="align-items:flex-start;flex-direction:column;gap:12px" id="reqCard-${r.id}">
@@ -1973,25 +2032,20 @@ function reqCardHTML(r) {
       </div>
 
       ${rejected ? '' : `
+      ${r.request_type === 'movie' ? `
       <div class="fw" style="width:100%">
-        <label style="font-size:.7rem">🎬 Watch link(s) — ${hint}</label>
-        <textarea id="reqWatch-${r.id}" rows="${r.request_type==='movie'?1:4}" placeholder="https://..." style="font-family:monospace;font-size:.76rem">${escHtml(r.watch_url||'')}</textarea>
-      </div>
+        <label style="font-size:.7rem">🎬 Watch link — paste the Voe / Filemoon embed link</label>
+        <input type="text" id="reqWatch-${r.id}" value="${escAttr(r.watch_url||'')}" placeholder="https://..." style="font-family:monospace;font-size:.76rem">
+      </div>` : `
+      <div class="fw" style="width:100%">
+        <label style="font-size:.7rem">🎬 Watch links — one field per episode</label>
+        <div id="reqEps-${r.id}" style="color:var(--muted);font-size:.76rem;padding:8px 0">Loading episodes…</div>
+      </div>`}
       <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;width:100%">
         ${done ? '' : `<button onclick="rejectReq('${r.id}')" style="background:rgba(229,9,20,.12);border:1px solid rgba(229,9,20,.4);color:#ff6b6b;padding:9px 16px;border-radius:5px;font-weight:600;font-size:.8rem;cursor:pointer">❌ Reject &amp; refund</button>`}
         <button class="btn-add" onclick="grantAccess('${r.id}')">${done ? '💾 Update link' : '✅ Give Access'}</button>
       </div>`}
 
-      <details style="width:100%;border-top:1px solid rgba(255,255,255,.07);padding-top:8px">
-        <summary style="font-size:.72rem;color:var(--muted);cursor:pointer">More options</summary>
-        <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
-          <div class="fw"><label style="font-size:.68rem">Download URL</label><input type="text" id="reqDownload-${r.id}" value="${escAttr(r.download_url||'')}" placeholder="https://..."></div>
-          <div class="fw"><label style="font-size:.68rem">Direct video URL (https only, plays in the built-in player)</label>
-            <div style="display:flex;gap:8px"><input type="text" id="reqDirect-${r.id}" value="${escAttr(r.direct_url||'')}" placeholder="https://..." style="flex:1"><button type="button" class="btn-add" style="padding:0 14px" onclick="testDirectUrl('${r.id}')">▶ Test</button></div></div>
-          <div class="fw"><label style="font-size:.68rem">Admin notes (internal)</label><textarea id="reqNotes-${r.id}" placeholder="Internal notes...">${escHtml(r.admin_notes||'')}</textarea></div>
-          <button class="btn-add" onclick="saveReqDetails('${r.id}')" style="align-self:flex-end">💾 Save these</button>
-        </div>
-      </details>
     </div>`;
 }
 
@@ -2013,7 +2067,26 @@ async function callRequestApi(payload) {
 }
 
 async function grantAccess(id) {
-  const links = document.getElementById(`reqWatch-${id}`).value.split(/\r?\n/).map(l => l.trim()).filter(Boolean).join('\n');
+  let links = '';
+  const epBox = document.getElementById(`reqEps-${id}`);
+  const inputs = epBox ? [...epBox.querySelectorAll('.reqEpIn')] : [];
+  if (inputs.length) {
+    const single = epBox.dataset.season;   // season request → "E1 url", series request → "S1E1 url"
+    const lines = []; let empty = 0, bad = null;
+    inputs.forEach(inp => {
+      const u = inp.value.trim();
+      if (!u) { empty++; return; }
+      if (!/^https:\/\/\S+$/i.test(u)) { bad = bad || inp; return; }
+      lines.push(single ? `E${inp.dataset.e} ${u}` : `S${inp.dataset.s}E${inp.dataset.e} ${u}`);
+    });
+    if (bad) { bad.focus(); showToast('❌ Every link must start with https://'); return; }
+    if (!lines.length) { showToast('❌ Add at least one episode link'); return; }
+    if (empty && !confirm(empty + ' of ' + inputs.length + ' episodes have no link yet. Give access anyway? (You can add the rest later with "Update link".)')) return;
+    links = lines.join('\n');
+  } else {
+    const el = document.getElementById(`reqWatch-${id}`);
+    links = (el?.value || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean).join('\n');
+  }
   if (!links) { showToast('❌ Paste the watch link first'); return; }
   const wl = Xwerse.parseEpisodeLinks(links);
   if (wl.bad.length) { showToast('❌ Line ' + wl.bad.join(', ') + ' is not valid. Use: E1 https://… or S1E1 https://…'); return; }
@@ -2029,32 +2102,6 @@ async function rejectReq(id) {
   if (!out) return;
   showToast('✅ Rejected — now refund it in Cashfree');
   loadRequests();
-}
-
-function testDirectUrl(id) {
-  const u = document.getElementById(`reqDirect-${id}`).value.trim();
-  if (!/^https:\/\/[^\s]+$/i.test(u)) { showToast('❌ Enter a valid https:// link first'); return; }
-  window.open(u, '_blank', 'noopener');
-}
-
-async function saveReqDetails(id) {
-  const download_url = document.getElementById(`reqDownload-${id}`).value.trim();
-  const admin_notes  = document.getElementById(`reqNotes-${id}`).value.trim();
-  const direct_url   = document.getElementById(`reqDirect-${id}`).value.trim();
-
-  // Direct stream links must be https (browsers block http video on an https site).
-  if (direct_url && !/^https:\/\/[^\s]+$/i.test(direct_url)) {
-    showToast('❌ Direct video URL must start with https://');
-    return;
-  }
-
-  const { error } = await DB.updateRequestFull(id, {
-    download_url: download_url || null,
-    direct_url: direct_url || null,
-    admin_notes: admin_notes || null,
-  });
-  if (error) { showToast('❌ Could not save changes'); return; }
-  showToast('✅ Saved');
 }
 
 function escHtml(s) {
