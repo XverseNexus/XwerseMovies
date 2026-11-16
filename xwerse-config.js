@@ -2275,6 +2275,16 @@ const XOwned = {
   epCls(tmdb, season, ep) { return this.epOwned(tmdb, season, ep) ? ' xown-ep' : ''; },
   epTag() { return ''; },      // no text label — purchased episodes are shown by the red theme only
   sfx() { return ''; },
+  /* red option inside a season dropdown (attribute string for an <option>) */
+  optAttr(tmdb, season) { return this.owns(tmdb, season) ? ' style="background:#8f0710;color:#fff"' : ''; },
+  /* the dropdown itself turns red while a purchased season is selected */
+  paintSel(sel, tmdb) {
+    if (!sel) return;
+    this._css();
+    const paint = () => sel.classList.toggle('xown-sel', this.owns(tmdb, sel.value));
+    if (!sel._xo) { sel._xo = true; sel.addEventListener('change', paint); }
+    sel._xoPaint = paint; paint();
+  },
   _css() {
     if (document.getElementById('xownCss')) return;
     const st = document.createElement('style'); st.id = 'xownCss';
@@ -2284,7 +2294,8 @@ const XOwned = {
       '.xown-modal .modal-hero-grad,.xown-modal .mhg{background:linear-gradient(to top,' + R + ' 0%,transparent 55%)!important}' +
       '.xown-modal .mod-bd-wrap::after{background:linear-gradient(to top,' + R + ' 0%,transparent 100%)!important}' +
       '.xown-ep{background:rgba(229,9,20,.22)!important;box-shadow:inset 3px 0 0 #e50914!important;border-radius:6px}' +
-      '.xown-ep:hover{background:rgba(229,9,20,.32)!important}';
+      '.xown-ep:hover{background:rgba(229,9,20,.32)!important}' +
+      '.xown-sel{background:#8f0710!important;border-color:#e50914!important;color:#fff!important}';
     document.head.appendChild(st);
   },
   /* Purchased title → the popup itself turns red (same theme as the red card). `playBtn` = the popup's Play button. */
