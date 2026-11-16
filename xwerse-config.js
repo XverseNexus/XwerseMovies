@@ -2307,6 +2307,43 @@ const XOwned = {
   },
 };
 
+/* Purchased titles: their cards turn red on every page (Home, Browse, Search, My List …).
+   Cards carry data-mk (page registry key); the page's own _get(key) gives the title, we match it to my purchases. */
+(function () {
+  function css() {
+    if (document.getElementById('xownCardCss')) return;
+    const st = document.createElement('style'); st.id = 'xownCardCss';
+    st.textContent = '.xown-card{background:linear-gradient(180deg,#8f0710 0%,#5e050b 100%)!important;border-color:#e50914!important;box-shadow:0 0 0 1px rgba(229,9,20,.55),0 4px 18px rgba(229,9,20,.28)!important}' +
+      '.xown-card .xc-name,.xown-card .cn{color:#fff!important}.xown-card .xc-meta,.xown-card .cm{color:rgba(255,255,255,.78)!important}';
+    document.head.appendChild(st);
+  }
+  let busy = false, again = false;
+  async function scan() {
+    if (busy) { again = true; return; }
+    busy = true;
+    try {
+      if (typeof _get !== 'function') return;
+      await XOwned.load();
+      if (!XOwned._list.length) return;
+      css();
+      document.querySelectorAll('.xc-card[data-mk],.card[data-mk],.xc-cw[data-mk],.xc-t10[data-mk]').forEach(el => {
+        if (el.dataset.xo) return;
+        let m = null; try { m = _get(el.dataset.mk); } catch (e) {}
+        if (!m) return;
+        el.dataset.xo = '1';
+        const t = m.tmdb_id || (m.type === 'tv' ? m.id : null);
+        if (t && XOwned.info(t, m.type === 'tv' ? 'tv' : 'movie')) { el.classList.add('xown-card'); el.title = (el.title ? el.title + ' · ' : '') + 'Purchased'; }
+      });
+    } catch (e) {} finally { busy = false; if (again) { again = false; setTimeout(scan, 0); } }
+  }
+  function start() {
+    let t = null;
+    new MutationObserver(() => { clearTimeout(t); t = setTimeout(scan, 120); }).observe(document.body, { childList: true, subtree: true });
+    scan();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
+
 /* ═══════════════════════════════════════════════════════════
    XTv — TV show helpers shared by Home, Browse and Player
    • remembers, per user and per show, the last episode opened and
