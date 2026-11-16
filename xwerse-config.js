@@ -351,6 +351,18 @@ const DB = {
     return /^https:\/\//i.test(u) ? u : null;
   },
 
+  // One of MY paid + completed requests (RLS keeps it to the owner). Used by the player when the
+  // user opens a purchase from "My Purchases" (?req=<id>) — purchased links never play from anywhere else.
+  async getMyRequestById(uid, requestId) {
+    if (!uid || !requestId) return null;
+    const { data, error } = await getSB().from('requests')
+      .select('id, watch_url, direct_url, request_type, season_number, tmdb_id, payment_status, status')
+      .eq('id', requestId).eq('user_id', uid).maybeSingle();
+    if (error || !data) return null;
+    if (data.payment_status !== 'paid' || data.status !== 'completed') return null;
+    return data;
+  },
+
   async getMyRequestOverride(uid, tmdbId, mediaType, seasonNumber) {
     if (!uid || !tmdbId) return null;
     const { data, error } = await getSB()
@@ -2203,6 +2215,74 @@ const XPlay = {
     }
     if (r.get('req')) p.set('req', r.get('req'));
     return p;
+  },
+};
+
+/* ═══════════════════════════════════════════════════════════
+   XOwned — "you own this" marker for Home / Browse / Search popups.
+   Purchased copies play ONLY from My Purchases; everywhere else the free version opens.
+   This just tells the buyer which titles / seasons they own and where to watch them.
+   ═══════════════════════════════════════════════════════════ */
+const XOwned = {
+  _list: null, _p: null, _tok: 0,
+  load() {
+    if (this._list) return Promise.resolve(this._list);
+    if (this._p) return this._p;
+    this._p = (async () => {
+      try {
+        const { data: s } = await getSB().auth.getSession();
+        const uid = s && s.session && s.session.user && s.session.user.id;
+        if (!uid) return (this._list = []);
+        const { data, error } = await getSB().from('requests')
+          .select('tmdb_id, request_type, season_number')
+          .eq('user_id', uid).eq('payment_status', 'paid').eq('status', 'completed');
+        this._list = error ? [] : (data || []);
+      } catch (e) { this._list = []; }
+      return this._list;
+    })();
+    return this._p;
+  },
+  info(tmdb, type) {
+    const rows = (this._list || []).filter(r => String(r.tmdb_id) === String(tmdb));
+    if (!rows.length) return null;
+    if (type !== 'tv') return rows.some(r => r.request_type === 'movie') ? { movie: true } : null;
+    const series = rows.some(r => r.request_type === 'series');
+    const seasons = [...new Set(rows.filter(r => r.request_type === 'season').map(r => Number(r.season_number) || 1))].sort((a, b) => a - b);
+    return (series || seasons.length) ? { series, seasons } : null;
+  },
+  owns(tmdb, season) {
+    const i = this.info(tmdb, 'tv');
+    return !!(i && (i.series || i.seasons.includes(Number(season))));
+  },
+  /* " · Purchased" for the season dropdown (call after load()) */
+  sfx(tmdb, season) { return this.owns(tmdb, season) ? ' · Purchased' : ''; },
+  _css() {
+    if (document.getElementById('xownCss')) return;
+    const st = document.createElement('style'); st.id = 'xownCss';
+    st.textContent = '.xown{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 14px;padding:11px 14px;border-radius:8px;background:rgba(70,211,105,.08);border:1px solid rgba(70,211,105,.35)}' +
+      '.xown-t{flex:1;min-width:180px;font-size:.82rem;color:#fff;line-height:1.4}.xown-t b{color:#46d369}.xown-t span{display:block;color:rgba(255,255,255,.6);font-size:.74rem;margin-top:2px}' +
+      '.xown a{background:#46d369;color:#000;font-weight:700;font-size:.78rem;padding:8px 14px;border-radius:5px;text-decoration:none;white-space:nowrap}';
+    document.head.appendChild(st);
+  },
+  /* Puts the banner just above the popup's button row. `playBtn` = the popup's Play button. */
+  async mount(playBtn, tmdb, type) {
+    document.querySelectorAll('.xown').forEach(n => n.remove());
+    if (!playBtn || !tmdb) return;
+    const tok = ++this._tok;
+    await this.load();
+    if (tok !== this._tok || !playBtn.isConnected) return;
+    const i = this.info(tmdb, type);
+    if (!i) return;
+    let what;
+    if (type !== 'tv') what = 'this movie';
+    else if (i.series) what = 'the full series';
+    else what = i.seasons.map(n => 'Season ' + n).join(', ');
+    this._css();
+    const d = document.createElement('div');
+    d.className = 'xown';
+    d.innerHTML = '<div class="xown-t">✓ <b>Purchased</b> — you own ' + what + '.<span>Your purchased copy plays from My Purchases. Playing from here opens the free version.</span></div><a href="/MyPurchases">Open My Purchases</a>';
+    const row = playBtn.parentElement;
+    row.parentElement.insertBefore(d, row);
   },
 };
 
