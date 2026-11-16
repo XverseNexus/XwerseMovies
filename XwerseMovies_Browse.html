@@ -821,13 +821,13 @@ async function bLoadEpisodes(season) {
       var thumb = ep.still_path ? 'https://image.tmdb.org/t/p/w300'+ep.still_path : '';
       var cur = rs && rs.s === sn && rs.e === en;
       var ov = (ep.overview || 'No description available.');
-      h += '<div class="ep-item'+(cur?' ep-cur':'')+'" onclick="bPlayEp('+sn+','+en+')">'
+      h += '<div class="ep-item'+(cur?' ep-cur':'')+XOwned.epCls(showId, sn, en)+'" onclick="bPlayEp('+sn+','+en+')">'
         + '<div class="ep-num-badge">'+en+'</div>'
         + '<div class="ep-thumb">'
         + (thumb ? '<img src="'+thumb+'" alt="" loading="lazy">' : '<div class="ep-thumb-ph">&#128250;</div>')
         + '<div class="ep-play-icon"><div>&#9654;</div></div></div>'
         + '<div class="ep-info"><div class="ep-title-row">'
-        + '<div class="ep-title">'+XTv._esc(ep.name||'Episode '+en)+'</div>'
+        + '<div class="ep-title">'+XTv._esc(ep.name||'Episode '+en)+XOwned.epTag(showId, sn, en)+'</div>'
         + (ep.runtime ? '<div class="ep-runtime">'+ep.runtime+'m</div>' : '')
         + (XTv.seen(showId, sn, en) ? '<div class="ep-seen" title="Watched">&#10003;</div>' : '')
         + '</div><div class="ep-overview">'+XTv._esc(ov)+'</div></div></div>';
