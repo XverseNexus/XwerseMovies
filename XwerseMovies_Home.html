@@ -848,6 +848,7 @@ function openModal(m) {
     document.getElementById('modalPlayBtn').onclick = () => { closeModal(); playMovie(m, 1, 1); };
   }
   const _ex = document.getElementById('tvExtras'); if (_ex) _ex.innerHTML = '';
+  XOwned.mount(document.getElementById('modalPlayBtn'), m.tmdb_id, m.type);
   document.getElementById('modalAddBtn').onclick = () => mlToggle(m);
   document.getElementById('modalShareIco').innerHTML = XShare.ICON;
 
@@ -909,7 +910,7 @@ async function loadTVSeasons(m) {
   }
 
   // Fetch TV details to get season list
-  const [details] = await Promise.all([TMDB.tvDetails(tmdbId), XTv.pull(tmdbId)]);
+  const [details] = await Promise.all([TMDB.tvDetails(tmdbId), XTv.pull(tmdbId), XOwned.load()]);
   if (modalMovie === m) setModalPlay(null);
   if (!details) {
     listEl.innerHTML = `<div class="ep-loading" style="color:#ff6b6b">Could not load episode data.</div>`;
@@ -922,7 +923,7 @@ async function loadTVSeasons(m) {
 
   // Build season dropdown
   selEl.innerHTML = tvSeasons
-    .map(s => `<option value="${s.season_number}">Season ${s.season_number} (${s.episode_count} eps)</option>`)
+    .map(s => `<option value="${s.season_number}">Season ${s.season_number} (${s.episode_count} eps)${XOwned.sfx(tmdbId, s.season_number)}</option>`)
     .join('');
 
   // Status / cast / More like this
