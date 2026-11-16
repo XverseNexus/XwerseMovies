@@ -329,20 +329,24 @@ const $ = (id) => document.getElementById(id);
   movie._episode = urlEpisode;
   movieData = movie;
 
-  // A purchased copy plays ONLY when opened from "My Purchases" (?req=<request id>).
-  // Home / Search / Browse links carry no req → the free version plays, even for buyers.
+  if (movie.tmdb_id) {
+    // Personal fulfilled-request override (see xwerse-config.js:
+    // DB.getMyRequestOverride for how this stays scoped to just this user).
+    const myOverride = await DB.getMyRequestOverride(currentUser.id, movie.tmdb_id, movie.type, urlSeason);
+    if (myOverride) {
+      if (movie.type === 'tv') movie._myLinks = myOverride;      // per-episode links (see Xwerse.pickEpisodeLink)
+      else movie.embed_url = myOverride;
+    }
+  }
+
+  // Direct-stream request (opened from My Requests): ownership + payment are
+  // re-checked here via RLS-protected query; the link itself is never in the URL.
   const reqParam = p.get('req');
   if (reqParam) {
-    const rq = await DB.getMyRequestById(currentUser.id, reqParam);   // null unless it is MY paid + completed request
-    if (rq) {
-      movie._reqId = reqParam;
-      const direct = String(rq.direct_url || '').trim();
-      if (/^https:\/\//i.test(direct)) movie.direct_url = direct;
-      else if (rq.watch_url) {
-        if (movie.type === 'tv') movie._myLinks = rq.watch_url;        // per-episode links (see Xwerse.pickEpisodeLink)
-        else movie.embed_url = rq.watch_url;
-      }
-    }
+    movie._reqId = reqParam;
+    const direct = await DB.getMyDirectStream(currentUser.id, reqParam);
+    if (direct) movie.direct_url = direct;
+    else movie._directDenied = true;
   }
 
   loadVideo(movie);
