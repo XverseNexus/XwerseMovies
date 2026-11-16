@@ -2295,7 +2295,8 @@ const XOwned = {
       '.xown-modal .mod-bd-wrap::after{background:linear-gradient(to top,' + R + ' 0%,transparent 100%)!important}' +
       '.xown-ep{background:rgba(229,9,20,.22)!important;box-shadow:inset 3px 0 0 #e50914!important;border-radius:6px}' +
       '.xown-ep:hover{background:rgba(229,9,20,.32)!important}' +
-      '.xown-sel{background:#8f0710!important;border-color:#e50914!important;color:#fff!important}';
+      '.xown-sel{background:#8f0710!important;border-color:#e50914!important;color:#fff!important}' +
+      '.xown-sel option{background:#1a1a1a;color:#fff}';   // un-purchased seasons stay plain even while the box itself is red
     document.head.appendChild(st);
   },
   /* Purchased title → the popup itself turns red (same theme as the red card). `playBtn` = the popup's Play button. */
