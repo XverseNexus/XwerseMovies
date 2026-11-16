@@ -2273,37 +2273,31 @@ const XOwned = {
     return e === true || e.has(Number(ep));
   },
   epCls(tmdb, season, ep) { return this.epOwned(tmdb, season, ep) ? ' xown-ep' : ''; },
-  epTag(tmdb, season, ep) { return this.epOwned(tmdb, season, ep) ? '<span class="xown-pill">&#10003; Purchased</span>' : ''; },
-  /* " · Purchased" for the season dropdown (call after load()) */
-  sfx(tmdb, season) { return this.owns(tmdb, season) ? ' · Purchased' : ''; },
+  epTag() { return ''; },      // no text label — purchased episodes are shown by the red theme only
+  sfx() { return ''; },
   _css() {
     if (document.getElementById('xownCss')) return;
     const st = document.createElement('style'); st.id = 'xownCss';
-    st.textContent = '.xown{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 14px;padding:11px 14px;border-radius:8px;background:rgba(70,211,105,.08);border:1px solid rgba(70,211,105,.35)}' +
-      '.xown-t{flex:1;min-width:180px;font-size:.82rem;color:#fff;line-height:1.4}.xown-t b{color:#46d369}.xown-t span{display:block;color:rgba(255,255,255,.6);font-size:.74rem;margin-top:2px}' +
-      '.xown-pill{display:inline-block;margin-left:8px;font-size:.62rem;font-weight:800;letter-spacing:.3px;color:#000;background:#46d369;padding:2px 7px;border-radius:3px;white-space:nowrap;vertical-align:middle}' +
-      '.xown-ep{box-shadow:inset 3px 0 0 #46d369,0 0 14px rgba(70,211,105,.22)!important;background:rgba(70,211,105,.07)!important;border-radius:6px}';
+    const R = '#6e0810';
+    st.textContent =
+      '.xown-modal{background:' + R + '!important;border-color:#e50914!important;box-shadow:0 0 0 1px rgba(229,9,20,.55),0 24px 80px rgba(0,0,0,.8)!important}' +
+      '.xown-modal .modal-hero-grad,.xown-modal .mhg{background:linear-gradient(to top,' + R + ' 0%,transparent 55%)!important}' +
+      '.xown-modal .mod-bd-wrap::after{background:linear-gradient(to top,' + R + ' 0%,transparent 100%)!important}' +
+      '.xown-ep{background:rgba(229,9,20,.22)!important;box-shadow:inset 3px 0 0 #e50914!important;border-radius:6px}' +
+      '.xown-ep:hover{background:rgba(229,9,20,.32)!important}';
     document.head.appendChild(st);
   },
-  /* Puts the banner just above the popup's button row. `playBtn` = the popup's Play button. */
+  /* Purchased title → the popup itself turns red (same theme as the red card). `playBtn` = the popup's Play button. */
   async mount(playBtn, tmdb, type) {
     this._css();
-    document.querySelectorAll('.xown').forEach(n => n.remove());
+    document.querySelectorAll('.xown-modal').forEach(n => n.classList.remove('xown-modal'));
     if (!playBtn || !tmdb) return;
     const tok = ++this._tok;
     await this.load();
     if (tok !== this._tok || !playBtn.isConnected) return;
-    const i = this.info(tmdb, type);
-    if (!i) return;
-    let what;
-    if (type !== 'tv') what = 'this movie';
-    else if (i.series) what = 'the full series';
-    else what = i.seasons.map(n => 'Season ' + n).join(', ');
-    const d = document.createElement('div');
-    d.className = 'xown';
-    d.innerHTML = '<div class="xown-t">✓ <b>Purchased</b> — you own ' + what + '.<span>' + (type === 'tv' ? 'Your purchased episodes are highlighted below.' : 'Playing from here opens your purchased copy.') + '</span></div>';
-    const row = playBtn.parentElement;
-    row.parentElement.insertBefore(d, row);
+    if (!this.info(tmdb, type)) return;
+    const card = playBtn.closest('#modalCard, #modCard');
+    if (card) card.classList.add('xown-modal');
   },
 };
 
