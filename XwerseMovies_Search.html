@@ -872,13 +872,13 @@ async function bLoadEps(season) {
     for (var i=0; i<eps.length; i++) {
       var ep=eps[i], en=ep.episode_number;
       var thumb = ep.still_path ? 'https://image.tmdb.org/t/p/w300'+ep.still_path : '';
-      h += '<div class="ep-row" onclick="bPlayEp('+sn+','+en+')">'
+      h += '<div class="ep-row'+XOwned.epCls(_curMovie.tmdb_id, sn, en)+'" onclick="bPlayEp('+sn+','+en+')">'
         +'<div class="ep-thumb">'
         +(thumb ? '<img src="'+thumb+'" alt="" loading="lazy"><div class="ep-play-ov">&#9654;</div>'
                 : '<div class="ep-thumb-ph">&#9654;</div>')
         +'</div>'
         +'<div class="ep-info"><div class="ep-title-row">'
-        +'<span class="ep-name">'+en+'. '+(ep.name||'Episode '+en)+'</span>'
+        +'<span class="ep-name">'+en+'. '+(ep.name||'Episode '+en)+XOwned.epTag(_curMovie.tmdb_id, sn, en)+'</span>'
         +(ep.runtime ? '<span class="ep-rt">'+ep.runtime+'m</span>' : '')
         +'</div>'
         +(ep.overview ? '<div class="ep-ov">'+ep.overview+'</div>' : '')
