@@ -923,7 +923,7 @@ async function loadTVSeasons(m) {
 
   // Build season dropdown
   selEl.innerHTML = tvSeasons
-    .map(s => `<option value="${s.season_number}">Season ${s.season_number} (${s.episode_count} eps)${XOwned.sfx(tmdbId, s.season_number)}</option>`)
+    .map(s => `<option value="${s.season_number}"${XOwned.optAttr(tmdbId, s.season_number)}>Season ${s.season_number} (${s.episode_count} eps)</option>`)
     .join('');
 
   // Status / cast / More like this
@@ -933,6 +933,7 @@ async function loadTVSeasons(m) {
   const res = XTv.resume(m);
   const first = (res && tvSeasons.some(x => x.season_number === res.s)) ? res.s : tvSeasons[0].season_number;
   selEl.value = String(first);
+  XOwned.paintSel(selEl, tmdbId);
   await loadEpisodes(first);
 }
 
