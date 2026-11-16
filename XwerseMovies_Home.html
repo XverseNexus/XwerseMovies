@@ -974,7 +974,7 @@ async function loadEpisodes(seasonNum) {
     const rs = XTv.resume(modalMovie);
     const cur = rs && rs.s === sn && rs.e === ep.episode_number;
     return `
-      <div class="ep-item${cur ? ' ep-cur' : ''}" onclick="closeModal();playMovie(modalMovie,${sn},${ep.episode_number})">
+      <div class="ep-item${cur ? ' ep-cur' : ''}${XOwned.epCls(showId, sn, ep.episode_number)}" onclick="closeModal();playMovie(modalMovie,${sn},${ep.episode_number})">
         <div class="ep-num-badge">${ep.episode_number}</div>
         <div class="ep-thumb">
           ${thumb
@@ -984,7 +984,7 @@ async function loadEpisodes(seasonNum) {
         </div>
         <div class="ep-info">
           <div class="ep-title-row">
-            <div class="ep-title">${ep.name || 'Episode ' + ep.episode_number}</div>
+            <div class="ep-title">${ep.name || 'Episode ' + ep.episode_number}${XOwned.epTag(showId, sn, ep.episode_number)}</div>
             ${ep.runtime ? `<div class="ep-runtime">${ep.runtime}m</div>` : ''}
             ${seen ? '<div class="ep-seen" title="Watched">&#10003;</div>' : ''}
           </div>
