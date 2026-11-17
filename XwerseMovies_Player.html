@@ -177,6 +177,17 @@ html,body{
 .epp-msg{ padding:18px 10px; color:rgba(255,255,255,.5); font-size:.82rem; text-align:center; }
 
 /* Fallback when the phone can't lock rotation (iPhone): show the player turned sideways */
+/* Android phones: one tap opens real full screen + landscape (hides the browser bar) */
+#fsGate{display:none;position:fixed;inset:0;z-index:99999;background:#000;color:#fff;
+  flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;gap:14px}
+#fsGate.on{display:flex}
+#fsGate .fg-logo{font-family:'Bebas Neue',Impact,sans-serif;font-size:1.9rem;letter-spacing:1px}
+#fsGate .fg-logo span{color:#e50914}
+#fsGate .fg-title{font-size:.95rem;color:rgba(255,255,255,.75);max-width:88vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#fsGate .fg-btn{background:#e50914;color:#fff;border:0;border-radius:8px;padding:14px 26px;font-size:1rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:10px}
+#fsGate .fg-btn svg{width:20px;height:20px}
+#fsGate .fg-sub{font-size:.76rem;color:rgba(255,255,255,.5)}
+#fsGate .fg-back{background:none;border:0;color:rgba(255,255,255,.65);font-size:.85rem;padding:8px 14px;cursor:pointer}
 html.fakeLand body{ overflow:hidden; }
 html.fakeLand #playerWrap{
   position:fixed; top:0; left:var(--pw,100vw); width:var(--ph,100vh); height:var(--pw,100vw);
@@ -203,6 +214,13 @@ html.fakeLand #hint{ display:none !important; }
 </head>
 
 <body>
+<div id="fsGate" role="dialog" aria-label="Play in full screen">
+  <div class="fg-logo">Xwerse<span>Movies</span></div>
+  <div class="fg-title" id="fgTitle"></div>
+  <button class="fg-btn" id="fgGo" type="button"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Watch in Full Screen</button>
+  <div class="fg-sub">Plays in landscape, full screen</div>
+  <button class="fg-back" type="button" onclick="goBack()">&larr; Go back</button>
+</div>
 <div id="playerWrap">
 
   <!-- LOADING -->
@@ -589,7 +607,7 @@ function loadVideo(m) {
   const episode = m._episode || 1;
   const isTV    = m.type === 'tv';
 
-  $('topTitle').textContent = m.title;
+  $('topTitle').textContent = m.title; { const _g = document.getElementById('fgTitle'); if (_g) _g.textContent = m.title; }
   $('topSub').textContent   = isTV ? 'Season ' + season + ' · Episode ' + episode : (m.year || '');
 
   document.title = isTV
@@ -811,19 +829,52 @@ async function eppLoad(season) {
    full-screen button still does real full screen.
    Laptops / PCs / tablets: untouched.
 ───────────────────────────────────────────────────────── */
-const _isPhone = /Android.*Mobile|iPhone|iPod/i.test(navigator.userAgent || '');
+const _ua = navigator.userAgent || '';
+const _isPhone = /Android.*Mobile|iPhone|iPod/i.test(_ua);
+const _isAndroidPhone = /Android.*Mobile/i.test(_ua);
+const _isInstalled = (() => { try { return matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches || navigator.standalone === true; } catch (e) { return false; } })();
+let _gateDone = false;       // Android: the viewer has tapped "Watch in Full Screen"
+// Android phones in a browser: show a one-tap gate (browsers only allow full screen after a tap).
+const _useGate = _isAndroidPhone && !_isInstalled && !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen);
+
 function _syncLand() {
   if (!_isPhone) return;
   const root = document.documentElement;
   const w = window.innerWidth, h = window.innerHeight;
   root.style.setProperty('--pw', w + 'px');
   root.style.setProperty('--ph', h + 'px');
-  root.classList.toggle('fakeLand', h > w);
+  // Turn the player sideways only when it cannot go landscape by itself:
+  // iPhone / installed app always; Android browser once the viewer has tapped through the gate but is still upright.
+  const canFake = !_useGate || _gateDone;
+  root.classList.toggle('fakeLand', h > w && canFake);
 }
 if (_isPhone) {
   _syncLand();
   window.addEventListener('resize', _syncLand);
   window.addEventListener('orientationchange', () => setTimeout(_syncLand, 250));
+}
+
+if (_useGate) {
+  const gate = document.getElementById('fsGate');
+  const showGate = () => { document.getElementById('fgTitle').textContent = (document.getElementById('topTitle')?.textContent || '').replace(/^Loading\.\.\.$/, ''); gate.classList.add('on'); _gateDone = false; _syncLand(); };
+  const hideGate = () => { gate.classList.remove('on'); _gateDone = true; _syncLand(); };
+  showGate();
+  document.getElementById('fgGo').addEventListener('click', async () => {
+    const el = document.documentElement;
+    try { await (el.requestFullscreen ? el.requestFullscreen({ navigationUI: 'hide' }) : el.webkitRequestFullscreen()); } catch (e) {}
+    try { if (screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape'); } catch (e) {}
+    hideGate();
+    setTimeout(_syncLand, 300);
+  });
+  // Viewer left full screen (system back / swipe) → show the gate again instead of a bar-covered player
+  const onFs = () => {
+    if (!document.fullscreenElement && !document.webkitFullscreenElement && _gateDone) {
+      try { screen.orientation && screen.orientation.unlock && screen.orientation.unlock(); } catch (e) {}
+      showGate();
+    }
+  };
+  document.addEventListener('fullscreenchange', onFs);
+  document.addEventListener('webkitfullscreenchange', onFs);
 }
 
 /* ─────────────────────────────────────────────────────────
