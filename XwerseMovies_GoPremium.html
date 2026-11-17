@@ -162,7 +162,7 @@ textarea.ftxt{resize:vertical;min-height:72px;line-height:1.5;cursor:text}
 <div id="pageWrap">
   <div class="page-hd">
     <div class="page-tit">Go Premium</div>
-    <div class="page-sub">Pick a movie, a season or a complete series — pay once, no subscription. You get <b>Full HD (1080p)</b> with <b>very few ads</b>, plus a download link and an embed link when available, and Indian-language subtitles where available. <a href="/Plans" style="color:#f5c518">Compare Free vs Premium →</a></div>
+    <div class="page-sub">Pick a movie, a season or a complete series — pay once, no subscription. You get <b>Full HD (1080p)</b> with <b>very few ads</b>, plus a download link and an embed link when available, and all official dubs and subtitles available for the title. <a href="/Plans" style="color:#f5c518">Compare Free vs Premium →</a></div>
   </div>
 
   <!-- STEP 1: TITLE -->
@@ -199,46 +199,17 @@ textarea.ftxt{resize:vertical;min-height:72px;line-height:1.5;cursor:text}
   <div class="card" id="prefCard" style="display:none">
     <div class="card-tit"><span class="stepn">3</span> Preferences</div>
     <div class="fgrid">
-      <div class="fwrap">
-        <label class="flbl">Preferred Language</label>
-        <select class="fsel" id="prefLang">
-          <option>Hindi</option><option>English</option><option>Tamil</option><option>Telugu</option>
-          <option>Malayalam</option><option>Kannada</option><option>Bengali</option><option>Marathi</option>
-          <option>Punjabi</option><option>Japanese</option><option>Korean</option><option>Spanish</option>
-          <option>Other (mention in notes)</option>
-        </select>
-      </div>
-      <div class="fwrap">
-        <label class="flbl">Preferred Audio</label>
-        <div class="audio-pills">
-          <div class="audio-pill sel" id="audioOriginal" onclick="selAudio('original')">Original Audio</div>
-          <div class="audio-pill" id="audioDubbed" onclick="selAudio('dubbed')">Official Dubbed</div>
+      <div class="fwrap full">
+        <div style="font-size:.8rem;line-height:1.6;color:rgba(255,255,255,.85);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:11px 13px">
+          <b>Audio &amp; subtitles:</b> every language this title is <b>officially dubbed</b> in, and every <b>official subtitle</b> available for it, will be provided with your purchase.
         </div>
-      </div>
-      <div class="fwrap">
-        <label class="flbl">Preferred Subtitle</label>
-        <select class="fsel" id="prefSub">
-          <option>None</option><option>Hindi</option><option>English</option><option>Tamil</option>
-          <option>Telugu</option><option>Malayalam</option><option>Kannada</option>
-          <option>Other (mention in notes)</option>
-        </select>
-      </div>
-      <div class="fwrap">
-        <label class="flbl">Preferred Quality</label>
-        <select class="fsel" id="prefQuality">
-          <option value="highest" selected>⭐ Highest Available, up to 1080p (Recommended)</option>
-          <option value="360p">360p</option>
-          <option value="480p">480p</option>
-          <option value="720p">720p</option>
-          <option value="1080p">1080p</option>
-        </select>
       </div>
       <div class="fwrap full">
         <label class="flbl">Additional Notes (optional)</label>
         <textarea class="ftxt" id="prefNotes" placeholder="Anything else we should know? e.g. a specific dub cast, cut/edition, etc."></textarea>
       </div>
     </div>
-    <p style="font-size:.68rem;color:var(--muted);margin-top:2px;line-height:1.6">Only officially released languages, dubs and subtitles will be used — we can't source unofficial fan-dubs. If your preferred option isn't officially available, we'll provide the highest quality official version instead. Maximum quality is 1080p Full HD.</p>
+    <p style="font-size:.68rem;color:var(--muted);margin-top:2px;line-height:1.6">Only officially released dubs and subtitles are provided — we can't source unofficial fan-dubs.</p>
   </div>
 
   <!-- STEP 4: PRICE + SUBMIT -->
@@ -308,7 +279,6 @@ textarea.ftxt{resize:vertical;min-height:72px;line-height:1.5;cursor:text}
 let currentUser   = null;
 let selectedTitle = null;   // normalized movie/show object once picked
 let requestType   = null;   // 'movie' | 'season' | 'series'
-let audioPref     = 'original';
 let _rsDebounce   = null;
 
 (async () => {
@@ -550,12 +520,6 @@ async function populateSeasonPicker() {
   }
 }
 
-function selAudio(a) {
-  audioPref = a;
-  document.getElementById('audioOriginal').classList.toggle('sel', a === 'original');
-  document.getElementById('audioDubbed').classList.toggle('sel', a === 'dubbed');
-}
-
 function updatePriceCard() {
   const meta = Xwerse.REQUEST_PRICES[requestType];
   document.getElementById('priceTypeLabel').textContent = meta.label;
@@ -593,10 +557,7 @@ async function submitRequest() {
       tmdb_id:            selectedTitle.tmdb_id || null,
       poster_url:         selectedTitle.poster_url || null,
       season_number:      seasonNumber,
-      preferred_language: document.getElementById('prefLang').value,
-      preferred_audio:    audioPref,
-      preferred_subtitle: document.getElementById('prefSub').value,
-      preferred_quality:  document.getElementById('prefQuality').value,
+      preferred_quality:  '1080p',
       notes:              document.getElementById('prefNotes').value.trim() || null,
     };
 
