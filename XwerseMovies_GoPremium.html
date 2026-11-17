@@ -97,6 +97,13 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
 .fsel option{background:#1a1a1a}
 textarea.ftxt{resize:vertical;min-height:72px;line-height:1.5;cursor:text}
 
+.inc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.inc-tile{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:12px 13px}
+.inc-lbl{font-size:.62rem;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.inc-val{font-size:.9rem;font-weight:700;color:#fff;display:flex;align-items:center;gap:7px;line-height:1.25}
+.inc-ck{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:rgba(70,211,105,.16);color:#46d369;font-size:.68rem;flex-shrink:0}
+.inc-desc{font-size:.72rem;line-height:1.5;color:rgba(255,255,255,.6);margin-top:6px}
+@media(max-width:720px){.inc-grid{grid-template-columns:1fr}}
 .audio-pills{display:flex;gap:8px}
 .audio-pill{flex:1;background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.1);border-radius:6px;padding:9px;text-align:center;cursor:pointer;font-size:.82rem;transition:all .15s}
 .audio-pill.sel{border-color:var(--red);background:rgba(229,9,20,.08);color:#fff;font-weight:700}
@@ -197,11 +204,25 @@ textarea.ftxt{resize:vertical;min-height:72px;line-height:1.5;cursor:text}
 
   <!-- STEP 3: PREFERENCES -->
   <div class="card" id="prefCard" style="display:none">
-    <div class="card-tit"><span class="stepn">3</span> Preferences</div>
+    <div class="card-tit"><span class="stepn">3</span> What You Get</div>
     <div class="fgrid">
       <div class="fwrap full">
-        <div style="font-size:.8rem;line-height:1.6;color:rgba(255,255,255,.85);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:11px 13px">
-          <b>Audio &amp; subtitles:</b> every language this title is <b>officially dubbed</b> in, and every <b>official subtitle</b> available for it, will be provided with your purchase.
+        <div class="inc-grid">
+        <div class="inc-tile">
+          <div class="inc-lbl">Audio</div>
+          <div class="inc-val"><span class="inc-ck">&#10003;</span>All official dubs</div>
+          <div class="inc-desc">Every language this title is officially dubbed in, along with the original audio.</div>
+        </div>
+        <div class="inc-tile">
+          <div class="inc-lbl">Subtitles</div>
+          <div class="inc-val"><span class="inc-ck">&#10003;</span>All official subtitles</div>
+          <div class="inc-desc">Every official subtitle available for this title.</div>
+        </div>
+        <div class="inc-tile">
+          <div class="inc-lbl">Quality</div>
+          <div class="inc-val"><span class="inc-ck">&#10003;</span>Full HD &middot; 1080p</div>
+          <div class="inc-desc">Your title streams in crisp 1080p Full HD.</div>
+        </div>
         </div>
       </div>
       <div class="fwrap full">
