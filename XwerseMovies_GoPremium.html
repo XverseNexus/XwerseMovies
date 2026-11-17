@@ -102,6 +102,8 @@ textarea.ftxt{resize:vertical;min-height:72px;line-height:1.5;cursor:text}
 .inc-lbl{font-size:.62rem;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
 .inc-val{font-size:.9rem;font-weight:700;color:#fff;display:flex;align-items:center;gap:7px;line-height:1.25}
 .inc-ck{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:rgba(70,211,105,.16);color:#46d369;font-size:.68rem;flex-shrink:0}
+.inc-foot{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:12px;font-size:.74rem;color:rgba(255,255,255,.72)}
+.inc-foot span{display:inline-flex;align-items:center;gap:6px}
 .inc-desc{font-size:.72rem;line-height:1.5;color:rgba(255,255,255,.6);margin-top:6px}
 @media(max-width:720px){.inc-grid{grid-template-columns:1fr}}
 .audio-pills{display:flex;gap:8px}
@@ -208,22 +210,38 @@ textarea.ftxt{resize:vertical;min-height:72px;line-height:1.5;cursor:text}
     <div class="fgrid">
       <div class="fwrap full">
         <div class="inc-grid">
-        <div class="inc-tile">
-          <div class="inc-lbl">Audio</div>
-          <div class="inc-val"><span class="inc-ck">&#10003;</span>All official dubs</div>
-          <div class="inc-desc">Every language this title is officially dubbed in, along with the original audio.</div>
+          <div class="inc-tile">
+            <div class="inc-lbl">Quality</div>
+            <div class="inc-val"><span class="inc-ck">&#10003;</span>Full HD &middot; 1080p</div>
+            <div class="inc-desc">Your title streams in crisp 1080p Full HD.</div>
+          </div>
+          <div class="inc-tile">
+            <div class="inc-lbl">Ads</div>
+            <div class="inc-val"><span class="inc-ck">&#10003;</span>Very few ads</div>
+            <div class="inc-desc">Only 1&ndash;2 redirect ads, no pop-up clutter.</div>
+          </div>
+          <div class="inc-tile">
+            <div class="inc-lbl">Audio</div>
+            <div class="inc-val"><span class="inc-ck">&#10003;</span>All official dubs</div>
+            <div class="inc-desc">Every language this title is officially dubbed in, along with the original audio.</div>
+          </div>
+          <div class="inc-tile">
+            <div class="inc-lbl">Subtitles</div>
+            <div class="inc-val"><span class="inc-ck">&#10003;</span>All official subtitles</div>
+            <div class="inc-desc">Every official subtitle available for this title.</div>
+          </div>
+          <div class="inc-tile">
+            <div class="inc-lbl">Download</div>
+            <div class="inc-val"><span class="inc-ck">&#10003;</span>Download link</div>
+            <div class="inc-desc">A download link for your title, when available.</div>
+          </div>
+          <div class="inc-tile">
+            <div class="inc-lbl">Embed</div>
+            <div class="inc-val"><span class="inc-ck">&#10003;</span>Embed link</div>
+            <div class="inc-desc">Use it on your own website or anywhere you like.</div>
+          </div>
         </div>
-        <div class="inc-tile">
-          <div class="inc-lbl">Subtitles</div>
-          <div class="inc-val"><span class="inc-ck">&#10003;</span>All official subtitles</div>
-          <div class="inc-desc">Every official subtitle available for this title.</div>
-        </div>
-        <div class="inc-tile">
-          <div class="inc-lbl">Quality</div>
-          <div class="inc-val"><span class="inc-ck">&#10003;</span>Full HD &middot; 1080p</div>
-          <div class="inc-desc">Your title streams in crisp 1080p Full HD.</div>
-        </div>
-        </div>
+        <div class="inc-foot"><span>&#10003; Everything in the Free plan is included</span><span>&#10003; Pay per view &mdash; no subscription, no auto-renewal</span></div>
       </div>
       <div class="fwrap full">
         <label class="flbl">Additional Notes (optional)</label>
