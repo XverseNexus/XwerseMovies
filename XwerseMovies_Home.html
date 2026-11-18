@@ -774,7 +774,7 @@ async function playMovie(m, season, episode) {
     season:   season  || 1,
     episode:  episode || 1,
   });
-  window.location.href = XPlay.href(params);
+  XPlay.go(XPlay.href(params));
 }
 
 // ─────────────────────────────────────────
