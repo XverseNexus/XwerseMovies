@@ -876,6 +876,7 @@ function toggleFs() {
   const h = _fsHost();
   if (h) { try { h.document.addEventListener('fullscreenchange', _fsPaint); } catch (e) {} }
   _fsPaint();
+  setInterval(_fsPaint, 400);        // safety net: never leave the button out of step with the real full-screen state
 })();
 
 /* ─────────────────────────────────────────────────────────
