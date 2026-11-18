@@ -2198,21 +2198,46 @@ const XPlay = {
     document.documentElement.style.overflow = 'hidden';
     try { history.pushState({ xvPlayer: 1 }, '', url); } catch (e) {}
     this._pop = () => this._shut();
-    this._fs = () => { if (!document.fullscreenElement && this._ov) { try { history.back(); } catch (e) { this._shut(); } } };
+    /* Leaving full screen closes the player ONLY when the viewer did it (system back / swipe).
+       An embed ad opens another tab or page: the browser drops full screen by itself while this page is hidden.
+       That must not close the player — coming back from the ad lands on the player, one Back later on the title. */
+    this._hid = false;
+    this._vis = () => {
+      clearTimeout(this._hidT);
+      if (document.hidden) { this._hid = true; }
+      else { this._hidT = setTimeout(() => { this._hid = false; }, 2500); }   // full-screen exit can be reported just after we return
+    };
+    this._ph = () => { this._hid = true; };
+    this._fs = () => {
+      if (!this._ov || document.fullscreenElement) return;
+      if (document.hidden || this._hid) return;      // caused by an ad / tab switch, not by the viewer
+      this.close();
+    };
     window.addEventListener('popstate', this._pop);
     document.addEventListener('fullscreenchange', this._fs);
+    document.addEventListener('visibilitychange', this._vis);
+    window.addEventListener('pagehide', this._ph);
   },
   _shut() {
     if (!this._ov) return;
     window.removeEventListener('popstate', this._pop);
     document.removeEventListener('fullscreenchange', this._fs);
+    document.removeEventListener('visibilitychange', this._vis);
+    window.removeEventListener('pagehide', this._ph);
+    clearTimeout(this._hidT);
     this._ov.src = 'about:blank';
     this._ov.remove(); this._ov = null;
     document.documentElement.style.overflow = this._prevOverflow || '';
     try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {}
     try { if (document.fullscreenElement) document.exitFullscreen(); } catch (e) {}
   },
-  close() { if (!this._ov) return; try { history.back(); } catch (e) { this._shut(); } },
+  /* Close the layer right away (never depends on history: an embed ad may have added entries on top of ours),
+     then drop the entry we pushed so the next Back lands on the page below, not on a dead player URL. */
+  close() {
+    if (!this._ov) return;
+    this._shut();
+    try { if (history.state && history.state.xvPlayer) history.back(); } catch (e) {}
+  },
   /* params: URLSearchParams (or plain object) with the same fields the player always took. Returns the URL to open. */
   href(params) {
     const p = params instanceof URLSearchParams ? params : new URLSearchParams(params);
