@@ -240,16 +240,16 @@ html.fakeLand #hint{ display:none !important; }
   <!-- TOP OVERLAY -->
   <div id="topUI">
     <button class="ui-btn" id="backBtn" onclick="goBack()" aria-label="Go back" title="Back">←</button>
-    <button class="ui-btn" id="fsBtn" onclick="toggleFs()" aria-label="Full screen" title="Full screen">
-      <svg class="fs-in" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
-      <svg class="fs-out" viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>
-    </button>
     <div id="titleBox">
       <div class="top-title" id="topTitle">Loading...</div>
       <div class="top-sub" id="topSub"></div>
     </div>
     <button class="ui-btn" id="epBtn" onclick="toggleEps()" title="Episodes">&#9776; Episodes</button>
     <button class="ui-btn" id="nextEpBtn" onclick="doPlayNextEp()" title="Next Episode">Next Ep &#9654;</button>
+    <button class="ui-btn" id="fsBtn" onclick="toggleFs()" aria-label="Full screen" title="Full screen">
+      <svg class="fs-in" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+      <svg class="fs-out" viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>
+    </button>
   </div>
 
   <!-- EPISODES PANEL (TV shows) -->
@@ -854,7 +854,7 @@ function _fsOn() {
   const h = _fsHost();
   return !!((h ? h.document : document).fullscreenElement || (h ? h.document : document).webkitFullscreenElement);
 }
-function _fsPaint() { const b = $('fsBtn'); if (b) b.classList.toggle('on', _fsOn()); }
+function _fsPaint() { const b = $('fsBtn'); if (b && b.dataset.ok) b.style.display = _fsOn() ? 'none' : 'flex'; }   // shown only while NOT full screen
 function toggleFs() {
   const h = _fsHost();
   if (h) { h.XPlay.toggleFs(); return; }
@@ -870,7 +870,7 @@ function toggleFs() {
 (function () {
   const ok = document.fullscreenEnabled || document.webkitFullscreenEnabled || !!_fsHost();
   if (!ok) return;                                   // e.g. iPhone Safari: no page full screen, so no button
-  $('fsBtn').style.display = 'flex';
+  $('fsBtn').dataset.ok = '1';
   document.addEventListener('fullscreenchange', _fsPaint);
   document.addEventListener('webkitfullscreenchange', _fsPaint);
   const h = _fsHost();
