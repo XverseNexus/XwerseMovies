@@ -285,6 +285,11 @@ const $ = (id) => document.getElementById(id);
   const urlSeason  = parseInt(p.get('season'))  || 1;
   const urlEpisode = parseInt(p.get('episode')) || 1;
 
+  // Start the "my purchase" lookup in parallel with the movie lookup (they used to run one after another)
+  const _pTid  = parseInt(p.get('tmdb_id')) || null;
+  const _pType = p.get('type') === 'tv' ? 'tv' : 'movie';
+  const _ovEarly = (_pTid && !movieId) ? DB.getMyRequestOverride(currentUser.id, _pTid, _pType, urlSeason).catch(() => null) : null;
+
   let movie = null;
   if (movieId) movie = await DB.getMovie(parseInt(movieId));
 
@@ -332,7 +337,9 @@ const $ = (id) => document.getElementById(id);
   if (movie.tmdb_id) {
     // Personal fulfilled-request override (see xwerse-config.js:
     // DB.getMyRequestOverride for how this stays scoped to just this user).
-    const myOverride = await DB.getMyRequestOverride(currentUser.id, movie.tmdb_id, movie.type, urlSeason);
+    const myOverride = (_ovEarly && movie.tmdb_id === _pTid && movie.type === _pType)
+      ? await _ovEarly
+      : await DB.getMyRequestOverride(currentUser.id, movie.tmdb_id, movie.type, urlSeason);
     if (myOverride) {
       if (movie.type === 'tv') movie._myLinks = myOverride;      // per-episode links (see Xwerse.pickEpisodeLink)
       else movie.embed_url = myOverride;
@@ -417,11 +424,10 @@ function watchEmbed(frame, url) {
   clearTimeout(_slowT); clearTimeout(_hardT);
   frame.addEventListener('load', hideLoader, { once: true });
   frame.src = url;
-  _slowT = setTimeout(() => {
-    $('ldMsg').textContent = 'Taking longer than usual…';
-    $('ldActions').classList.add('show');
-  }, 10000);
-  _hardT = setTimeout(hideLoader, 25000);   // never leave the user stuck behind the loader
+  // The embed's "load" event waits for every ad / tracker script on the host page, which can take 10 s+
+  // on phones even though the player itself is ready. The host shows its own spinner, so we reveal it
+  // after a short moment instead of keeping the viewer behind our loader.
+  _hardT = setTimeout(hideLoader, 2500);
 }
 
 /* ─────────────────────────────────────────────────────────
@@ -680,6 +686,8 @@ function loadVideo(m) {
 async function goBack() {
   clearInterval(syncTimer);
   if (_isDirect) { try { await syncProgress(); } catch (e) {} }
+  // Opened as a full-screen layer on top of another page (see XPlay.go) → just close that layer
+  if (window.parent !== window && window.parent.XPlay && window.parent.XPlay.close) { window.parent.XPlay.close(); return; }
   if (document.referrer && document.referrer.indexOf(location.origin) === 0) {
     history.back();
   } else {
@@ -818,7 +826,7 @@ function _syncLand() {
   const w = window.innerWidth, h = window.innerHeight;
   root.style.setProperty('--pw', w + 'px');
   root.style.setProperty('--ph', h + 'px');
-  root.classList.toggle('fakeLand', h > w);
+  root.classList.toggle('fakeLand', h > w);   // only while the phone is still upright; real landscape needs no turning
 }
 if (_isPhone) {
   _syncLand();
