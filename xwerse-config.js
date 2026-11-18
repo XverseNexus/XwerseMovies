@@ -2172,6 +2172,47 @@ const XShare = {
    ═══════════════════════════════════════════════════════════ */
 const XPlay = {
   _MAP: 'xv_play_map',
+  _ov: null,
+  /* Open the player. On an Android phone (normal browser) the tap that starts playback also switches the browser to
+     real full screen + landscape (hides the address / app bar) and the player opens as a layer on this page.
+     Everywhere else it is a normal page change. */
+  go(url) {
+    const ua = navigator.userAgent || '';
+    let installed = false;
+    try { installed = matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches; } catch (e) {}
+    const el = document.documentElement;
+    if (!/Android.*Mobile/i.test(ua) || installed || !el.requestFullscreen || !document.body || window.parent !== window) { location.href = url; return; }
+    if (this._ov) return;
+    try {
+      const p = el.requestFullscreen({ navigationUI: 'hide' });
+      if (p && p.then) p.then(() => { try { screen.orientation.lock('landscape').catch(() => {}); } catch (e) {} }).catch(() => {});
+    } catch (e) {}
+    const f = document.createElement('iframe');
+    f.src = url;
+    f.setAttribute('allow', 'autoplay; fullscreen; encrypted-media; picture-in-picture; screen-wake-lock');
+    f.setAttribute('allowfullscreen', '');
+    f.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;border:0;background:#000;z-index:2147483000';
+    document.body.appendChild(f);
+    this._ov = f;
+    this._prevOverflow = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = 'hidden';
+    try { history.pushState({ xvPlayer: 1 }, '', url); } catch (e) {}
+    this._pop = () => this._shut();
+    this._fs = () => { if (!document.fullscreenElement && this._ov) { try { history.back(); } catch (e) { this._shut(); } } };
+    window.addEventListener('popstate', this._pop);
+    document.addEventListener('fullscreenchange', this._fs);
+  },
+  _shut() {
+    if (!this._ov) return;
+    window.removeEventListener('popstate', this._pop);
+    document.removeEventListener('fullscreenchange', this._fs);
+    this._ov.src = 'about:blank';
+    this._ov.remove(); this._ov = null;
+    document.documentElement.style.overflow = this._prevOverflow || '';
+    try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {}
+    try { if (document.fullscreenElement) document.exitFullscreen(); } catch (e) {}
+  },
+  close() { if (!this._ov) return; try { history.back(); } catch (e) { this._shut(); } },
   /* params: URLSearchParams (or plain object) with the same fields the player always took. Returns the URL to open. */
   href(params) {
     const p = params instanceof URLSearchParams ? params : new URLSearchParams(params);
@@ -2312,6 +2353,14 @@ const XOwned = {
     if (card) card.classList.add('xown-modal');
   },
 };
+
+document.addEventListener('click', function (e) {
+  if (e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey) return;
+  const a = e.target.closest && e.target.closest('a[href^="/watch/"]');
+  if (!a || a.target === '_blank') return;
+  e.preventDefault();
+  XPlay.go(a.getAttribute('href'));
+});
 
 /* Purchased titles: their cards turn red on every page (Home, Browse, Search, My List …).
    Cards carry data-mk (page registry key); the page's own _get(key) gives the title, we match it to my purchases. */
