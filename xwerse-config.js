@@ -2183,10 +2183,7 @@ const XPlay = {
     const el = document.documentElement;
     if (!/Android.*Mobile/i.test(ua) || installed || !el.requestFullscreen || !document.body || window.parent !== window) { location.href = url; return; }
     if (this._ov) return;
-    try {
-      const p = el.requestFullscreen({ navigationUI: 'hide' });
-      if (p && p.then) p.then(() => { try { screen.orientation.lock('landscape').catch(() => {}); } catch (e) {} }).catch(() => {});
-    } catch (e) {}
+    this._enterFs();
     const f = document.createElement('iframe');
     f.src = url;
     f.setAttribute('allow', 'autoplay; fullscreen; encrypted-media; picture-in-picture; screen-wake-lock');
@@ -2205,18 +2202,43 @@ const XPlay = {
     this._vis = () => {
       clearTimeout(this._hidT);
       if (document.hidden) { this._hid = true; }
-      else { this._hidT = setTimeout(() => { this._hid = false; }, 2500); }   // full-screen exit can be reported just after we return
+      else {
+        this._hidT = setTimeout(() => { this._hid = false; }, 2500);   // full-screen exit can be reported just after we return
+      }
     };
     this._ph = () => { this._hid = true; };
     this._fs = () => {
       if (!this._ov || document.fullscreenElement) return;
-      if (document.hidden || this._hid) return;      // caused by an ad / tab switch, not by the viewer
+      if (document.hidden || this._hid) return;   // caused by an ad / tab switch, not by the viewer
       this.close();
     };
     window.addEventListener('popstate', this._pop);
     document.addEventListener('fullscreenchange', this._fs);
     document.addEventListener('visibilitychange', this._vis);
     window.addEventListener('pagehide', this._ph);
+    this._ps = (e) => { if (e.persisted) { this._hid = true; setTimeout(() => { this._hid = false; }, 600); } };
+    window.addEventListener('pageshow', this._ps);
+  },
+  _enterFs() {
+    try {
+      const p = document.documentElement.requestFullscreen({ navigationUI: 'hide' });
+      if (p && p.then) p.then(() => { try { screen.orientation.lock('landscape').catch(() => {}); } catch (e) {} }).catch(() => {});
+    } catch (e) {}
+  },
+  /* Full-screen button inside the player (top bar): one tap switches full screen + landscape on or off.
+     Leaving this way keeps the player open; only the system back / swipe closes it. */
+  isFs() { return !!document.fullscreenElement; },
+  toggleFs() {
+    if (!this._ov) return;
+    if (document.fullscreenElement) {
+      this._hid = true; clearTimeout(this._hidT);
+      this._hidT = setTimeout(() => { this._hid = false; }, 1200);
+      try { document.exitFullscreen(); } catch (e) {}
+      try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {}
+    } else {
+      this._hid = false; clearTimeout(this._hidT);
+      this._enterFs();
+    }
   },
   _shut() {
     if (!this._ov) return;
@@ -2224,6 +2246,7 @@ const XPlay = {
     document.removeEventListener('fullscreenchange', this._fs);
     document.removeEventListener('visibilitychange', this._vis);
     window.removeEventListener('pagehide', this._ph);
+    window.removeEventListener('pageshow', this._ps);
     clearTimeout(this._hidT);
     this._ov.src = 'about:blank';
     this._ov.remove(); this._ov = null;
