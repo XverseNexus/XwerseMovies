@@ -783,7 +783,7 @@ function play(m) {
   p.set('backdrop',m.backdrop_url||''); p.set('age', m.age_rating||'');
   p.set('quality', m.quality||'');
   if (m.embed_url) p.set('embed', m.embed_url);
-  location.href = XPlay.href(p);
+  XPlay.go(XPlay.href(p));
 }
 
 async function addML(m) {
@@ -900,7 +900,7 @@ function bPlayEp(season, episode) {
   p.set('poster',m.poster_url||''); p.set('backdrop',m.backdrop_url||'');
   p.set('age',m.age_rating||''); p.set('quality',m.quality||'');
   closeMod();
-  location.href = XPlay.href(p);
+  XPlay.go(XPlay.href(p));
 }
 
 // ── UTILITY ──────────────────────────────────────────────────
