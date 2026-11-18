@@ -2195,29 +2195,10 @@ const XPlay = {
     document.documentElement.style.overflow = 'hidden';
     try { history.pushState({ xvPlayer: 1 }, '', url); } catch (e) {}
     this._pop = () => this._shut();
-    /* Leaving full screen closes the player ONLY when the viewer did it (system back / swipe).
-       An embed ad opens another tab or page: the browser drops full screen by itself while this page is hidden.
-       That must not close the player — coming back from the ad lands on the player, one Back later on the title. */
-    this._hid = false;
-    this._vis = () => {
-      clearTimeout(this._hidT);
-      if (document.hidden) { this._hid = true; }
-      else {
-        this._hidT = setTimeout(() => { this._hid = false; }, 2500);   // full-screen exit can be reported just after we return
-      }
-    };
-    this._ph = () => { this._hid = true; };
-    this._fs = () => {
-      if (!this._ov || document.fullscreenElement) return;
-      if (document.hidden || this._hid) return;   // caused by an ad / tab switch, not by the viewer
-      this.close();
-    };
+    /* Full screen is NEVER a reason to close the player. An embed ad opens another tab / page and the browser drops
+       full screen by itself; coming back must land on the player. The player closes only through its own back button,
+       the phone's Back (popstate) or close(). */
     window.addEventListener('popstate', this._pop);
-    document.addEventListener('fullscreenchange', this._fs);
-    document.addEventListener('visibilitychange', this._vis);
-    window.addEventListener('pagehide', this._ph);
-    this._ps = (e) => { if (e.persisted) { this._hid = true; setTimeout(() => { this._hid = false; }, 600); } };
-    window.addEventListener('pageshow', this._ps);
   },
   _enterFs() {
     try {
@@ -2231,23 +2212,15 @@ const XPlay = {
   toggleFs() {
     if (!this._ov) return;
     if (document.fullscreenElement) {
-      this._hid = true; clearTimeout(this._hidT);
-      this._hidT = setTimeout(() => { this._hid = false; }, 1200);
       try { document.exitFullscreen(); } catch (e) {}
       try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {}
     } else {
-      this._hid = false; clearTimeout(this._hidT);
       this._enterFs();
     }
   },
   _shut() {
     if (!this._ov) return;
     window.removeEventListener('popstate', this._pop);
-    document.removeEventListener('fullscreenchange', this._fs);
-    document.removeEventListener('visibilitychange', this._vis);
-    window.removeEventListener('pagehide', this._ph);
-    window.removeEventListener('pageshow', this._ps);
-    clearTimeout(this._hidT);
     this._ov.src = 'about:blank';
     this._ov.remove(); this._ov = null;
     document.documentElement.style.overflow = this._prevOverflow || '';
@@ -2306,6 +2279,7 @@ const XPlay = {
     return p;
   },
 };
+window.XPlay = XPlay;   // the player (an iframe layer) reaches it as window.parent.XPlay
 
 /* ═══════════════════════════════════════════════════════════
    XOwned — "you own this" marker for Home / Browse / Search popups.
