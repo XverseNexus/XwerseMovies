@@ -611,7 +611,7 @@ function playMovie(m, season, episode) {
     season:   s,
     episode:  e,
   });
-  window.location.href = XPlay.href(params);
+  XPlay.go(XPlay.href(params));
 }
 
 // ─────────────────────────────────────────
