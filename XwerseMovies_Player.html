@@ -138,6 +138,10 @@ html,body{
 .ui-btn:hover{ background:rgba(255,255,255,.16); }
 
 #backBtn{ width:42px; height:42px; border-radius:50%; font-size:1.15rem; }
+#fsBtn{ width:42px; height:42px; border-radius:50%; display:none; }
+#fsBtn svg{ width:20px; height:20px; fill:none; stroke:#fff; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+#fsBtn .fs-out{ display:none; }
+#fsBtn.on .fs-in{ display:none; } #fsBtn.on .fs-out{ display:block; }
 #nextEpBtn{
   display:none; height:38px; padding:0 14px; border-radius:6px;
   font:700 .8rem 'Barlow',sans-serif; gap:6px; white-space:nowrap;
@@ -236,6 +240,10 @@ html.fakeLand #hint{ display:none !important; }
   <!-- TOP OVERLAY -->
   <div id="topUI">
     <button class="ui-btn" id="backBtn" onclick="goBack()" aria-label="Go back" title="Back">←</button>
+    <button class="ui-btn" id="fsBtn" onclick="toggleFs()" aria-label="Full screen" title="Full screen">
+      <svg class="fs-in" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+      <svg class="fs-out" viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>
+    </button>
     <div id="titleBox">
       <div class="top-title" id="topTitle">Loading...</div>
       <div class="top-sub" id="topSub"></div>
@@ -833,6 +841,42 @@ if (_isPhone) {
   window.addEventListener('resize', _syncLand);
   window.addEventListener('orientationchange', () => setTimeout(_syncLand, 250));
 }
+
+/* ─────────────────────────────────────────────────────────
+   FULL SCREEN BUTTON (top bar)
+   Layer mode (Android): the whole page is full screen, owned by the parent (XPlay). Otherwise this page itself.
+───────────────────────────────────────────────────────── */
+function _fsHost() {
+  try { if (window.parent !== window && window.parent.XPlay && window.parent.XPlay._ov) return window.parent; } catch (e) {}
+  return null;
+}
+function _fsOn() {
+  const h = _fsHost();
+  return !!((h ? h.document : document).fullscreenElement || (h ? h.document : document).webkitFullscreenElement);
+}
+function _fsPaint() { const b = $('fsBtn'); if (b) b.classList.toggle('on', _fsOn()); }
+function toggleFs() {
+  const h = _fsHost();
+  if (h) { h.XPlay.toggleFs(); return; }
+  const d = document, el = d.documentElement;
+  if (_fsOn()) {
+    (d.exitFullscreen || d.webkitExitFullscreen || function(){}).call(d);
+    try { screen.orientation.unlock(); } catch (e) {}
+  } else {
+    const r = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (r) { try { const p = r.call(el); if (p && p.then) p.then(() => { try { screen.orientation.lock('landscape').catch(() => {}); } catch (e) {} }).catch(() => {}); } catch (e) {} }
+  }
+}
+(function () {
+  const ok = document.fullscreenEnabled || document.webkitFullscreenEnabled || !!_fsHost();
+  if (!ok) return;                                   // e.g. iPhone Safari: no page full screen, so no button
+  $('fsBtn').style.display = 'flex';
+  document.addEventListener('fullscreenchange', _fsPaint);
+  document.addEventListener('webkitfullscreenchange', _fsPaint);
+  const h = _fsHost();
+  if (h) { try { h.document.addEventListener('fullscreenchange', _fsPaint); } catch (e) {} }
+  _fsPaint();
+})();
 
 /* ─────────────────────────────────────────────────────────
    KEYBOARD: Esc = back (but not when Esc was just closing fullscreen)
