@@ -71,7 +71,7 @@
     }
 html{scroll-behavior:smooth}
 body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;min-height:100vh;overflow-x:hidden}
-nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;align-items:center;padding:0 var(--content-pad);gap:0;background:rgba(8,8,8,.97);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;align-items:center;padding:0 var(--content-pad);gap:0;background:rgba(8,8,8,.97);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
 .logo{font-family:'Bebas Neue',cursive;font-size:2rem;color:var(--red);letter-spacing:2px;margin-right:28px;cursor:pointer;text-decoration:none;flex-shrink:0}
 .logo span{color:#fff}
 .nav-links{display:flex;gap:2px;list-style:none}
@@ -88,7 +88,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
 .mob-cat-tabs{display:none}
 @media(max-width:640px){
   .mob-cat-tabs{display:flex;gap:8px;padding:12px var(--content-pad) 10px;overflow-x:auto;scrollbar-width:none;
-    position:sticky;top:66px;z-index:150;background:rgba(8,8,8,.97);backdrop-filter:blur(10px);
+    position:sticky;top:66px;z-index:150;background:rgba(8,8,8,.97);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
     border-bottom:1px solid rgba(255,255,255,.08)}
   .mob-cat-tabs::-webkit-scrollbar{display:none}
   .mct-item{flex-shrink:0;padding:7px 16px;border-radius:20px;border:1px solid rgba(255,255,255,.18);
@@ -117,7 +117,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
 .h-btns{display:flex;gap:9px;flex-wrap:wrap}
 .btn-p{background:#fff;color:#000;border:none;padding:9px 22px;font-size:.88rem;font-weight:800;border-radius:4px;cursor:pointer;font-family:'Barlow',sans-serif;display:flex;align-items:center;gap:6px;transition:background .2s}
 .btn-p:hover{background:#d4d4d4}
-.btn-i{background:rgba(109,109,110,.65);color:#fff;border:none;padding:9px 18px;font-size:.88rem;font-weight:700;border-radius:4px;cursor:pointer;font-family:'Barlow',sans-serif;backdrop-filter:blur(4px);transition:background .2s}
+.btn-i{background:rgba(109,109,110,.65);color:#fff;border:none;padding:9px 18px;font-size:.88rem;font-weight:700;border-radius:4px;cursor:pointer;font-family:'Barlow',sans-serif;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);transition:background .2s}
 .btn-i:hover{background:rgba(109,109,110,.88)}
 /* GENRE PILLS */
 .gpstrip{display:flex;gap:7px;padding:14px var(--content-pad);overflow-x:auto;scrollbar-width:none}
@@ -222,7 +222,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
 .ep-skel{background:linear-gradient(90deg,#222 25%,#282828 50%,#222 75%);background-size:200% 100%;animation:skelA 1.4s infinite;border-radius:4px}
 @keyframes skelA{to{background-position:-200% 0}}
 @media(max-width:640px){.ep-thumb{width:80px;height:46px}}
-.mbg{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:500;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(5px)}
+.mbg{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:500;display:none;align-items:center;justify-content:center;padding:16px;-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px)}
 .mbg.open{display:flex;animation:mfi .22s ease}
 @keyframes mfi{from{opacity:0}to{opacity:1}}
 .mo{background:#181818;border:1px solid rgba(255,255,255,.1);border-radius:10px;width:min(96vw,560px);max-height:90vh;overflow-y:auto;animation:msu .28s ease}
@@ -258,7 +258,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
 /* ── MOBILE BOTTOM NAV ────────────────────────────────── */
 .mob-nav{display:none}
 @media(max-width:640px){
-  .mob-nav{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:500;background:rgba(9,9,9,.97);border-top:1px solid rgba(255,255,255,.08);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);box-sizing:border-box}
+  .mob-nav{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:500;background:rgba(9,9,9,.97);border-top:1px solid rgba(255,255,255,.08);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);box-sizing:border-box}
   .mnav-item{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:10px 2px 8px;text-decoration:none;color:rgba(255,255,255,.42);font-family:'Barlow',sans-serif;transition:color .18s;-webkit-tap-highlight-color:transparent;position:relative;overflow:hidden;box-sizing:border-box}
   .mnav-item.active{color:#fff}
   .mnav-item.active::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:20px;height:2px;background:#E50914;border-radius:0 0 3px 3px}
@@ -269,6 +269,28 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
 </style>
 <script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
 <script defer src="/_vercel/insights/script.js"></script>
+<style id="navFit">
+/* Tablet / small laptop nav: the right-hand icons (Premium, Search, bell, profile) must never be pushed off screen.
+   Low-priority links drop out first; they stay reachable from the Browse page. */
+@media (min-width:641px) and (max-width:1180px){
+  nav .logo{margin-right:14px}
+  nav .nav-links{gap:0;min-width:0}
+  nav .nav-link,nav .nl{padding:6px 8px;font-size:.8rem}
+  nav .nav-right{gap:6px;flex-shrink:0}
+  nav .nav-low1{display:none}
+}
+@media (min-width:641px) and (max-width:900px){
+  nav .nav-low2{display:none}
+  nav .prem-t{display:none}
+  nav a[href="/Plans"]{padding:7px 10px!important}
+}
+@media (min-width:641px) and (max-width:740px){
+  nav .logo{font-size:1.5rem!important;letter-spacing:1px!important;margin-right:8px}
+  nav .nav-link,nav .nl{padding:6px 5px;font-size:.74rem}
+  nav .nav-right{gap:2px}
+  nav .nav-right a[href="/Plans"]{padding:7px 8px!important}
+}
+</style>
 </head>
 <body>
 
@@ -278,12 +300,12 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
     <li><button class="nl" onclick="location.href='/Home'">Home</button></li>
     <li><button class="nl active" id="nlTV" onclick="switchPage('tv')">TV Shows</button></li>
     <li><button class="nl" id="nlMov" onclick="switchPage('movies')">Movies</button></li>
-    <li><button class="nl" id="nlNew" onclick="switchPage('new')">New & Popular</button></li>
-    <li><button class="nl" id="nlLang" onclick="switchPage('languages')">Browse Languages</button></li>
+    <li class="nav-low2"><button class="nl" id="nlNew" onclick="switchPage('new')">New &amp; Popular</button></li>
+    <li class="nav-low1"><button class="nl" id="nlLang" onclick="switchPage('languages')">Browse Languages</button></li>
     <li><button class="nl" onclick="location.href='/MyList'">My List</button></li>
   </ul>
   <div class="nav-right">
-    <a href="/Plans" title="Premium plans" style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:20px;background:rgba(229,9,20,.16);border:1px solid rgba(229,9,20,.45);color:#fff;text-decoration:none;font-size:.8rem;font-weight:700;transition:.2s;white-space:nowrap" onmouseover="this.style.background='rgba(229,9,20,.3)'" onmouseout="this.style.background='rgba(229,9,20,.16)'">💎 Premium</a>
+    <a href="/Plans" title="Premium plans" style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:20px;background:rgba(229,9,20,.16);border:1px solid rgba(229,9,20,.45);color:#fff;text-decoration:none;font-size:.8rem;font-weight:700;transition:.2s;white-space:nowrap" onmouseover="this.style.background='rgba(229,9,20,.3)'" onmouseout="this.style.background='rgba(229,9,20,.16)'">💎<span class="prem-t"> Premium</span></a>
     <a href="/Search" title="Search" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:6px;color:rgba(255,255,255,.8);text-decoration:none;font-size:1.05rem;transition:.2s" onmouseover="this.style.background='rgba(255,255,255,.1)'" onmouseout="this.style.background=''">&#x1F50D;</a>
     <button class="nav-bell" onclick="XvNotif.toggle()" title="Notifications">
       🔔<span class="_xvNP-dot" style="position:absolute;top:5px;right:5px;width:7px;height:7px;background:#E50914;border-radius:50%;border:2px solid #080808;display:none;pointer-events:none"></span>
