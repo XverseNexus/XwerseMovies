@@ -34,7 +34,7 @@
 <!-- SW update → auto-reload so fresh xwerse-config.js loads (same fix as other pages) -->
 <script>if('serviceWorker'in navigator){var _xvR=!navigator.serviceWorker.controller;navigator.serviceWorker.addEventListener('controllerchange',function(){if(!_xvR){_xvR=true;location.reload();}});}</script>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/vendor/supabase-js-2.119.2.umd.js"></script>
 <script src="/xwerse-config.js"></script>
 
 <style>
@@ -201,7 +201,7 @@ html.fakeLand #hint{ display:none !important; }
 }
 #hint.show{ opacity:1; }
 </style>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.css">
+<link rel="stylesheet" href="/vendor/plyr-3.7.8/plyr.css">
 <script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
 <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -265,7 +265,7 @@ html.fakeLand #hint{ display:none !important; }
   <div id="hint">↻ Rotate your phone for the best view</div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.polyfilled.min.js"></script>
+<script src="/vendor/plyr-3.7.8/plyr.polyfilled.min.js"></script>
 <script>
 'use strict';
 
@@ -442,7 +442,7 @@ function watchEmbed(frame, url) {
    DIRECT STREAM — video bytes go straight from the host to the
    viewer's browser. Plyr gives the Netflix-style control bar.
 ───────────────────────────────────────────────────────── */
-const HLS_JS_URL = 'https://cdn.jsdelivr.net/npm/hls.js@1.6.15/dist/hls.min.js';
+const HLS_JS_URL = '/vendor/hls-1.6.15.min.js';
 
 function loadScriptOnce(src) {
   return new Promise((resolve, reject) => {
@@ -496,7 +496,7 @@ function loadDirect(m) {
       tooltips: { controls: true, seek: true },
       clickToPlay: true,
       i18n: { rewind: 'Back 10s', fastForward: 'Forward 10s', qualityLabel: { 0: 'Auto' } },
-      iconUrl: 'https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.svg',
+      iconUrl: '/vendor/plyr-3.7.8/plyr.svg',
     };
     if (qualities && qualities.length) {
       opts.quality = {
