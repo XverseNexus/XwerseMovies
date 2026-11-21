@@ -88,9 +88,39 @@
           "value": "public, max-age=604800, immutable"
         }
       ]
+    },
+    {
+      "source": "/_img/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, s-maxage=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/vendor/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
     }
   ],
   "rewrites": [
+    {
+      "source": "/_sb/:path*",
+      "destination": "https://oobohevfmvitveulvqlf.supabase.co/:path*"
+    },
+    {
+      "source": "/_tmdb/:path*",
+      "destination": "https://api.themoviedb.org/:path*"
+    },
+    {
+      "source": "/_img/:path*",
+      "destination": "https://image.tmdb.org/:path*"
+    },
     {
       "source": "/s/:type/:t",
       "destination": "/api/share?type=:type&t=:t"
