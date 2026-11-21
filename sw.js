@@ -3,7 +3,7 @@
 //  Handles: offline support, app shell caching, background sync
 // ═══════════════════════════════════════════════════════════
 
-const CACHE_NAME    = 'xwerse-v57';
+const CACHE_NAME    = 'xwerse-v58';
 const SHELL_TIMEOUT = 3000; // ms before falling back to cache
 
 // App shell — these files are cached on install
@@ -22,6 +22,11 @@ const APP_SHELL = [
   '/manifest.json',
   '/favicon.png',
   '/og-image.png',
+  '/vendor/supabase-js-2.119.2.umd.js',
+];
+
+// Best effort only: a blocked / slow third-party host must never make the install fail
+const APP_SHELL_OPTIONAL = [
   'https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap',
 ];
 
@@ -42,7 +47,8 @@ const NETWORK_ONLY = [
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(APP_SHELL))
+      .then(cache => cache.addAll(APP_SHELL)
+        .then(() => Promise.all(APP_SHELL_OPTIONAL.map(u => cache.add(u).catch(() => {})))))
       .then(() => self.skipWaiting()) // activate immediately
   );
 });
@@ -76,6 +82,10 @@ self.addEventListener('fetch', event => {
       event.request.headers.has('range')) {
     return; // browser handles it directly
   }
+
+  // 0a. Our own proxies to Supabase (/_sb/) and the TMDB API (/_tmdb/): live data + login — never cached, never touched.
+  //     (/_img/ = TMDB posters: falls through to the cache-first rule below, they never change.)
+  if (url.origin === self.location.origin && (url.pathname.startsWith('/_sb/') || url.pathname.startsWith('/_tmdb/'))) return;
 
   // 0b. Vercel Web Analytics (/_vercel/insights/*) — never cache or touch
   if (url.pathname.startsWith('/_vercel/') || url.pathname.startsWith('/s/') || url.pathname.startsWith('/api/')) return;
