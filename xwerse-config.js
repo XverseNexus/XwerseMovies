@@ -363,7 +363,14 @@ const DB = {
     return data;
   },
 
+  // My own purchase first; if I have none and I am staff with "Paid access" switched on, the admin's paid link.
   async getMyRequestOverride(uid, tmdbId, mediaType, seasonNumber) {
+    const mine = await this._myPurchaseOverride(uid, tmdbId, mediaType, seasonNumber);
+    if (mine) return mine;
+    try { return await Staff.override(tmdbId, mediaType, seasonNumber); } catch (e) { return null; }
+  },
+
+  async _myPurchaseOverride(uid, tmdbId, mediaType, seasonNumber) {
     if (!uid || !tmdbId) return null;
     const { data, error } = await getSB()
       .from('requests')
@@ -758,7 +765,7 @@ async function initNavAvatar(avatarElId = 'navAvatar') {
 
     const rect        = el.getBoundingClientRect();
     const menu        = document.createElement('div');
-    const menuHeight  = 310; // approx — header + 6 items
+    const menuHeight  = 360; // approx — header + 7 items
     const openUpward  = (window.innerHeight - rect.bottom) < (menuHeight + 16);
     menu.id    = menuId;
     menu.style.cssText = `position:fixed;
@@ -785,7 +792,10 @@ async function initNavAvatar(avatarElId = 'navAvatar') {
 
     Auth.getProfile(user.id).then(p => {
       const isAdmin = p?.is_admin || p?.role === 'admin' || p?.role === 'moderator';
-      if (isAdmin) { const b = menu.querySelector('#xvm-admin-btn'); if (b) b.style.display='flex'; }
+      if (isAdmin) {
+        const b = menu.querySelector('#xvm-admin-btn'); if (b) b.style.display='flex';
+        const t = menu.querySelector('#xvm-staff-btn'); if (t) t.style.display='flex';
+      }
     });
 
     menu.innerHTML = `
@@ -799,6 +809,10 @@ async function initNavAvatar(avatarElId = 'navAvatar') {
       <button class="xvm-item" onclick="window.location.href='/Plans'">💎 &nbsp;Plans</button>
       <button class="xvm-item" onclick="xvSwitchProfile()">👥 &nbsp;Switch Profile</button>
       <button class="xvm-item" id="xvm-admin-btn" style="display:none" onclick="window.location.href='/Admin'">🛡️ &nbsp;Admin Panel</button>
+      <button class="xvm-item" id="xvm-staff-btn" style="display:none;justify-content:space-between" onclick="Staff.toggle()" title="Staff only: ON = every paid title the admin uploaded plays for you. OFF = you use the site like a normal user.">
+        <span>🔓 &nbsp;Paid access</span>
+        <span style="font-size:.66rem;font-weight:800;letter-spacing:.5px;padding:3px 9px;border-radius:20px;${Staff.on() ? 'background:#e50914;color:#fff' : 'background:rgba(255,255,255,.12);color:rgba(255,255,255,.6)'}">${Staff.on() ? 'ON' : 'OFF'}</span>
+      </button>
       <div class="xvm-sep"></div>
       <button class="xvm-item danger" onclick="xvSignOut()">🚪 &nbsp;Sign Out</button>`;
 
@@ -2282,6 +2296,64 @@ const XPlay = {
 window.XPlay = XPlay;   // the player (an iframe layer) reaches it as window.parent.XPlay
 
 /* ═══════════════════════════════════════════════════════════
+   Staff — "Paid access" switch for the admin and moderators.
+   OFF (default): staff use the site exactly like a normal user.
+   ON: every paid movie / series / season the admin uploaded plays for them and is marked red.
+   The switch is only a preference stored on this device; the paid links themselves come from
+   /api/staff-paid-links, which answers 403 to anyone who is not admin / moderator.
+   ═══════════════════════════════════════════════════════════ */
+const Staff = {
+  KEY: 'xv_staff_paid',
+  on() { try { return localStorage.getItem(this.KEY) === '1'; } catch (e) { return false; } },
+  setOn(v) { try { v ? localStorage.setItem(this.KEY, '1') : localStorage.removeItem(this.KEY); } catch (e) {} },
+  _sp: null, _rp: null,
+  isStaff() {
+    if (this._sp) return this._sp;
+    return (this._sp = (async () => {
+      try {
+        const { data: s } = await getSB().auth.getSession();
+        const uid = s && s.session && s.session.user && s.session.user.id;
+        if (!uid) return false;
+        const p = await Auth.getProfile(uid);
+        return !!(p && (p.is_admin || p.role === 'admin' || p.role === 'moderator'));
+      } catch (e) { return false; }
+    })());
+  },
+  async active() { return this.on() && await this.isStaff(); },
+  rows() {
+    if (this._rp) return this._rp;
+    return (this._rp = (async () => {
+      try {
+        const { data: s } = await getSB().auth.getSession();
+        const tok = s && s.session && s.session.access_token;
+        if (!tok) return [];
+        const r = await fetch('/api/staff-paid-links', { method: 'POST', headers: { Authorization: 'Bearer ' + tok } });
+        if (!r.ok) return [];
+        const j = await r.json();
+        return Array.isArray(j.rows) ? j.rows : [];
+      } catch (e) { return []; }
+    })());
+  },
+  /* Same answer shape as DB.getMyRequestOverride: movie → one link, TV → the episode-link text. */
+  async override(tmdbId, mediaType, seasonNumber) {
+    if (!tmdbId || !(await this.active())) return null;
+    const all = (await this.rows()).filter(r => String(r.tmdb_id) === String(tmdbId));
+    if (!all.length) return null;
+    if (mediaType === 'tv') {
+      const links = all.filter(r => r.request_type === 'series' || (r.request_type === 'season' && Number(r.season_number) === Number(seasonNumber)))
+                       .map(r => r.watch_url).filter(Boolean);
+      return links.length ? links.join('\n') : null;
+    }
+    const m = all.find(r => r.request_type === 'movie');
+    return (m && m.watch_url) || null;
+  },
+  toggle() {
+    this.setOn(!this.on());
+    location.reload();                      // every page re-reads the access list
+  },
+};
+
+/* ═══════════════════════════════════════════════════════════
    XOwned — "you own this" marker for Home / Browse / Search popups.
    Purchased copies play ONLY from My Purchases; everywhere else the free version opens.
    This just tells the buyer which titles / seasons they own and where to watch them.
@@ -2300,7 +2372,8 @@ const XOwned = {
           .select('tmdb_id, request_type, season_number, watch_url')
           .eq('user_id', uid).eq('payment_status', 'paid').eq('status', 'completed');
         this._list = error ? [] : (data || []);
-      } catch (e) { this._list = []; }
+        if (await Staff.active()) this._list = this._list.concat(await Staff.rows());   // staff: every uploaded paid title counts as "mine"
+      } catch (e) { this._list = this._list || []; }
       return this._list;
     })();
     return this._p;
