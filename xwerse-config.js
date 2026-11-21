@@ -77,6 +77,85 @@ const Xwerse = {
 
 // ─────────────────────────────────────────────────────────
 //  Supabase client (loaded from CDN)
+
+/* ═══════════════════════════════════════════════════════════
+   XNet — reach our data servers even where an ISP blocks them.
+   Some Indian mobile networks (Jio, Airtel …) black-hole supabase.co and tmdb.org, so on mobile data the site
+   shell opened but nothing loaded. Vercel (our own domain) is never blocked, so:
+     /_sb/*   → Supabase   (login, database, storage)        sbFetch()
+     /_tmdb/* → TMDB API                                      TMDB.fetch()
+     /_img/*  → TMDB posters / backdrops                      proxyImages() below
+   (the rewrites live in vercel.json). Every route falls back to the direct address, and nothing waits forever.
+   Stored data (poster_url in the database etc.) keeps the real TMDB address; only what the browser loads is rewritten.
+   ═══════════════════════════════════════════════════════════ */
+const XNet = {
+  web: /^https?:$/.test(location.protocol),
+  origin: location.origin,
+  /* Supabase: drop-in `fetch` for supabase-js (createClient option global.fetch) */
+  sbFetch(input, init) {
+    const direct = Xwerse.SUPABASE_URL;
+    const raw = typeof input === 'string' ? input : (input && input.url) ? input.url : String(input);
+    if (!XNet.web || raw.indexOf(direct) !== 0) return fetch(input, init);
+    const via = XNet.origin + '/_sb' + raw.slice(direct.length);
+    const method = String((init && init.method) || (input && input.method) || 'GET').toUpperCase();
+    const safe = method === 'GET' || method === 'HEAD';
+    const callerSig = (init && init.signal) || (input && input.signal) || null;
+    const go = (url, ms) => {
+      const ctl = new AbortController();
+      const t = setTimeout(() => ctl.abort(), ms);
+      if (callerSig) { if (callerSig.aborted) ctl.abort(); else callerSig.addEventListener('abort', () => ctl.abort(), { once: true }); }
+      const o = Object.assign({}, init, { signal: ctl.signal });
+      const a = typeof input === 'string' ? input : input;
+      const target = (typeof a === 'string') ? url : new Request(url, a);
+      return fetch(target, o).finally(() => clearTimeout(t));
+    };
+    // GET: our domain first (15 s), then the direct address (12 s). Writes: our domain only (no double-send), longer limit.
+    return go(via, safe ? 15000 : 60000).catch(err => {
+      if (!safe || (callerSig && callerSig.aborted)) throw err;
+      return go(raw, 12000);
+    });
+  },
+  /* TMDB poster / backdrop address → our own domain */
+  img(u) {
+    return (XNet.web && typeof u === 'string' && /^https?:\/\/image\.tmdb\.org\//i.test(u))
+      ? XNet.origin + '/_img/' + u.replace(/^https?:\/\/image\.tmdb\.org\//i, '') : u;
+  },
+  _fixEl(el) {
+    if (!el || el.nodeType !== 1) return;
+    if (el.tagName === 'IMG') {
+      const a = el.getAttribute('src'), b = XNet.img(a);
+      if (b !== a) el.setAttribute('src', b);
+      const ss = el.getAttribute('srcset');
+      if (ss && ss.indexOf('image.tmdb.org') > -1) el.setAttribute('srcset', ss.replace(/https?:\/\/image\.tmdb\.org\//gi, XNet.origin + '/_img/'));
+    }
+    const st = el.getAttribute && el.getAttribute('style');
+    if (st && st.indexOf('image.tmdb.org') > -1) el.setAttribute('style', st.replace(/https?:\/\/image\.tmdb\.org\//gi, XNet.origin + '/_img/'));
+  },
+  _fixTree(root) {
+    XNet._fixEl(root);
+    if (root.querySelectorAll) root.querySelectorAll('img[src*="image.tmdb.org"],img[srcset*="image.tmdb.org"],[style*="image.tmdb.org"]').forEach(XNet._fixEl);
+  },
+  proxyImages() {
+    if (!XNet.web || XNet._on) return; XNet._on = true;
+    try {                                       // images created with  img.src = '…'  /  new Image()
+      const d = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
+      if (d && d.set) Object.defineProperty(HTMLImageElement.prototype, 'src', {
+        configurable: true, enumerable: d.enumerable, get: d.get, set(v) { d.set.call(this, XNet.img(v)); },
+      });
+    } catch (e) {}
+    try {                                       // everything inserted as HTML, or restyled, later on
+      new MutationObserver(list => {
+        for (const m of list) {
+          if (m.type === 'attributes') XNet._fixEl(m.target);
+          else m.addedNodes.forEach(n => { if (n.nodeType === 1) XNet._fixTree(n); });
+        }
+      }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'srcset', 'style'] });
+    } catch (e) {}
+    XNet._fixTree(document.documentElement);
+  },
+};
+XNet.proxyImages();
+
 // ─────────────────────────────────────────────────────────
 let _sb = null;
 function getSB() {
@@ -85,7 +164,7 @@ function getSB() {
     console.error('Supabase CDN not loaded!');
     return null;
   }
-  _sb = supabase.createClient(Xwerse.SUPABASE_URL, Xwerse.SUPABASE_KEY);
+  _sb = supabase.createClient(Xwerse.SUPABASE_URL, Xwerse.SUPABASE_KEY, { global: { fetch: XNet.sbFetch } });
   return _sb;
 }
 
@@ -550,13 +629,14 @@ const TMDB = {
     const url = new URL(Xwerse.TMDB_BASE + path);
     url.searchParams.set('api_key', Xwerse.TMDB_KEY);
     Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, v));
-    const proxies = [
-      url.toString(),
-      'https://corsproxy.io/?' + encodeURIComponent(url.toString()),
-    ];
-    for (const u of proxies) {
+    const direct = url.toString();
+    const tries = [];
+    if (XNet.web) tries.push([direct.replace(Xwerse.TMDB_BASE, XNet.origin + '/_tmdb/3'), 8000]);   // our own domain (never blocked)
+    tries.push([direct, 6000]);
+    tries.push(['https://corsproxy.io/?' + encodeURIComponent(direct), 6000]);
+    for (const [u, ms] of tries) {
       try {
-        const r = await fetch(u, { signal: AbortSignal.timeout(8000) });
+        const r = await fetch(u, { signal: AbortSignal.timeout(ms) });
         if (r.ok) return r.json();
       } catch(e) {}
     }
