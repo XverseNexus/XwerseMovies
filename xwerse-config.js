@@ -659,6 +659,8 @@ const TMDB = {
       poster_url:   TMDB.img(item.poster_path),
       backdrop_url: TMDB.img(item.backdrop_path, 'original'),
       genres:       [],
+      genre_ids:    item.genre_ids || [],
+      release_date: item.release_date || item.first_air_date || '',
     };
   },
 
@@ -1192,6 +1194,143 @@ const SwipeSheet = {
     handleEl.addEventListener('touchmove',  onMove,  { passive: true });
     handleEl.addEventListener('touchend',   onEnd);
     handleEl.addEventListener('touchcancel', onEnd);
+  },
+};
+
+/* ═══════════════════════════════════════════════════════════
+   XTop10 — shared "Top 10" data for Home + Browse.
+   Global  → TMDB trending (today / this week).
+   Country → titles that are streamable in that country, ranked by TMDB popularity;
+             "This week" puts titles that are also in this week's global trending first.
+   ═══════════════════════════════════════════════════════════ */
+const XTop10 = {
+  CODES: 'IN US GB CA AU AE SA PK BD LK NP SG MY ID PH TH VN JP KR TW HK CN DE FR ES IT NL BE SE NO DK FI PL PT IE CH AT GR TR RU UA CZ HU RO BG HR RS IL EG ZA NG KE MA DZ GH BR MX AR CL CO PE VE EC UY NZ QA KW OM BH JO LB'.split(' '),
+  _c: {}, _TTL: 5 * 60 * 1000,
+  name(cc) {
+    if (cc === 'GLOBAL') return 'Global';
+    try { return new Intl.DisplayNames(['en'], { type: 'region' }).of(cc) || cc; } catch (e) { return cc; }
+  },
+  countryOptions(sel) {
+    const rest = [...this.CODES].filter(c => c !== 'IN').sort((a, b) => this.name(a).localeCompare(this.name(b)));
+    return ['GLOBAL', 'IN', ...rest].map(c => `<option value="${c}"${c === sel ? ' selected' : ''}>${this.name(c)}</option>`).join('');
+  },
+  periodOptions(sel) {
+    return `<option value="day"${sel === 'day' ? ' selected' : ''}>Today</option><option value="week"${sel === 'week' ? ' selected' : ''}>This Week</option>`;
+  },
+  title(type, cc, period) {
+    const t = type === 'tv' ? 'TV Shows' : 'Movies', p = period === 'week' ? 'This Week' : 'Today';
+    return cc === 'GLOBAL' ? `Top 10 ${t} Worldwide ${p}` : `Top 10 ${t} in ${this.name(cc)} ${p}`;
+  },
+  // → raw TMDB items (up to 20, with posters). Cached for 5 minutes per (type, country, period).
+  async list(type, cc = 'GLOBAL', period = 'day') {
+    const key = type + '|' + cc + '|' + period, hit = this._c[key];
+    if (hit && Date.now() - hit.t < this._TTL) return hit.v;
+    const ok = r => (r?.results || []).filter(m => m.poster_path);
+    let out = [];
+    if (cc === 'GLOBAL') {
+      out = ok(await TMDB.fetch(`/trending/${type}/${period}`));
+    } else {
+      const path = type === 'tv' ? '/discover/tv' : '/discover/movie';
+      const params = { watch_region: cc, with_watch_monetization_types: type === 'tv' ? 'flatrate' : 'flatrate|rent|buy', sort_by: 'popularity.desc', ...(type === 'movie' ? { region: cc } : {}) };
+      const pages = await Promise.all([1, 2].map(n => TMDB.fetch(path, { ...params, page: n })));
+      const D = pages.flatMap(ok);
+      if (period === 'week' && D.length) {
+        const wk = (await Promise.all([1, 2].map(n => TMDB.fetch(`/trending/${type}/week`, { page: n })))).flatMap(ok);
+        const inD = new Set(D.map(m => m.id)), first = wk.filter(m => inD.has(m.id)), seen = new Set(first.map(m => m.id));
+        out = [...first, ...D.filter(m => !seen.has(m.id))];
+      } else out = D;
+      if (out.length < 5) out = ok(await TMDB.fetch(`/trending/${type}/${period}`));   // TMDB has little data for this country
+    }
+    const seen = new Set(); out = out.filter(m => !seen.has(m.id) && seen.add(m.id));
+    this._c[key] = { t: Date.now(), v: out };
+    return out;
+  },
+};
+
+/* ═══════════════════════════════════════════════════════════
+   XMatch — "NN% Match", built from THIS user's own activity (like Netflix):
+   My List (+2), watch history (+1), thumbs-up (+3), thumbs-down (−3) → favourite genres.
+   Hidden until the user has at least 3 signals, so a brand-new account never sees a made-up number.
+   ═══════════════════════════════════════════════════════════ */
+const XMatch = {
+  _w: {}, _n: 0, _ready: false, _m: {}, _seq: 0,
+  GM: {28:'action',12:'adventure',16:'animation',35:'comedy',80:'crime',99:'documentary',18:'drama',10751:'family',14:'fantasy',36:'history',27:'horror',10402:'music',9648:'mystery',10749:'romance',878:'scifi',53:'thriller',10752:'war',37:'western',10759:['action','adventure'],10762:'kids',10764:'reality',10765:['scifi','fantasy'],10767:'talk',10768:'war'},
+  canon(name) {
+    const out = [];
+    String(name || '').toLowerCase().split(/&|,|\//).forEach(p => {
+      p = p.trim(); if (!p) return;
+      out.push(/sci/.test(p) ? 'scifi' : /fantasy/.test(p) ? 'fantasy' : /romanc/.test(p) ? 'romance' : p.replace(/[^a-z]/g, ''));
+    });
+    return out;
+  },
+  genresOf(m) {
+    let g = [];
+    (m.genre_ids || []).forEach(id => { const x = XMatch.GM[id]; if (x) g = g.concat(x); });
+    (m.genres || []).forEach(x => { g = g.concat(XMatch.canon(typeof x === 'string' ? x : x && x.name)); });
+    return [...new Set(g.filter(Boolean))];
+  },
+  async _gn(type, id) {                               // genres of a rated title (cached on this device)
+    const k = 'xv_gn_' + type + '_' + id;
+    try { const c = JSON.parse(localStorage.getItem(k) || 'null'); if (c) return c; } catch (e) {}
+    const d = await TMDB.fetch('/' + type + '/' + id);
+    const g = (d?.genres || []).flatMap(x => XMatch.canon(x.name));
+    if (g.length) { try { localStorage.setItem(k, JSON.stringify(g)); } catch (e) {} }
+    return g;
+  },
+  async init(uid) {
+    try {
+      const w = {}; let n = 0;
+      const add = (genres, v) => { if (!genres.length) return; n++; genres.forEach(x => { w[x] = (w[x] || 0) + v; }); };
+      try { (typeof ML !== 'undefined' ? ML.getData() : []).forEach(m => add(this.genresOf(m), 2)); } catch (e) {}
+      try { (await DB.getHistory(uid, 60)).forEach(m => add(this.genresOf(m || {}), 1)); } catch (e) {}
+      const liked = [], bad = [];
+      Object.keys(Ratings._data || {}).forEach(k => { const v = Ratings._data[k]; if (v === 1 && liked.length < 12) liked.push(k); else if (v === -1 && bad.length < 8) bad.push(k); });
+      const seeds = [...liked.map(k => [k, 3]), ...bad.map(k => [k, -3])];
+      await Promise.all(seeds.map(async ([k, v]) => { const i = k.indexOf('_'); add(await this._gn(k.slice(0, i), k.slice(i + 1)), v); }));
+      this._w = w; this._n = n; this._ready = true;
+      this.repaint();
+    } catch (e) {}
+  },
+  score(m) {
+    if (!this._ready || this._n < 3 || !m) return null;
+    const mt = m.type === 'tv' ? 'tv' : 'movie', r = Ratings.get(m.tmdb_id, mt);
+    if (r === 1) return 98;
+    if (r === -1) return null;
+    const g = this.genresOf(m); if (!g.length) return null;
+    const mx = Math.max(1, ...Object.values(this._w).map(Math.abs));
+    let s = 0; g.forEach(x => { s += (this._w[x] || 0) / mx; }); s /= g.length;
+    const rt = parseFloat(m.rating || m.vote_average || 6.5) || 6.5;
+    return Math.max(40, Math.min(97, Math.round(70 + 24 * s + (rt - 6.5) * 2)));
+  },
+  html(cls, m) {                                      // placeholder span, filled in as soon as the profile is ready
+    const k = 'x' + (++this._seq); this._m[k] = m;
+    const v = this.score(m);
+    return `<span class="${cls}" data-xm="${k}"${v == null ? ' style="display:none"' : ''}>${v == null ? '' : v + '% Match'}</span>`;
+  },
+  repaint() {
+    document.querySelectorAll('[data-xm]').forEach(el => {
+      const v = this.score(this._m[el.dataset.xm]);
+      el.textContent = v == null ? '' : v + '% Match'; el.style.display = v == null ? 'none' : '';
+    });
+  },
+};
+
+/* XBadge — what the hero shows above the title (instead of a fixed "TOP PICK").
+   FILM/SERIES label always; plus ONE chip only when it is true:
+   Top 10 rank → Featured by admin → New release (last 45 days) → Top pick for you (match ≥ 90). */
+const XBadge = {
+  html(m, rank, scope, cls) {
+    const kind = `<div style="font-size:.66rem;font-weight:800;letter-spacing:.22em;color:rgba(255,255,255,.72);margin-bottom:8px">${m.type === 'tv' ? 'SERIES' : 'FILM'}</div>`;
+    let chip = '';
+    if (rank && rank <= 10) chip = `<span class="${cls}"><b style="margin-right:6px">TOP 10</b>#${rank} in ${scope}</span>`;
+    else if (m.featured) chip = `<span class="${cls}">★ FEATURED</span>`;
+    else {
+      const d = m.release_date || m.first_air_date || '';
+      const recent = d ? (Date.now() - new Date(d)) < 45 * 864e5 && new Date(d) <= new Date() : false;
+      if (recent) chip = `<span class="${cls}">NEW</span>`;
+      else if (XMatch.score(m) >= 90) chip = `<span class="${cls}">★ TOP PICK FOR YOU</span>`;
+    }
+    return kind + chip;
   },
 };
 
