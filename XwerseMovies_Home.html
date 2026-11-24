@@ -448,6 +448,8 @@ let _cachedRowData = null;
     actionGenre,
     comedyGenre,
     thrillerGenre,
+    t10Movies,
+    t10TV,
   ] = await Promise.all([
     DB.getFeatured(),
     DB.getContinueWatching(currentUser.id),
@@ -463,7 +465,10 @@ let _cachedRowData = null;
     TMDB.byGenre(28),    // Action & Adventure
     TMDB.byGenre(35),    // Comedy
     TMDB.byGenre(27),    // Horror/Thriller
+    TMDB.top10Movies(),
+    TMDB.top10TV(),
   ]);
+  window._top10 = { movies: t10Movies, tv: t10TV };
 
   _cachedRowData = { adminMovies, trending, topRated, popular, hindi, south, tv, becauseYouLiked, topPicks, actionGenre, comedyGenre, thrillerGenre };
 
@@ -639,13 +644,14 @@ if (trendingFiltered.length)
     buildCardRow('Trending Now 🔥', trendingFiltered)
   );
 
-if (topRatedFiltered.length)
-  wrap.appendChild(
-    buildTop10Row(
-      'Top 10 in India Today',
-      topRatedFiltered.slice(0,10)
-    )
-  );
+{
+  const _t = window._top10 || {};
+  const t10m = mergeMovieLists(adminMovies, norm(_t.movies)).slice(0,10);
+  const t10t = mergeMovieLists(adminMovies, norm(_t.tv)).slice(0,10);
+  if (t10m.length >= 3) wrap.appendChild(buildTop10Row('Top 10 Movies in India Today', t10m));
+  else if (topRatedFiltered.length) wrap.appendChild(buildTop10Row('Top 10 in India Today', topRatedFiltered.slice(0,10)));
+  if (t10t.length >= 3) wrap.appendChild(buildTop10Row('Top 10 TV Shows in India Today', t10t));
+}
 
 if (popularFiltered.length)
   wrap.appendChild(
