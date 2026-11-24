@@ -671,12 +671,12 @@ const TMDB = {
   async nowPlaying()  { return this.fetch('/movie/now_playing', { region:'IN' }); },
   /* Top 10 rows (Netflix-style, "in India today"): what is most popular RIGHT NOW among titles
      that are actually available to watch in India. TMDB popularity is a daily-updated score. */
-  async top10Movies() {
-    const r = await this.fetch('/discover/movie', { watch_region:'IN', with_watch_monetization_types:'flatrate|rent|buy', sort_by:'popularity.desc', region:'IN' });
+  async top10Movies(cc = 'IN') {
+    const r = await this.fetch('/discover/movie', { watch_region:cc, with_watch_monetization_types:'flatrate|rent|buy', sort_by:'popularity.desc', region:cc });
     return (r && r.results && r.results.length >= 5) ? r : this.fetch('/trending/movie/day');
   },
-  async top10TV() {
-    const r = await this.fetch('/discover/tv', { watch_region:'IN', with_watch_monetization_types:'flatrate', sort_by:'popularity.desc' });
+  async top10TV(cc = 'IN') {
+    const r = await this.fetch('/discover/tv', { watch_region:cc, with_watch_monetization_types:'flatrate', sort_by:'popularity.desc' });
     return (r && r.results && r.results.length >= 5) ? r : this.fetch('/trending/tv/day');
   },
   async hindiMovies() { return this.fetch('/discover/movie', { with_original_language:'hi', sort_by:'popularity.desc', region:'IN' }); },
@@ -2551,6 +2551,7 @@ document.addEventListener('click', function (e) {
     if (document.getElementById('xownCardCss')) return;
     const st = document.createElement('style'); st.id = 'xownCardCss';
     st.textContent = '.xown-card{background:linear-gradient(180deg,#8f0710 0%,#5e050b 100%)!important;border-color:#e50914!important;box-shadow:0 0 0 1px rgba(229,9,20,.55),0 4px 18px rgba(229,9,20,.28)!important}' +
+      '.xc-t10.xown-card{background:none!important;border-color:transparent!important;box-shadow:none!important}.xc-t10.xown-card .xc-t10-img{box-shadow:0 0 0 2px #e50914,0 4px 18px rgba(229,9,20,.45)!important}' +
       '.xown-card .xc-name,.xown-card .cn{color:#fff!important}.xown-card .xc-meta,.xown-card .cm{color:rgba(255,255,255,.78)!important}';
     document.head.appendChild(st);
   }
