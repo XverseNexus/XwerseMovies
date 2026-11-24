@@ -669,6 +669,16 @@ const TMDB = {
   async popularTV()   { return this.fetch('/tv/popular'); },
   async upcoming()    { return this.fetch('/movie/upcoming', { region:'IN' }); },
   async nowPlaying()  { return this.fetch('/movie/now_playing', { region:'IN' }); },
+  /* Top 10 rows (Netflix-style, "in India today"): what is most popular RIGHT NOW among titles
+     that are actually available to watch in India. TMDB popularity is a daily-updated score. */
+  async top10Movies() {
+    const r = await this.fetch('/discover/movie', { watch_region:'IN', with_watch_monetization_types:'flatrate|rent|buy', sort_by:'popularity.desc', region:'IN' });
+    return (r && r.results && r.results.length >= 5) ? r : this.fetch('/trending/movie/day');
+  },
+  async top10TV() {
+    const r = await this.fetch('/discover/tv', { watch_region:'IN', with_watch_monetization_types:'flatrate', sort_by:'popularity.desc' });
+    return (r && r.results && r.results.length >= 5) ? r : this.fetch('/trending/tv/day');
+  },
   async hindiMovies() { return this.fetch('/discover/movie', { with_original_language:'hi', sort_by:'popularity.desc', region:'IN' }); },
   async southMovies() { return this.fetch('/discover/movie', { with_original_language:'te', sort_by:'popularity.desc' }); },
 
@@ -1401,13 +1411,13 @@ const XCard = {
 .xc-cw-est{display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;margin-left:4px;border-radius:50%;background:rgba(255,255,255,.18);color:rgba(255,255,255,.85);font-size:.56rem;font-style:normal;cursor:help;vertical-align:middle;line-height:1}
 .xc-cw-est:hover,.xc-cw-est:focus-visible{background:rgba(255,255,255,.35)}
 
-/* Top 10 numbered card — Home & Browse */
-.xc-t10{flex-shrink:0;display:flex;align-items:flex-end;cursor:pointer;transition:transform .2s}
+/* Top 10 numbered card — Home & Browse (Netflix style: big bold number, poster overlaps its right edge) */
+.xc-t10{--w:130px;--h:190px;flex-shrink:0;display:flex;align-items:flex-end;cursor:pointer;transition:transform .2s;margin-right:10px;scroll-snap-align:start}
 .xc-t10:hover{transform:scale(1.04);z-index:3}
-.xc-t10-num{font-family:'Bebas Neue',cursive;font-size:7rem;color:transparent;-webkit-text-stroke:2px rgba(255,255,255,.18);line-height:1;margin-right:-20px;z-index:1;flex-shrink:0;transition:-webkit-text-stroke-color .2s}
-.xc-t10:hover .xc-t10-num{-webkit-text-stroke-color:rgba(255,255,255,.42)}
-.xc-t10-img{width:100px;height:146px;border-radius:4px;object-fit:cover;background:#222;z-index:2;position:relative;border:1px solid var(--border)}
-@media(max-width:640px){.xc-t10-num{font-size:5.5rem}.xc-t10-img{width:80px;height:116px}}
+.xc-t10-num{font-family:'Bebas Neue','Arial Narrow',Impact,sans-serif;font-weight:900;font-size:calc(var(--h) * 1.02);color:#0d0d0d;-webkit-text-stroke:3px rgba(255,255,255,.62);paint-order:stroke fill;line-height:.82;letter-spacing:-.04em;margin-right:calc(var(--w) * -.13);margin-left:-2px;z-index:1;flex-shrink:0;transition:-webkit-text-stroke-color .2s;user-select:none}
+.xc-t10:hover .xc-t10-num{-webkit-text-stroke-color:rgba(255,255,255,.95)}
+.xc-t10-img{width:var(--w);height:var(--h);border-radius:6px;object-fit:cover;background:#222;z-index:2;position:relative;border:0;box-shadow:0 6px 18px rgba(0,0,0,.55)}
+@media(max-width:640px){.xc-t10{--w:96px;--h:140px;margin-right:6px}.xc-t10-num{-webkit-text-stroke-width:2.5px}}
 
 /* Tablet (641–1024px, Task 7): card sizes tuned between the mobile
    and desktop values instead of jumping straight from one to the
@@ -1415,8 +1425,7 @@ const XCard = {
 @media(max-width:1024px) and (min-width:641px){
   .cards-scroll .xc-card{width:138px}
   .xc-cw{width:195px}
-  .xc-t10-num{font-size:6rem}
-  .xc-t10-img{width:90px;height:131px}
+  .xc-t10{--w:112px;--h:164px}
 }
 
 /* Large desktop & ultra-wide (Task 9) — Netflix doesn't just add more
@@ -1426,14 +1435,12 @@ const XCard = {
 @media(min-width:1440px){
   .cards-scroll .xc-card{width:172px}
   .xc-cw{width:242px}
-  .xc-t10-num{font-size:7.6rem}
-  .xc-t10-img{width:112px;height:164px}
+  .xc-t10{--w:150px;--h:220px}
 }
 @media(min-width:1920px){
   .cards-scroll .xc-card{width:188px}
   .xc-cw{width:262px}
-  .xc-t10-num{font-size:8.4rem}
-  .xc-t10-img{width:122px;height:178px}
+  .xc-t10{--w:170px;--h:250px}
 }
 
 /* Keyboard / TV-remote navigation (Task 8) — cards are plain <div>s with
@@ -1827,7 +1834,7 @@ html.tv-mode .xc-play,html.tv-mode .xc-add,html.tv-mode .xc-remove-btn,html.tv-m
     const { onOpen = 'openModal' } = opts;
     const k = _reg(m);
     return `<div class="xc-t10" data-mk="${k}" ${XCard._a11yAttrs(m.title)} onclick="${onOpen}(_get(this.dataset.mk))">
-      <div class="xc-t10-num">${i+1}</div>
+      <div class="xc-t10-num" aria-hidden="true">${i+1}</div>
       <img class="xc-t10-img" src="${m.poster_url||''}" alt="${m.title}" loading="lazy" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(m.title)}&background=222&color=555&size=200'">
     </div>`;
   },
