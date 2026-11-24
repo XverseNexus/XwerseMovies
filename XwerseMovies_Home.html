@@ -143,6 +143,12 @@ nav.solid{background:rgba(8,8,8,.97);-webkit-backdrop-filter:blur(10px);backdrop
    radius and hover behavior. See .xc-card / .xc-cw / .xc-t10 there. */
 .t10-wrap{display:flex;gap:0;overflow-x:auto;padding-bottom:8px;scrollbar-width:none;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
 .t10-wrap::-webkit-scrollbar{display:none}
+.t10-wrap{transition:opacity .15s}
+.t10-hd{display:flex;align-items:center;justify-content:flex-start;flex-wrap:wrap;gap:10px}
+.t10-sel{appearance:none;-webkit-appearance:none;background:#1c1c1c url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23ddd'/%3E%3C/svg%3E") no-repeat right 11px center;color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:6px;padding:7px 30px 7px 12px;font:600 .8rem/1.2 inherit;font-family:inherit;cursor:pointer;max-width:170px}
+.t10-sel:hover{border-color:#fff}
+.t10-sel:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.t10-sel option{background:#1c1c1c;color:#fff}
 
 /* ── SKELETON ── */
 .skel{background:linear-gradient(90deg,#222 25%,#2a2a2a 50%,#222 75%);background-size:200% 100%;animation:skelA 1.4s infinite;border-radius:4px}
@@ -646,11 +652,11 @@ if (trendingFiltered.length)
 
 {
   const _t = window._top10 || {};
-  const t10m = mergeMovieLists(adminMovies, norm(_t.movies)).slice(0,10);
-  const t10t = mergeMovieLists(adminMovies, norm(_t.tv)).slice(0,10);
-  if (t10m.length >= 3) wrap.appendChild(buildTop10Row('Top 10 Movies in India Today', t10m));
+  _t10Cache['movie|IN'] = _t10Cache['movie|IN'] || _t.movies;
+  _t10Cache['tv|IN']    = _t10Cache['tv|IN']    || _t.tv;
+  const firstList = mergeMovieLists(adminMovies, norm(_t10Cache[_t10Sel.type + '|' + _t10Sel.cc])).slice(0,10);
+  if (firstList.length >= 3) wrap.appendChild(buildTop10Row(null, firstList, true));
   else if (topRatedFiltered.length) wrap.appendChild(buildTop10Row('Top 10 in India Today', topRatedFiltered.slice(0,10)));
-  if (t10t.length >= 3) wrap.appendChild(buildTop10Row('Top 10 TV Shows in India Today', t10t));
 }
 
 if (popularFiltered.length)
@@ -709,14 +715,53 @@ function buildCardRow(title, movies, seeAllHref) {
   return row;
 }
 
-function buildTop10Row(title, movies) {
+// ── TOP 10 with country + Movies/TV dropdowns (Netflix style) ──────────────
+const T10_COUNTRIES = 'IN US GB CA AU AE SA PK BD LK NP SG MY ID PH TH VN JP KR TW HK CN DE FR ES IT NL BE SE NO DK FI PL PT IE CH AT GR TR RU UA CZ HU RO BG HR RS IL EG ZA NG KE MA DZ GH BR MX AR CL CO PE VE EC UY NZ QA KW OM BH JO LB'.split(' ');
+const _t10Cache = {};            // 'movie|IN' → TMDB response
+const _t10Sel = { cc: 'IN', type: 'movie' };
+let _t10Token = 0;
+function _t10Name(cc) { try { return new Intl.DisplayNames(['en'], { type: 'region' }).of(cc) || cc; } catch (e) { return cc; } }
+function _t10Title() {
+  return 'Top 10 ' + (_t10Sel.type === 'tv' ? 'TV Shows' : 'Movies') + ' in ' + _t10Name(_t10Sel.cc) + ' Today';
+}
+function buildTop10Row(title, movies, withPickers) {
   if (!movies?.length) return document.createDocumentFragment();
   const row = document.createElement('div');
   row.className = 'row';
+  if (withPickers) {
+    row.id = 't10Row';
+    const opts = [...T10_COUNTRIES].sort((a, b) => a === 'IN' ? -1 : b === 'IN' ? 1 : _t10Name(a).localeCompare(_t10Name(b)))
+      .map(c => `<option value="${c}"${c === _t10Sel.cc ? ' selected' : ''}>${_t10Name(c)}</option>`).join('');
+    row.innerHTML = `
+      <div class="row-hd t10-hd"><span class="row-title" id="t10Title">${_t10Title()}</span>
+        <select class="t10-sel" id="t10Country" aria-label="Choose country" onchange="t10Change()">${opts}</select>
+        <select class="t10-sel" id="t10Type" aria-label="Movies or TV shows" onchange="t10Change()">
+          <option value="movie"${_t10Sel.type === 'movie' ? ' selected' : ''}>Movies</option>
+          <option value="tv"${_t10Sel.type === 'tv' ? ' selected' : ''}>TV Shows</option></select></div>
+      <div class="t10-wrap" id="t10Wrap">${movies.map((m,i) => XCard.top10(m, i, { onOpen: 'openModal' })).join('')}</div>`;
+    return row;
+  }
   row.innerHTML = `
     <div class="row-hd"><span class="row-title">${title}</span></div>
     <div class="t10-wrap">${movies.map((m,i) => XCard.top10(m, i, { onOpen: 'openModal' })).join('')}</div>`;
   return row;
+}
+async function t10Change() {
+  const cc = document.getElementById('t10Country').value, type = document.getElementById('t10Type').value;
+  _t10Sel.cc = cc; _t10Sel.type = type;
+  const my = ++_t10Token, key = type + '|' + cc;
+  document.getElementById('t10Title').textContent = _t10Title();
+  const wrap = document.getElementById('t10Wrap'); wrap.style.opacity = '.35';
+  if (!_t10Cache[key]) {
+    try { _t10Cache[key] = type === 'tv' ? await TMDB.top10TV(cc) : await TMDB.top10Movies(cc); } catch (e) {}
+  }
+  if (my !== _t10Token) return;                         // a newer choice replaced this one
+  const list = (_t10Cache[key]?.results || []).filter(m => m.poster_path).map(TMDB.normalize);
+  const merged = mergeMovieLists(_cachedRowData?.adminMovies || [], list).slice(0, 10);
+  wrap.style.opacity = '';
+  if (!merged.length) { wrap.innerHTML = '<div style="color:var(--muted);padding:18px 4px;font-size:.9rem">No titles found for this country right now.</div>'; return; }
+  wrap.innerHTML = merged.map((m,i) => XCard.top10(m, i, { onOpen: 'openModal' })).join('');
+  wrap.scrollLeft = 0;
 }
 
 function buildCWRow(items) {
