@@ -3,7 +3,7 @@
 //  Handles: offline support, app shell caching, background sync
 // ═══════════════════════════════════════════════════════════
 
-const CACHE_NAME    = 'xwerse-v61';
+const CACHE_NAME    = 'xwerse-v62';
 const SHELL_TIMEOUT = 3000; // ms before falling back to cache
 
 // App shell — these files are cached on install
