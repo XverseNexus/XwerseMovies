@@ -139,6 +139,10 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
 .cont{padding:0 var(--content-pad) 60px}
 .sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}
 .st{font-size:1.04rem;font-weight:700;color:#fff}
+.t10-hd{justify-content:flex-start;gap:10px;flex-wrap:wrap}
+.t10-sel{appearance:none;-webkit-appearance:none;background:#1c1c1c url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23ddd'/%3E%3C/svg%3E") no-repeat right 11px center;color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:6px;padding:7px 30px 7px 12px;font:600 .8rem/1.2 inherit;font-family:inherit;cursor:pointer;max-width:170px}
+.t10-sel:hover{border-color:#fff}
+.t10-sel option{background:#1c1c1c;color:#fff}
 .sb{background:rgba(229,9,20,.14);color:var(--red);font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:3px;margin-left:6px;letter-spacing:.5px}
 /* CARD GRID */
 .cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:9px;margin-bottom:30px}
@@ -328,7 +332,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
     <div class="pg-tabs"><button class="ptab active" onclick="tvTab('',this)">All</button><button class="ptab" onclick="tvTab('hi',this)">Hindi</button><button class="ptab" onclick="tvTab('en',this)">English</button><button class="ptab" onclick="tvTab('ko',this)">Korean</button><button class="ptab" onclick="tvTab('ja',this)">Japanese</button><button class="ptab" onclick="tvTab('ta',this)">Tamil</button><button class="ptab" onclick="tvTab('te',this)">Telugu</button></div>
     <div class="gpstrip" id="tvGP"></div>
     <div class="frow"><span class="flbl">Sort:</span><select class="fsel" onchange="sortTV(this.value)"><option value="">Popular</option><option value="rating">Highest Rated</option><option value="year">Newest</option><option value="alpha">A–Z</option></select><div class="fsp"></div><span class="rcnt" id="tvCnt"></span><div class="vtog"><button class="vb on" onclick="setV('tv','grid',this)">⊞</button><button class="vb" onclick="setV('tv','list',this)">☰</button></div></div>
-    <div class="cont"><div class="sh"><span class="st">Top 10 TV Shows <span class="sb">THIS WEEK</span></span></div><div class="t10w" id="tvT10"></div><div class="sh"><span class="st" id="tvGridLbl">All TV Shows</span></div><div class="cgrid" id="tvGrid"></div><button class="lm-btn" id="tvLM" onclick="loadMore('tv')" style="display:none">Load More ↓</button></div>
+    <div class="cont"><div class="sh t10-hd"><span class="st">Top 10 TV Shows</span><select class="t10-sel" id="tvT10C" aria-label="Choose country" onchange="bT10('tv')"></select><select class="t10-sel" id="tvT10P" aria-label="Today or this week" onchange="bT10('tv')"></select></div><div class="t10w" id="tvT10"></div><div class="sh"><span class="st" id="tvGridLbl">All TV Shows</span></div><div class="cgrid" id="tvGrid"></div><button class="lm-btn" id="tvLM" onclick="loadMore('tv')" style="display:none">Load More ↓</button></div>
   </div>
 
   <!-- MOVIES -->
@@ -336,7 +340,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
     <div class="pg-hero"><div class="h-bg" id="movBg"></div><div class="h-grad"></div><div class="h-c" id="movHeroC"><div class="sk" style="width:90px;height:20px;margin-bottom:11px;border-radius:3px"></div><div class="sk" style="width:280px;height:42px;margin-bottom:9px;border-radius:3px"></div><div class="sk" style="width:360px;height:40px;margin-bottom:15px;border-radius:3px"></div><div style="display:flex;gap:9px"><div class="sk" style="width:105px;height:36px;border-radius:4px"></div><div class="sk" style="width:120px;height:36px;border-radius:4px"></div></div></div></div>
     <div class="gpstrip" id="movGP"></div>
     <div class="frow"><span class="flbl">Sort:</span><select class="fsel" onchange="sortMov(this.value)"><option value="">Popular</option><option value="rating">Highest Rated</option><option value="year">Newest</option><option value="alpha">A–Z</option></select><select class="fsel" id="movLang" onchange="filterMovL(this.value)"><option value="">All Languages</option><option value="hi">Hindi</option><option value="en">English</option><option value="te">Telugu</option><option value="ta">Tamil</option><option value="kn">Kannada</option><option value="ml">Malayalam</option><option value="ko">Korean</option><option value="ja">Japanese</option></select><div class="fsp"></div><span class="rcnt" id="movCnt"></span><div class="vtog"><button class="vb on" onclick="setV('mov','grid',this)">⊞</button><button class="vb" onclick="setV('mov','list',this)">☰</button></div></div>
-    <div class="cont"><div class="sh"><span class="st">Top 10 Movies <span class="sb">THIS WEEK</span></span></div><div class="t10w" id="movT10"></div><div class="sh"><span class="st">All Movies</span></div><div class="cgrid" id="movGrid"></div><button class="lm-btn" id="movLM" onclick="loadMore('mov')" style="display:none">Load More ↓</button></div>
+    <div class="cont"><div class="sh t10-hd"><span class="st">Top 10 Movies</span><select class="t10-sel" id="movT10C" aria-label="Choose country" onchange="bT10('movie')"></select><select class="t10-sel" id="movT10P" aria-label="Today or this week" onchange="bT10('movie')"></select></div><div class="t10w" id="movT10"></div><div class="sh"><span class="st">All Movies</span></div><div class="cgrid" id="movGrid"></div><button class="lm-btn" id="movLM" onclick="loadMore('mov')" style="display:none">Load More ↓</button></div>
   </div>
 
   <!-- NEW & POPULAR -->
@@ -489,6 +493,7 @@ function _ac(el){ var m=_get(el.dataset.mk); if(m) addML(m); }
   await ML.init(currentUser.id);   // ← centralized My List state
   Ratings.injectStyles();
   await Ratings.init(currentUser.id);
+  XMatch.init(currentUser.id);
   const hash = location.hash.replace('#','') || 'tv';
   switchPage(hash);
 
@@ -520,16 +525,16 @@ function switchPage(pg){
 // ── TV ────────────────────────────────────
 async function loadTV(){
   document.getElementById('tvGrid').innerHTML = skelG(20);
-  const [dbTV,tmdbPop,tmdbTop] = await Promise.all([
+  const [dbTV,tmdbPop] = await Promise.all([
     DB.getMovies({type:'tv',limit:50}).then(r=>r.data||[]),
-    TMDB.popularTV(), TMDB.fetch('/trending/tv/week')
+    TMDB.popularTV()
   ]);
   const norm = arr => (arr?.results||[]).filter(m=>m.poster_path).map(TMDB.normalize);
-  const tnorm = norm(tmdbPop), ttop = norm(tmdbTop);
+  const tnorm = norm(tmdbPop);
+  _bt.tv.db = dbTV; await bT10('tv');
   tvData = [...dbTV, ...tnorm.filter(t=>!dbTV.find(d=>d.tmdb_id===t.tmdb_id))];
   const hero = tvData.find(m=>m.backdrop_url)||tnorm[0];
   if(hero) setHero('tv',hero);
-  buildT10('tvT10', topTen(dbTV, ttop));
   buildPills('tvGP', TVGENRES, g=>{ tvF.genre=g==='All'?'':g; tvPage=0; applyFilters('tv'); });
   renderTV();
 }
@@ -550,16 +555,16 @@ function sortTV(s){ tvF.sort=s; tvPage=0; applyFilters('tv'); }
 // ── MOVIES ────────────────────────────────
 async function loadMovies(){
   document.getElementById('movGrid').innerHTML=skelG(20);
-  const [dbMov,tmdbPop,tmdbTop]=await Promise.all([
+  const [dbMov,tmdbPop]=await Promise.all([
     DB.getMovies({type:'movie',limit:50}).then(r=>r.data||[]),
-    TMDB.popularMov(), TMDB.fetch('/trending/movie/week')
+    TMDB.popularMov()
   ]);
   const norm=arr=>(arr?.results||[]).filter(m=>m.poster_path).map(TMDB.normalize);
-  const tnorm=norm(tmdbPop), ttop=norm(tmdbTop);
+  const tnorm=norm(tmdbPop);
+  _bt.movie.db = dbMov; await bT10('movie');
   movData=[...dbMov,...tnorm.filter(t=>!dbMov.find(d=>d.tmdb_id===t.tmdb_id))];
   const hero=movData.find(m=>m.backdrop_url)||tnorm[0];
   if(hero) setHero('mov',hero);
-  buildT10('movT10',topTen(dbMov,ttop));
   buildPills('movGP',MOVGENRES,g=>{ movF.genre=g==='All'?'':g; movPage=0; applyFilters('movie'); });
   renderMov();
 }
@@ -647,11 +652,12 @@ function setHero(type,m){
   var bg=document.getElementById(type+'Bg'), hc=document.getElementById(type+'HeroC');
   if(bg && (m.backdrop_url||m.poster_url)) bg.style.backgroundImage='url('+( m.backdrop_url||m.poster_url)+')';
   if(!hc) return;
-  var match=Math.round(65+parseFloat(m.rating||m.vote_average||7)*3.5);
   var k=_reg(m), isTV=m.type==='tv'?'1':'0';
-  hc.innerHTML='<div class="h-badge">&#9733; TOP PICK</div>'
+  var _raw=_bt[type==='tv'?'tv':'movie'].raw||[], _rank=(_raw.findIndex(function(x){return String(x.id)===String(m.tmdb_id);})+1)||0;
+  var _per=_bt[type==='tv'?'tv':'movie'].period==='week'?'This Week':'Today';
+  hc.innerHTML=XBadge.html(m,_rank,(isTV==='1'?'TV Shows ':'Movies ')+_per,'h-badge')
     +'<div class="h-title">'+m.title+'</div>'
-    +'<div class="h-meta"><span class="h-match">'+match+'% Match</span>'
+    +'<div class="h-meta">'+XMatch.html('h-match',m)
     +'<span>'+(m.year||'')+'</span><span class="h-cert">'+(m.age_rating||'UA')+'</span>'
     +(m.quality?'<span style="background:rgba(70,211,105,.12);color:var(--green);font-size:.64rem;font-weight:700;padding:2px 6px;border-radius:3px">'+m.quality+'</span>':'')
     +'</div><div class="h-ov">'+(m.overview||'')+'</div>'
@@ -707,17 +713,25 @@ function cHTML(m, isList) {
 }
 
 // ── TOP 10 ────────────────────────────────────────────────────
-// Top 10 = our own most-watched titles first, then this week's trending titles to fill the list
-function topTen(dbList, trending){
-  var out = [], seen = {};
-  (dbList||[]).filter(function(m){ return (m.views||0) > 0; })
-    .sort(function(a,b){ return (b.views||0)-(a.views||0); })
-    .slice(0,10).forEach(function(m){ seen[m.tmdb_id||('d'+m.id)] = 1; out.push(m); });
-  (trending||[]).forEach(function(m){
-    if (out.length >= 10 || seen[m.tmdb_id]) return;
-    seen[m.tmdb_id] = 1; out.push(m);
-  });
-  return out.slice(0,10);
+// Top 10 = TMDB ranking for the chosen country (Global by default) and period (Today / This Week).
+// Titles we host replace their TMDB copy, so Play / paid / progress work on them.
+var _bt = { tv:{cc:'GLOBAL',period:'day',db:[],raw:[]}, movie:{cc:'GLOBAL',period:'day',db:[],raw:[]} };
+var _btTok = { tv:0, movie:0 };
+async function bT10(kind){
+  var s=_bt[kind], pre=kind==='tv'?'tvT10':'movT10';
+  var cEl=document.getElementById(pre+'C'), pEl=document.getElementById(pre+'P');
+  if(cEl && !cEl.options.length){ cEl.innerHTML=XTop10.countryOptions(s.cc); pEl.innerHTML=XTop10.periodOptions(s.period); }
+  else if(cEl){ s.cc=cEl.value; s.period=pEl.value; }
+  var my=++_btTok[kind], box=document.getElementById(pre); if(box) box.style.opacity='.35';
+  var raw=[]; try{ raw=await XTop10.list(kind,s.cc,s.period); }catch(e){}
+  if(my!==_btTok[kind]) return;
+  s.raw=raw;
+  var list=raw.filter(function(m){return m.poster_path;}).slice(0,10).map(TMDB.normalize).map(function(m){
+    var d=s.db.find(function(x){return String(x.tmdb_id)===String(m.tmdb_id);}); return d||m; });
+  if(box){ box.style.opacity=''; }
+  if(!list.length){ if(box) box.innerHTML='<div style="color:var(--muted);padding:18px 4px;font-size:.9rem">No titles found for this choice right now.</div>'; return; }
+  buildT10(pre, list);
+  if(box) box.scrollLeft=0;
 }
 
 function buildT10(elId, items) {
@@ -740,7 +754,6 @@ function openMod(m) {
   var _si = document.getElementById('shareIco'); if (_si) _si.innerHTML = XShare.ICON;
   document.body.style.overflow = 'hidden';
   var isTV = m.type === 'tv', k = _reg(m), tvF = isTV ? '1' : '0';
-  var match = Math.round(65 + parseFloat(m.rating || m.vote_average || 7) * 3.5);
   var inML = ML.has(m.id);
 
   // Fill modal elements
@@ -752,7 +765,7 @@ function openMod(m) {
 
   var metaEl = document.getElementById('modMeta');
   if (metaEl) metaEl.innerHTML =
-    '<span class="mmt">'+match+'% Match</span>'
+    XMatch.html('mmt',m)
     +(m.year ? '<span>'+m.year+'</span>' : '')
     +(m.age_rating ? '<span class="mce">'+m.age_rating+'</span>' : '')
     +'<span>'+(isTV ? 'TV Show' : 'Movie')+'</span>'
