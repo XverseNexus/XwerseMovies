@@ -192,7 +192,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:cen
     <div class="field has-eye"><input type="password" id="liPass" placeholder="p" autocomplete="current-password" required aria-describedby="liPassErr" oninput="clearFieldErr('liPass')" onkeydown="if(event.key==='Enter')emailLogin()"><label for="liPass">Password</label><button type="button" class="eye" aria-label="Show password" onclick="togglePw(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
     <div class="ferr" id="liPassErr" role="alert"></div>
     <button class="btn-red" style="width:100%;margin-top:4px" id="loginBtn" onclick="emailLogin()">Sign In</button>
-    <div class="opts-row">
+    <div class="opts-row" style="justify-content:space-between">
+      <button class="link-btn" onclick="cdStart('login')">Email me a sign-in code</button>
       <button class="link-btn" onclick="forgotPass()">Forgot password?</button>
     </div>
     <div class="divider"><span>OR</span></div>
@@ -237,6 +238,22 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:cen
     <div class="field has-eye"><input type="password" id="rcPass" placeholder="p" autocomplete="new-password" required minlength="6"><label for="rcPass">New password (6+ characters)</label><button type="button" class="eye" aria-label="Show password" onclick="togglePw(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
     <div class="field has-eye"><input type="password" id="rcPass2" placeholder="p" autocomplete="new-password" required onkeydown="if(event.key==='Enter')submitNewPassword()"><label for="rcPass2">Confirm new password</label><button type="button" class="eye" aria-label="Show password" onclick="togglePw(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
     <button class="btn-red" style="width:100%;margin-top:4px" id="rcBtn" onclick="submitNewPassword()">Update Password</button>
+  </div>
+</div>
+
+<!-- ENTER CODE (email sign-in code, signup confirmation, password reset) -->
+<div class="page" id="page-code">
+  <div class="box">
+    <h2 class="box-title" id="cdTitle">Enter Code</h2>
+    <p id="cdSub" style="font-size:.8rem;color:var(--muted);margin:-14px 0 18px;line-height:1.5"></p>
+    <div class="msg err" id="cdMsg" role="alert" aria-live="polite"></div>
+    <div class="field"><input type="text" id="cdCode" placeholder="c" autocomplete="one-time-code" inputmode="numeric" maxlength="10" autocapitalize="none" spellcheck="false" required aria-describedby="cdCodeErr" style="letter-spacing:4px;font-size:1.05rem" oninput="this.value=this.value.replace(/\D/g,'');clearFieldErr('cdCode')" onkeydown="if(event.key==='Enter')cdVerify()"><label for="cdCode">Code from your email</label></div>
+    <div class="ferr" id="cdCodeErr" role="alert"></div>
+    <button class="btn-red" style="width:100%;margin-top:4px" id="cdBtn" onclick="cdVerify()">Verify</button>
+    <div class="opts-row" style="justify-content:space-between">
+      <button class="link-btn" id="cdResend" onclick="cdResend()">Resend code</button>
+      <button class="link-btn" onclick="cdBack()">Back to sign in</button>
+    </div>
   </div>
 </div>
 
@@ -455,7 +472,66 @@ async function forgotPass() {
   if (!EMAIL_RE.test(email)) { fieldErr('liEmail', 'Please enter your email address first.'); return; }
   const { error } = await Auth.resetPassword(email);
   if (error) showMsg('loginMsg', errText(error.message));
-  else showMsg('loginMsg','If this email is registered, a reset link is on its way. Check Inbox and Spam/Promotions.', true);
+  else cdOpen('recovery', email);
+}
+
+// ── EMAIL CODE (sign in with a code / confirm signup / reset password) ─────────────
+let _cd = { mode: '', email: '' }, _cdTimer = null;
+const CD_TEXT = {
+  login:    { title: 'Enter Sign-In Code', sub: e => 'We sent a code to ' + e + '. Enter it below to sign in. Check Inbox and Spam/Promotions.' },
+  signup:   { title: 'Confirm Your Email', sub: e => 'Account created! We sent a code to ' + e + '. Enter it below, or tap the link in the email. Check Inbox and Spam/Promotions.' },
+  recovery: { title: 'Reset Password',     sub: e => 'If ' + e + ' has an account, we sent a code to it. Enter it below, or tap the link in the email. Check Inbox and Spam/Promotions.' },
+};
+function cdOpen(mode, email) {
+  _cd = { mode, email };
+  document.getElementById('cdTitle').textContent = CD_TEXT[mode].title;
+  document.getElementById('cdSub').textContent = CD_TEXT[mode].sub(email);
+  document.getElementById('cdMsg').className = 'msg err';
+  document.getElementById('cdCode').value = '';
+  clearFieldErr('cdCode');
+  const b = document.getElementById('cdBtn'); b.textContent = 'Verify'; b.disabled = false;
+  showPage('code');
+  cdCooldown(60);
+  setTimeout(() => { try { document.getElementById('cdCode').focus(); } catch (e) {} }, 50);
+}
+function cdBack() { clearInterval(_cdTimer); showPage('login'); }
+function cdCooldown(sec) {                 // Supabase allows one email per minute
+  const b = document.getElementById('cdResend'); clearInterval(_cdTimer);
+  let s = sec; b.disabled = true; b.textContent = 'Resend code (' + s + 's)';
+  _cdTimer = setInterval(() => {
+    s--; if (s <= 0) { clearInterval(_cdTimer); b.disabled = false; b.textContent = 'Resend code'; }
+    else b.textContent = 'Resend code (' + s + 's)';
+  }, 1000);
+}
+async function cdStart(mode) {             // "Email me a sign-in code" on the sign-in page
+  const email = document.getElementById('liEmail').value.trim();
+  document.getElementById('loginMsg').className = 'msg err';
+  if (!EMAIL_RE.test(email)) { fieldErr('liEmail', email ? 'Please enter a valid email address.' : 'Please enter your email address first.'); document.getElementById('liEmail').focus(); return; }
+  const { error } = await getSB().auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
+  if (error) { showMsg('loginMsg', errText(error.message)); return; }
+  cdOpen(mode, email);
+}
+async function cdResend() {
+  const { mode, email } = _cd; if (!email) return;
+  cdCooldown(60);
+  let error;
+  if (mode === 'login')         ({ error } = await getSB().auth.signInWithOtp({ email, options: { shouldCreateUser: false } }));
+  else if (mode === 'signup')   ({ error } = await Auth.resendConfirmation(email));
+  else                          ({ error } = await Auth.resetPassword(email));
+  if (error) showMsg('cdMsg', errText(error.message));
+  else showMsg('cdMsg', 'A new code is on its way to ' + email + '.', true);
+}
+async function cdVerify() {
+  const code = document.getElementById('cdCode').value.replace(/\D/g, '');
+  document.getElementById('cdMsg').className = 'msg err';
+  if (!/^\d{6,10}$/.test(code)) { fieldErr('cdCode', 'Please enter the code from your email.'); document.getElementById('cdCode').focus(); return; }
+  const btn = document.getElementById('cdBtn'); btn.textContent = 'Verifying...'; btn.disabled = true;
+  const type = { login: 'email', signup: 'signup', recovery: 'recovery' }[_cd.mode];
+  const { error } = await getSB().auth.verifyOtp({ email: _cd.email, token: code, type });
+  if (error) { showMsg('cdMsg', errText(error.message)); btn.textContent = 'Verify'; btn.disabled = false; return; }
+  clearInterval(_cdTimer);
+  // success: the auth listener takes over (sign-in / signup → account, recovery → "Set New Password")
+  showMsg('cdMsg', _cd.mode === 'recovery' ? 'Code verified. Choose a new password…' : 'Verified! Signing you in…', true);
 }
 
 // ── SIGNUP ────────────────────────────────────────
@@ -506,9 +582,7 @@ async function finishSignup() {
     if (!data.session) {
       reset();
       document.getElementById('liEmail').value = signupData.email;
-      showPage('login');
-      showMsg('loginMsg', 'Account created! We sent a confirmation link to ' + signupData.email + '. Check Inbox and Spam/Promotions, confirm, then sign in.', true);
-      document.getElementById('resendBtn').style.display = 'inline-block';
+      cdOpen('signup', signupData.email);
       return;
     }
   }
@@ -602,6 +676,8 @@ function errText(m) {
     'error sending':                          'We could not send the email right now. Please try again later or contact support.',
     'should be different from the old':       'Please choose a password different from your old one',
     'session missing':                        'This reset link has expired. Please request a new one.',
+    'token has expired or is invalid':        'That code is incorrect or has expired. Please try again or request a new one.',
+    'signups not allowed for otp':            'No account found with this email. Please sign up first.',
   };
   for (const [k, v] of Object.entries(map)) {
     if (m.toLowerCase().includes(k.toLowerCase())) return v;
