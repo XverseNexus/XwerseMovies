@@ -342,7 +342,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;ali
   <!-- NEW & POPULAR -->
   <div class="bpg" id="pg-new">
     <div style="padding:82px var(--content-pad) 0"><div style="font-family:'Bebas Neue',cursive;font-size:clamp(1.6rem,4vw,2.5rem);color:#fff;letter-spacing:2px;margin-bottom:3px">New & Popular</div><div style="font-size:.82rem;color:var(--muted);margin-bottom:16px">Coming soon aur sabka favourite</div></div>
-    <div class="pg-tabs" style="position:static;margin:0"><button class="ptab active" onclick="npSwitch('watching',this)">Everyone's Watching</button><button class="ptab" onclick="npSwitch('top10',this)">Top 10</button><button class="ptab" onclick="npSwitch('new',this)">New Arrivals</button></div>
+    <div class="pg-tabs" style="position:static;margin:0"><button class="ptab active" onclick="npSwitch('watching',this)">Everyone's Watching</button><button class="ptab" onclick="npSwitch('top10',this)">Top 10</button><button class="ptab" onclick="npSwitch('new',this)">New Arrivals</button><button class="ptab" onclick="npSwitch('soon',this)">Coming Soon</button></div>
     <div class="cont" style="padding-top:20px" id="npCont"></div>
   </div>
 
@@ -576,10 +576,20 @@ function loadMore(t){ if(t==='tv'){tvPage++;renderTV();}else{movPage++;renderMov
 function setV(t,v,btn){ if(t==='tv'){tvV=v;document.querySelectorAll('#pg-tv .vb').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderTV();}else{movV=v;document.querySelectorAll('#pg-movies .vb').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderMov();} }
 
 // ── NEW & POPULAR ─────────────────────────
+let npNew=[], npSoon=[];
 async function loadNP(tab){
   const c=document.getElementById('npCont'); c.innerHTML=skelG(12);
-  const [tr,up]=await Promise.all([TMDB.trending(),TMDB.upcoming()]);
-  npItems=[...(tr?.results||[]),...(up?.results||[])].filter(m=>m.poster_path).map(TMDB.normalize);
+  const [tr,up,now,air]=await Promise.all([TMDB.trending(),TMDB.upcoming(),TMDB.nowPlaying(),TMDB.fetch('/tv/on_the_air')]);
+  const today=new Date().toISOString().slice(0,10);
+  const dateOf=m=>m.release_date||m.first_air_date||'';
+  const pick=arr=>(arr?.results||[]).filter(m=>m.poster_path);
+  npItems=pick(tr).map(TMDB.normalize);                                   // Everyone's Watching + Top 10
+  const seen={};
+  npNew=[...pick(now),...pick(air)]                                         // New Arrivals: newest releases first
+    .filter(m=>{const d=dateOf(m);if(!d||d>today||seen[m.id])return false;seen[m.id]=1;return true;})
+    .sort((a,b)=>dateOf(b).localeCompare(dateOf(a))).map(TMDB.normalize);
+  npSoon=pick(up).filter(m=>dateOf(m)>today)                                // Coming Soon: soonest first
+    .sort((a,b)=>dateOf(a).localeCompare(dateOf(b))).map(TMDB.normalize);
   renderNP(tab);
 }
 function npSwitch(t,btn){ document.querySelectorAll('#pg-new .ptab').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); renderNP(t); }
@@ -588,19 +598,17 @@ function renderNP(tab){
   if(!npItems.length){c.innerHTML=skelG(12);return;}
   if(tab==='top10'){
     var h='<div class="t10w">';
-    for(var i=0;i<Math.min(10,npItems.length);i++){
-      var m=npItems[i], k=_reg(m);
-      h+='<div class="t10c" data-mk="'+k+'" onclick="openMod(_get(this.dataset.mk))"><div class="t10n">'+(i+1)+'</div><img class="t10p" src="'+(m.poster_url||'')+'" alt="" loading="lazy"></div>';
-    }
+    for(var i=0;i<Math.min(10,npItems.length);i++){ h+=XCard.top10(npItems[i], i, { onOpen: 'openMod' }); }
     c.innerHTML=h+'</div>'; return;
   }
-  var items=tab==='new'?[].concat(npItems).rewerse():npItems;
+  var items=tab==='new'?npNew:tab==='soon'?npSoon:npItems;
+  if(!items.length){c.innerHTML='<div style="color:var(--muted);padding:30px 4px">Nothing to show here right now.</div>';return;}
   var h='<div class="npl">';
   for(var i=0;i<Math.min(25,items.length);i++){
     var m=items[i], k=_reg(m);
     var inML=ML.has(m.id), mlLbl=inML?'&#10003;':'+';
     var isTV=m.type==='tv'?'1':'0';
-    var badge=i<4?'<span class="npnew">NEW</span>':i<10?'<span class="nphot">&#128293;</span>':'';
+    var badge=tab==='soon'?'<span class="npnew" style="background:#2a6bd1">SOON</span>':tab==='new'?(i<8?'<span class="npnew">NEW</span>':''):(i<4?'<span class="npnew">NEW</span>':i<10?'<span class="nphot">&#128293;</span>':'');
     h+='<div class="npc" data-mk="'+k+'" onclick="openMod(_get(this.dataset.mk))">'
       +'<div class="nprk">'+(i+1)+'</div>'
       +'<img class="npth" src="'+(m.poster_url||'')+'" alt="" loading="lazy">'
@@ -616,8 +624,18 @@ function renderNP(tab){
 }
 
 // ── LANGUAGES ─────────────────────────────
+async function _fillLangCounts(){
+  await Promise.all(LANGS.map(async l=>{
+    try{
+      const r=await TMDB.fetch('/discover/movie',{with_original_language:l.code,include_adult:'false'});
+      const n=r&&r.total_results; const el=document.querySelector('[data-lc="'+l.code+'"]');
+      if(el&&n) el.textContent=n.toLocaleString()+' movies';
+    }catch(e){}
+  }));
+}
 function buildLangs(){
-  document.getElementById('langG').innerHTML=LANGS.map(l=>`<div onclick="switchPage('movies');filterMovL('${l.code}')" style="background:linear-gradient(135deg,${l.bg} 0%,rgba(255,255,255,.04) 100%);border:1px solid var(--border);border-radius:9px;padding:20px 16px;cursor:pointer;transition:border-color .2s;display:flex;align-items:center;justify-content:space-between" onmouseover="this.style.borderColor='rgba(255,255,255,.26)'" onmouseout="this.style.borderColor='var(--border)'"><div><div style="font-size:1.6rem;margin-bottom:6px">${l.icon}</div><div style="font-size:.95rem;font-weight:700;color:#fff;margin-bottom:2px">${l.name}</div><div style="font-size:.7rem;color:rgba(255,255,255,.38)">${l.count.toLocaleString()} titles</div></div><div style="font-size:.8rem;color:rgba(255,255,255,.25)">›</div></div>`).join('');
+  document.getElementById('langG').innerHTML=LANGS.map(l=>`<div onclick="switchPage('movies');filterMovL('${l.code}')" style="background:linear-gradient(135deg,${l.bg} 0%,rgba(255,255,255,.04) 100%);border:1px solid var(--border);border-radius:9px;padding:20px 16px;cursor:pointer;transition:border-color .2s;display:flex;align-items:center;justify-content:space-between" onmouseover="this.style.borderColor='rgba(255,255,255,.26)'" onmouseout="this.style.borderColor='var(--border)'"><div><div style="font-size:1.6rem;margin-bottom:6px">${l.icon}</div><div style="font-size:.95rem;font-weight:700;color:#fff;margin-bottom:2px">${l.name}</div><div style="font-size:.7rem;color:rgba(255,255,255,.38)"><span data-lc="${l.code}">Movies &amp; shows</span></div></div><div style="font-size:.8rem;color:rgba(255,255,255,.25)">›</div></div>`).join('');
+  _fillLangCounts();
 }
 
 // ── HERO ──────────────────────────────────
