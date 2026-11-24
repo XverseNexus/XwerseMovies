@@ -431,6 +431,7 @@ let _cachedRowData = null;
   await ML.init(currentUser.id);
   Ratings.injectStyles();
   await Ratings.init(currentUser.id);
+  XMatch.init(currentUser.id);
   const topSeeds     = Ratings.getTopLikedSeeds(3);
   const dislikedKeys = Ratings.getDislikedSet();
   // With 2+ liked titles, "Top Picks" (multi-seed) is strictly richer than
@@ -471,10 +472,10 @@ let _cachedRowData = null;
     TMDB.byGenre(28),    // Action & Adventure
     TMDB.byGenre(35),    // Comedy
     TMDB.byGenre(27),    // Horror/Thriller
-    TMDB.top10Movies(),
-    TMDB.top10TV(),
+    XTop10.list('movie', 'GLOBAL', 'day'),
+    XTop10.list('tv', 'GLOBAL', 'day'),
   ]);
-  window._top10 = { movies: t10Movies, tv: t10TV };
+  window._top10 = { movie: t10Movies, tv: t10TV };
 
   _cachedRowData = { adminMovies, trending, topRated, popular, hindi, south, tv, becauseYouLiked, topPicks, actionGenre, comedyGenre, thrillerGenre };
 
@@ -567,15 +568,16 @@ function renderHero(m) {
   const bg = document.getElementById('heroBg');
   bg.style.backgroundImage = `url('${m.backdrop_url || m.poster_url}')`;
 
-  const match = Math.round(65 + (parseFloat(m.rating||m.vote_average||7) * 3.5));
   const inList = ML.has(m.id);
+  const _tl = (window._top10 || {})[m.type === 'tv' ? 'tv' : 'movie'] || [];
+  const _rank = (_tl.findIndex(x => String(x.id) === String(m.tmdb_id)) + 1) || 0;
   const k = _reg(m); // registry — no JSON-in-onclick special char crashes
 
   document.getElementById('heroContent').innerHTML = `
-    <div class="hero-badge">★ XwerseMOVIES PICK</div>
+    ${XBadge.html(m, _rank, m.type === 'tv' ? 'TV Shows Today' : 'Movies Today', 'hero-badge')}
     <div class="hero-title">${m.title}</div>
     <div class="hero-meta">
-      <span class="hero-match">${match}% Match</span>
+      ${XMatch.html('hero-match', m)}
       <span style="font-size:.82rem;color:rgba(255,255,255,.7)">${m.year || ''}</span>
       <span class="hero-tag">${m.age_rating || 'UA'}</span>
       ${m.quality ? `<span style="background:rgba(70,211,105,.12);color:var(--green);font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:3px">${m.quality}</span>` : ''}
@@ -652,9 +654,9 @@ if (trendingFiltered.length)
 
 {
   const _t = window._top10 || {};
-  _t10Cache['movie|IN'] = _t10Cache['movie|IN'] || _t.movies;
-  _t10Cache['tv|IN']    = _t10Cache['tv|IN']    || _t.tv;
-  const firstList = mergeMovieLists(adminMovies, norm(_t10Cache[_t10Sel.type + '|' + _t10Sel.cc])).slice(0,10);
+  _t10Cache['movie|GLOBAL|day'] = _t10Cache['movie|GLOBAL|day'] || _t.movie;
+  _t10Cache['tv|GLOBAL|day']    = _t10Cache['tv|GLOBAL|day']    || _t.tv;
+  const firstList = mergeMovieLists(adminMovies, normList(_t10Cache[_t10Key()])).slice(0,10);
   if (firstList.length >= 3) wrap.appendChild(buildTop10Row(null, firstList, true));
   else if (topRatedFiltered.length) wrap.appendChild(buildTop10Row('Top 10 in India Today', topRatedFiltered.slice(0,10)));
 }
@@ -715,29 +717,26 @@ function buildCardRow(title, movies, seeAllHref) {
   return row;
 }
 
-// ── TOP 10 with country + Movies/TV dropdowns (Netflix style) ──────────────
-const T10_COUNTRIES = 'IN US GB CA AU AE SA PK BD LK NP SG MY ID PH TH VN JP KR TW HK CN DE FR ES IT NL BE SE NO DK FI PL PT IE CH AT GR TR RU UA CZ HU RO BG HR RS IL EG ZA NG KE MA DZ GH BR MX AR CL CO PE VE EC UY NZ QA KW OM BH JO LB'.split(' ');
-const _t10Cache = {};            // 'movie|IN' → TMDB response
-const _t10Sel = { cc: 'IN', type: 'movie' };
+// ── TOP 10 with country + Movies/TV + Today/This Week dropdowns (Netflix style) ──
+const _t10Cache = {};            // 'movie|GLOBAL|day' → raw TMDB items
+const _t10Sel = { cc: 'GLOBAL', type: 'movie', period: 'day' };
 let _t10Token = 0;
-function _t10Name(cc) { try { return new Intl.DisplayNames(['en'], { type: 'region' }).of(cc) || cc; } catch (e) { return cc; } }
-function _t10Title() {
-  return 'Top 10 ' + (_t10Sel.type === 'tv' ? 'TV Shows' : 'Movies') + ' in ' + _t10Name(_t10Sel.cc) + ' Today';
-}
+const _t10Key = () => _t10Sel.type + '|' + _t10Sel.cc + '|' + _t10Sel.period;
+const normList = arr => (arr || []).filter(m => m.poster_path).map(TMDB.normalize);
+function _t10Title() { return XTop10.title(_t10Sel.type, _t10Sel.cc, _t10Sel.period); }
 function buildTop10Row(title, movies, withPickers) {
   if (!movies?.length) return document.createDocumentFragment();
   const row = document.createElement('div');
   row.className = 'row';
   if (withPickers) {
     row.id = 't10Row';
-    const opts = [...T10_COUNTRIES].sort((a, b) => a === 'IN' ? -1 : b === 'IN' ? 1 : _t10Name(a).localeCompare(_t10Name(b)))
-      .map(c => `<option value="${c}"${c === _t10Sel.cc ? ' selected' : ''}>${_t10Name(c)}</option>`).join('');
     row.innerHTML = `
       <div class="row-hd t10-hd"><span class="row-title" id="t10Title">${_t10Title()}</span>
-        <select class="t10-sel" id="t10Country" aria-label="Choose country" onchange="t10Change()">${opts}</select>
+        <select class="t10-sel" id="t10Country" aria-label="Choose country" onchange="t10Change()">${XTop10.countryOptions(_t10Sel.cc)}</select>
         <select class="t10-sel" id="t10Type" aria-label="Movies or TV shows" onchange="t10Change()">
           <option value="movie"${_t10Sel.type === 'movie' ? ' selected' : ''}>Movies</option>
-          <option value="tv"${_t10Sel.type === 'tv' ? ' selected' : ''}>TV Shows</option></select></div>
+          <option value="tv"${_t10Sel.type === 'tv' ? ' selected' : ''}>TV Shows</option></select>
+        <select class="t10-sel" id="t10Period" aria-label="Today or this week" onchange="t10Change()">${XTop10.periodOptions(_t10Sel.period)}</select></div>
       <div class="t10-wrap" id="t10Wrap">${movies.map((m,i) => XCard.top10(m, i, { onOpen: 'openModal' })).join('')}</div>`;
     return row;
   }
@@ -747,19 +746,17 @@ function buildTop10Row(title, movies, withPickers) {
   return row;
 }
 async function t10Change() {
-  const cc = document.getElementById('t10Country').value, type = document.getElementById('t10Type').value;
-  _t10Sel.cc = cc; _t10Sel.type = type;
-  const my = ++_t10Token, key = type + '|' + cc;
+  _t10Sel.cc = document.getElementById('t10Country').value;
+  _t10Sel.type = document.getElementById('t10Type').value;
+  _t10Sel.period = document.getElementById('t10Period').value;
+  const my = ++_t10Token, key = _t10Key();
   document.getElementById('t10Title').textContent = _t10Title();
   const wrap = document.getElementById('t10Wrap'); wrap.style.opacity = '.35';
-  if (!_t10Cache[key]) {
-    try { _t10Cache[key] = type === 'tv' ? await TMDB.top10TV(cc) : await TMDB.top10Movies(cc); } catch (e) {}
-  }
+  if (!_t10Cache[key]) { try { _t10Cache[key] = await XTop10.list(_t10Sel.type, _t10Sel.cc, _t10Sel.period); } catch (e) {} }
   if (my !== _t10Token) return;                         // a newer choice replaced this one
-  const list = (_t10Cache[key]?.results || []).filter(m => m.poster_path).map(TMDB.normalize);
-  const merged = mergeMovieLists(_cachedRowData?.adminMovies || [], list).slice(0, 10);
+  const merged = mergeMovieLists(_cachedRowData?.adminMovies || [], normList(_t10Cache[key])).slice(0, 10);
   wrap.style.opacity = '';
-  if (!merged.length) { wrap.innerHTML = '<div style="color:var(--muted);padding:18px 4px;font-size:.9rem">No titles found for this country right now.</div>'; return; }
+  if (!merged.length) { wrap.innerHTML = '<div style="color:var(--muted);padding:18px 4px;font-size:.9rem">No titles found for this choice right now.</div>'; return; }
   wrap.innerHTML = merged.map((m,i) => XCard.top10(m, i, { onOpen: 'openModal' })).join('');
   wrap.scrollLeft = 0;
 }
@@ -897,11 +894,10 @@ function openModal(m) {
   document.body.style.overflow = 'hidden';
   document.getElementById('modalImg').src    = m.backdrop_url || m.poster_url || '';
   document.getElementById('modalTitle').textContent = m.title;
-  const match = Math.round(65 + (parseFloat(m.rating||m.vote_average||7) * 3.5));
   const isTV  = m.type === 'tv';
 
   document.getElementById('modalMeta').innerHTML = `
-    <span class="modal-match">${match}% Match</span>
+    ${XMatch.html('modal-match', m)}
     <span>${m.year||''}</span>
     <span class="modal-cert">${m.age_rating||'UA'}</span>
     <span>${isTV ? 'TV Show' : 'Movie'}</span>
