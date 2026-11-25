@@ -120,7 +120,7 @@ async function track(user, b, req) {
       else {
         const since = new Date(now - 24 * 3600 * 1000).toISOString();
         const [byIp, byUser] = await Promise.all([
-          ipHash ? C.sb(`view_events?ip_hash=eq.${ipHash}&qualified=eq.true&qualified_at=gte.${since}&select=id`) : { data: [] },
+          ipHash ? C.sb(`view_events?ip_hash=in.(${[...new Set([ipHash, ev.ip_hash].filter(Boolean))].join(',')})&qualified=eq.true&qualified_at=gte.${since}&select=id`) : { data: [] },
           C.sb(`view_events?user_id=eq.${user.id}&qualified=eq.true&qualified_at=gte.${since}&select=id`),
         ]);
         if ((byIp.data || []).length >= DAILY_CAP) reason = 'ip_limit';
