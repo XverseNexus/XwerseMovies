@@ -804,7 +804,10 @@ async function requireAuth(redirectTo = '/') {
     return null;
   }
 
-  if (typeof XRef !== 'undefined') XRef.claim().catch(() => {});   // partner link waiting from before login? put the "thappa" on now
+  // wait (max 3 s) for the partner "thappa" to be put on BEFORE the page can start counting a view
+  if (typeof XRef !== 'undefined' && XRef.list().length) {
+    try { await Promise.race([XRef.claim().catch(() => {}), new Promise(r => setTimeout(r, 3000))]); } catch (e) {}
+  }   // partner link waiting from before login? put the "thappa" on now
   return session.user;
 }
 
@@ -2431,8 +2434,11 @@ const XRef = {
     } catch (e) {}
   },
   async claim() {
-    const a = this.list(); if (!a.length || this._busy) return;
-    this._busy = true;
+    const a = this.list(); if (!a.length) return;
+    if (this._p) return this._p;
+    return this._p = this._run(a).finally(() => { this._p = null; });
+  },
+  async _run(a) {
     try {
       const { data } = await getSB().auth.getSession();
       const token = data?.session?.access_token; if (!token) return;
@@ -2447,7 +2453,7 @@ const XRef = {
         if (!keep) rest = rest.filter(y => y !== x);
       }
       this.save(rest);
-    } finally { this._busy = false; }
+    } catch (e) {}
   },
 };
 XRef.capture();
