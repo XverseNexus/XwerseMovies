@@ -804,6 +804,7 @@ async function requireAuth(redirectTo = '/') {
     return null;
   }
 
+  if (typeof XRef !== 'undefined') XRef.claim().catch(() => {});   // partner link waiting from before login? put the "thappa" on now
   return session.user;
 }
 
@@ -2402,6 +2403,118 @@ const XShare = {
     } catch (e) {}
     return (n && this._NEXT_OK.some(r => r.test(n))) ? n : '/Home';
   },
+};
+
+/* ═══════════════════════════════════════════════════════════
+   PARTNER PROGRAM (client side, Stage 1)
+   XRef  — remembers a partner link (?ref=CODE&t=ID&type=movie|tv) and, once the visitor is logged in,
+           asks the server to put the partner's "thappa" on that title.
+   XAd   — ad-blocker check (bait file + bait element).
+   XView — counts watched seconds (tab visible) while an embed plays and tells the server;
+           the SERVER decides whether the view counts.
+   ═══════════════════════════════════════════════════════════ */
+const XRef = {
+  KEY: 'xv_ref',
+  list() {
+    try { const a = JSON.parse(localStorage.getItem(this.KEY) || '[]'); return Array.isArray(a) ? a.filter(x => x && Date.now() - x.at < 30 * 864e5) : []; } catch (e) { return []; }
+  },
+  save(a) { try { localStorage.setItem(this.KEY, JSON.stringify(a.slice(-10))); } catch (e) {} },
+  capture() {
+    try {
+      const q = new URLSearchParams(location.search);
+      const code = (q.get('ref') || '').trim(), t = parseInt(q.get('t'), 10);
+      if (!/^[A-Za-z0-9]{4,16}$/.test(code) || !t) return;
+      const type = q.get('type') === 'tv' ? 'tv' : 'movie';
+      const a = this.list().filter(x => !(x.code === code && x.t === t && x.type === type));
+      a.push({ code, t, type, at: Date.now() });
+      this.save(a);
+    } catch (e) {}
+  },
+  async claim() {
+    const a = this.list(); if (!a.length || this._busy) return;
+    this._busy = true;
+    try {
+      const { data } = await getSB().auth.getSession();
+      const token = data?.session?.access_token; if (!token) return;
+      let rest = a.slice();
+      for (const x of a) {
+        let keep = false;
+        try {
+          const r = await fetch('/api/partner', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ action: 'claim', code: x.code, t: x.t, type: x.type }) });
+          const d = await r.json().catch(() => ({}));
+          keep = !r.ok ? (r.status >= 500 || r.status === 401) : !!d.keep;
+        } catch (e) { keep = true; }
+        if (!keep) rest = rest.filter(y => y !== x);
+      }
+      this.save(rest);
+    } finally { this._busy = false; }
+  },
+};
+XRef.capture();
+
+const XAd = {
+  _p: null,
+  detect() {
+    if (this._p) return this._p;
+    this._p = new Promise(resolve => {
+      let done = false; const fin = v => { if (!done) { done = true; resolve(!!v); } };
+      try {
+        const bait = document.createElement('div');
+        bait.className = 'adsbox ad-banner adsbygoogle pub_300x250 text-ad';
+        bait.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:10px;height:10px';
+        bait.innerHTML = '&nbsp;';
+        (document.body || document.documentElement).appendChild(bait);
+        const s = document.createElement('script');
+        s.src = '/ads/adframe.js?v=' + Date.now();
+        s.onload  = () => setTimeout(() => {
+          const hidden = !bait.offsetHeight || getComputedStyle(bait).display === 'none' || getComputedStyle(bait).visibility === 'hidden';
+          bait.remove(); s.remove(); fin(window.__xv_ad !== 1 || hidden);
+        }, 150);
+        s.onerror = () => { bait.remove(); fin(true); };
+        document.head.appendChild(s);
+        setTimeout(() => fin(false), 2500);
+      } catch (e) { fin(false); }
+    });
+    return this._p;
+  },
+};
+
+const XView = {
+  _id: null, _sec: 0, _timer: null, _pinged: false, _adblock: false, _bound: false,
+  async _post(body, keepalive) {
+    const { data } = await getSB().auth.getSession();
+    const token = data?.session?.access_token; if (!token) return null;
+    this._tok = token;
+    const r = await fetch('/api/partner', { method: 'POST', keepalive: !!keepalive, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ action: 'track', ...body }) });
+    return r.ok ? r.json().catch(() => null) : null;
+  },
+  async start(meta) {
+    try {
+      this._end(true);
+      if (!meta || !meta.tmdb_id) return;
+      const adblock = await XAd.detect();
+      this._adblock = adblock; this._sec = 0; this._pinged = false; this._id = null;
+      const d = await this._post({ phase: 'start', tmdb_id: meta.tmdb_id, type: meta.type, season: meta.season || null, episode: meta.episode || null, host: meta.host || '', adblock });
+      if (!d || !d.id) return;
+      this._id = d.id;
+      this._timer = setInterval(() => {
+        if (document.visibilityState === 'visible') this._sec++;
+        if (!this._pinged && this._sec >= 60) { this._pinged = true; this._post({ phase: 'ping', id: this._id, seconds: this._sec, adblock: this._adblock }).catch(() => {}); }
+      }, 1000);
+      if (!this._bound) {
+        this._bound = true;
+        window.addEventListener('pagehide', () => this._end(false));
+      }
+    } catch (e) {}
+  },
+  _end(silent) {
+    if (this._timer) { clearInterval(this._timer); this._timer = null; }
+    const id = this._id; this._id = null;
+    if (!id || silent === true && this._sec < 1) return;
+    if (!this._tok) return;                                  // synchronous on purpose: the page may be closing
+    try { fetch('/api/partner', { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + this._tok }, body: JSON.stringify({ action: 'track', phase: 'end', id, seconds: this._sec, adblock: this._adblock }) }).catch(() => {}); } catch (e) {}
+  },
+  hostOf(url) { try { return new URL(url, location.href).hostname; } catch (e) { return ''; } },
 };
 
 /* ═══════════════════════════════════════════════════════════
