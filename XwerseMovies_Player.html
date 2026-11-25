@@ -674,6 +674,8 @@ function loadVideo(m) {
   frame.style.display = 'block';
   _loadStart = Date.now();
   watchEmbed(frame, embedUrl);
+  // Partner program: count this view (the server decides whether it qualifies). Direct streams / non-TMDB titles are skipped.
+  try { XView.start({ tmdb_id: m.tmdb_id, type: isTV ? 'tv' : 'movie', season: isTV ? season : null, episode: isTV ? episode : null, host: XView.hostOf(embedUrl) }); } catch (e) {}
 
   // Phones held upright: suggest landscape once per session.
   try {
