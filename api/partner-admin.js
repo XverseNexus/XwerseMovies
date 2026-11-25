@@ -32,12 +32,16 @@ module.exports = async function handler(req, res) {
       const have = await C.sb(`partners?user_id=eq.${user.id}&select=code`);
       if (Array.isArray(have.data) && have.data[0]) return res.status(200).json({ code: have.data[0].code });
       const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let lastErr = null;
       for (let i = 0; i < 6; i++) {
         let code = ''; for (let k = 0; k < 7; k++) code += alphabet[Math.floor(Math.random() * alphabet.length)];
         const ins = await C.sb('partners', { method: 'POST', body: { user_id: user.id, code } });
         if (ins.ok) return res.status(200).json({ code });
+        lastErr = ins;
+        if (ins.status !== 409) break;
       }
-      return res.status(500).json({ error: 'Could not create a code, try again' });
+      const why = lastErr ? (lastErr.status + ' ' + (lastErr.data && (lastErr.data.message || lastErr.data.hint) || JSON.stringify(lastErr.data || ''))).slice(0, 160) : '';
+      return res.status(500).json({ error: 'Could not create a code: ' + why });
     }
 
     if (b.action === 'titles_list') {
