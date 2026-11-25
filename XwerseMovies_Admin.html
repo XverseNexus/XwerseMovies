@@ -290,6 +290,8 @@ nav{background:#111;border-bottom:1px solid var(--border);padding:0 22px;height:
     <button class="sbtn" onclick="nav('bulk',this)"><span class="sbico">📥</span> Bulk Import</button>
     <button class="sbtn" onclick="nav('export',this)"><span class="sbico">💾</span> Export Data</button>
     <button class="sbtn" id="sbModBtn" onclick="nav('moderators',this)" style="display:none"><span class="sbico">🛡️</span> Moderators</button>
+    <div class="sblbl">Partner program</div>
+    <button class="sbtn" onclick="nav('partner',this)"><span class="sbico">🤝</span> Partner (beta)</button>
     <div class="sblbl">Requests</div>
     <button class="sbtn" onclick="nav('requests',this)"><span class="sbico">📋</span> Manage Requests <span class="sbcnt" id="sbReqCnt">0</span></button>
   </aside>
@@ -571,6 +573,45 @@ nav{background:#111;border-bottom:1px solid var(--border);padding:0 22px;height:
       </div>
     </div>
 
+    <!-- PARTNER PROGRAM (stage 1: tracking + calibration) -->
+    <div class="panel" id="panel-partner">
+      <div class="ptit">Partner program <span style="font-size:.7rem;color:var(--muted);font-weight:600">BETA · Stage 1</span></div>
+      <div class="psub">Tracking + calibration. Compare our qualified views with the VOE "Insights → Table" before partners join.</div>
+
+      <div class="fc" style="margin-bottom:16px">
+        <div class="fc-title"><div class="fc-ico">🧪</div> My test partner</div>
+        <div id="ptStatus" style="font-size:.83rem;color:rgba(255,255,255,.7);line-height:1.7">Loading…</div>
+        <div style="margin-top:10px"><button class="btn-add" id="ptMake" onclick="ptBecome()" style="display:none">Create my test partner code</button></div>
+      </div>
+
+      <div class="fc" style="margin-bottom:16px">
+        <div class="fc-title"><div class="fc-ico">🎬</div> Promotable titles</div>
+        <div style="font-size:.8rem;color:rgba(255,255,255,.55);margin-bottom:12px;line-height:1.6">Only titles listed here (and switched on) can get a partner "thappa". TMDB id is the number in the themoviedb.org address.</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+          <input type="number" id="ptTid" class="fi" placeholder="TMDB id (e.g. 603)" style="flex:1;min-width:150px">
+          <select id="ptType" class="fi" style="flex:0 0 130px"><option value="movie">Movie</option><option value="tv">TV show</option></select>
+          <button class="btn-add" onclick="ptTitle(true)" style="flex-shrink:0">Enable</button>
+        </div>
+        <div id="ptTitles" style="font-size:.8rem"></div>
+      </div>
+
+      <div class="fc">
+        <div class="fc-title"><div class="fc-ico">📈</div> Calibration report (our tracking)</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
+          <input type="date" id="ptFrom" class="fi" style="flex:0 0 160px"> <span>to</span>
+          <input type="date" id="ptTo" class="fi" style="flex:0 0 160px">
+          <input type="text" id="ptHost" class="fi" value="voe" placeholder="embed host contains…" style="flex:0 0 190px" title="Only views whose embed host contains this text. Leave blank for all hosts.">
+          <button class="btn-add" onclick="ptReport()" style="flex-shrink:0">Show report</button>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;align-items:center;font-size:.8rem;color:rgba(255,255,255,.6)">
+          VOE Paid views (same dates):
+          <input type="number" id="ptVoePaid" class="fi" placeholder="from VOE Table → TOTAL → Paid" style="flex:0 0 230px" oninput="ptCompare()">
+          <span id="ptCmp"></span>
+        </div>
+        <div id="ptReport" style="font-size:.8rem;overflow-x:auto"></div>
+      </div>
+    </div>
+
     <!-- REQUESTS -->
     <div class="panel" id="panel-requests">
       <div class="ptit">Manage Requests</div>
@@ -749,7 +790,84 @@ function nav(name, btn) {
   if (name === 'export')      loadExportCount();
   if (name === 'moderators')  loadModerators();
   if (name === 'requests')    loadRequests();
+  if (name === 'partner')     ptInit();
   if (name === 'unavailable') { document.getElementById('unavailableResults').innerHTML=''; document.getElementById('checkStatus').textContent=''; document.getElementById('checkProgress').style.display='none'; }
+}
+
+// ─────────────────────────────────────────
+//  PARTNER PROGRAM (stage 1)
+// ─────────────────────────────────────────
+var _ptCode = null, _ptLast = null;
+async function partnerApi(payload) {
+  const { data: sess } = await getSB().auth.getSession();
+  const token = sess?.session?.access_token;
+  if (!token) { showToast('❌ Please sign in again'); return null; }
+  try {
+    const r = await fetch('/api/partner-admin', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify(payload) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { showToast('❌ ' + (d.error || 'Request failed')); return null; }
+    return d;
+  } catch (e) { showToast('❌ Network error'); return null; }
+}
+function ptEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function ptDay(offset) { return new Date(Date.now() + offset * 864e5).toISOString().slice(0, 10); }
+async function ptInit() {
+  if (!document.getElementById('ptFrom').value) { document.getElementById('ptFrom').value = ptDay(-6); document.getElementById('ptTo').value = ptDay(0); }
+  const d = await partnerApi({ action: 'status' });
+  if (!d) { document.getElementById('ptStatus').textContent = 'Could not load. Did you run the SQL file in Supabase?'; return; }
+  _ptCode = d.me ? d.me.code : null;
+  document.getElementById('ptStatus').innerHTML =
+    (_ptCode ? 'Your test partner code: <b style="font-size:1rem;letter-spacing:2px">' + ptEsc(_ptCode) + '</b> · status ' + ptEsc(d.me.status) : 'You are not a test partner yet.') +
+    '<br>VPN / proxy detection: ' + (d.vpn_check ? '<b style="color:#46d369">ON</b>' : '<b style="color:#f5c518">OFF</b> (add IPAPI_KEY in Vercel to turn it on)');
+  document.getElementById('ptMake').style.display = _ptCode ? 'none' : 'inline-block';
+  ptLoadTitles();
+}
+async function ptBecome() { const d = await partnerApi({ action: 'become_test_partner' }); if (d) { showToast('✅ Code: ' + d.code); ptInit(); } }
+async function ptLoadTitles() {
+  const d = await partnerApi({ action: 'titles_list' }); if (!d) return;
+  const el = document.getElementById('ptTitles');
+  if (!d.titles.length) { el.innerHTML = '<div style="color:var(--muted)">No titles yet. Add one above.</div>'; return; }
+  el.innerHTML = d.titles.map(t => {
+    const link = _ptCode ? location.origin + '/s/' + t.media_type + '/' + t.tmdb_id + '?ref=' + _ptCode : '';
+    return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.07)">' +
+      '<b>' + t.tmdb_id + '</b> <span style="color:var(--muted)">' + t.media_type + '</span> ' +
+      '<span style="color:' + (t.enabled ? '#46d369' : '#f55') + '">' + (t.enabled ? 'ON' : 'OFF') + '</span>' +
+      '<button class="tab-btn" onclick="ptToggle(' + t.tmdb_id + ',\'' + t.media_type + '\',' + (!t.enabled) + ')">' + (t.enabled ? 'Turn off' : 'Turn on') + '</button>' +
+      (link ? '<button class="tab-btn" onclick="ptCopy(this)" data-l="' + ptEsc(link) + '">Copy test link</button>' : '') + '</div>';
+  }).join('');
+}
+async function ptTitle(on) {
+  const tid = parseInt(document.getElementById('ptTid').value, 10);
+  if (!tid) { showToast('❌ Enter a TMDB id'); return; }
+  const d = await partnerApi({ action: 'titles_set', tmdb_id: tid, media_type: document.getElementById('ptType').value, enabled: on });
+  if (d) { document.getElementById('ptTid').value = ''; ptLoadTitles(); }
+}
+async function ptToggle(tid, type, on) { const d = await partnerApi({ action: 'titles_set', tmdb_id: tid, media_type: type, enabled: on }); if (d) ptLoadTitles(); }
+function ptCopy(btn) { const l = btn.getAttribute('data-l'); (navigator.clipboard ? navigator.clipboard.writeText(l) : Promise.reject()).then(() => showToast('✅ Link copied'), () => prompt('Copy this link:', l)); }
+async function ptReport() {
+  const d = await partnerApi({ action: 'report', from: document.getElementById('ptFrom').value, to: document.getElementById('ptTo').value, host: document.getElementById('ptHost').value.trim() });
+  if (!d) return;
+  _ptLast = d;
+  const R = { too_short: 'too short', adblock: 'AdBlock', vpn: 'VPN/proxy', ip_limit: '2 per IP', user_limit: '2 per user', unverified: 'e-mail not verified' };
+  const rs = k => R[k] || k;
+  const th = 'style="text-align:left;padding:6px 10px;border-bottom:1px solid rgba(255,255,255,.15)"', td = 'style="padding:6px 10px;border-bottom:1px solid rgba(255,255,255,.06)"';
+  let h = '<div style="margin-bottom:10px;line-height:1.7"><b>' + d.total.started + '</b> started · <b style="color:#46d369">' + d.total.qualified + '</b> qualified · <b>' + d.total.not_qualified + '</b> not qualified' +
+    (Object.keys(d.reasons).length ? ' (' + Object.entries(d.reasons).map(([k, v]) => rs(k) + ' ' + v).join(', ') + ')' : '') +
+    '<br>Partner links: ' + d.clicks.total + ' visits · ' + d.stamps + ' thappa stamped' +
+    (Object.keys(d.clicks.results).length ? ' (' + Object.entries(d.clicks.results).map(([k, v]) => k + ' ' + v).join(', ') + ')' : '') + '</div>';
+  h += '<table style="border-collapse:collapse;min-width:420px"><tr><th ' + th + '>Day (UTC)</th><th ' + th + '>Started</th><th ' + th + '>Qualified</th><th ' + th + '>Not qualified</th></tr>' +
+    d.days.map(x => '<tr><td ' + td + '>' + x.day + '</td><td ' + td + '>' + x.started + '</td><td ' + td + '>' + x.qualified + '</td><td ' + td + '>' + (x.started - x.qualified) + (Object.keys(x.reasons).length ? ' <span style="color:var(--muted)">(' + Object.entries(x.reasons).map(([k, v]) => rs(k) + ' ' + v).join(', ') + ')</span>' : '') + '</td></tr>').join('') + '</table>';
+  if (d.partners.length) h += '<div style="margin-top:14px"><b>By partner</b><br>' + d.partners.map(p => (p.partner_id === 'organic' ? 'Organic (no thappa)' : 'Partner ' + p.partner_id.slice(0, 8)) + ': ' + p.qualified + ' qualified / ' + p.started + ' started').join('<br>') + '</div>';
+  if (d.countries.length) h += '<div style="margin-top:14px"><b>Qualified by country</b><br>' + d.countries.map(c => c.country + ' ' + c.qualified).join(' · ') + '</div>';
+  if (d.capped) h += '<div style="margin-top:10px;color:#f5c518">Report was capped at 30,000 rows. Use a shorter date range.</div>';
+  document.getElementById('ptReport').innerHTML = h;
+  ptCompare();
+}
+function ptCompare() {
+  const el = document.getElementById('ptCmp'), v = parseInt(document.getElementById('ptVoePaid').value, 10);
+  if (!_ptLast || !v) { el.textContent = ''; return; }
+  const ours = _ptLast.total.qualified, diff = ((ours - v) / v * 100);
+  el.innerHTML = 'Ours <b>' + ours + '</b> vs VOE Paid <b>' + v + '</b> → <b style="color:' + (Math.abs(diff) <= 15 ? '#46d369' : Math.abs(diff) <= 30 ? '#f5c518' : '#f55') + '">' + (diff >= 0 ? '+' : '') + diff.toFixed(0) + '%</b> ' + (Math.abs(diff) <= 15 ? '(close — good)' : Math.abs(diff) <= 30 ? '(a bit off — keep tuning)' : '(too far — rules need tuning)');
 }
 
 // ─────────────────────────────────────────
