@@ -21,6 +21,7 @@ module.exports = async function handler(req, res) {
 
   const id   = String(req.query?.t || '').match(/^\d{1,9}$/) ? String(req.query.t) : null;
   const type = req.query?.type === 'tv' ? 'tv' : 'movie';
+  const ref  = /^[A-Za-z0-9]{4,16}$/.test(String(req.query?.ref || '')) ? String(req.query.ref) : '';   // partner program code
 
   let target = `${SITE}/Home`;
   let title = 'XwerseMovies';
@@ -30,7 +31,7 @@ module.exports = async function handler(req, res) {
   let canonical = SITE + '/';
 
   if (id) {
-    target = `${SITE}/Home?t=${id}&type=${type}`;
+    target = `${SITE}/Home?t=${id}&type=${type}${ref ? '&ref=' + ref : ''}`;
     canonical = `${SITE}/s/${type}/${id}`;
     try {
       const r = await fetch(`https://api.themoviedb.org/3/${type}/${id}?api_key=${KEY}&language=en-US`, {
