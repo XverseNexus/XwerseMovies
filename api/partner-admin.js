@@ -63,6 +63,8 @@ module.exports = async function handler(req, res) {
         default_weight: num(b.default_weight ?? cur.default_weight, 0.01, 1000), hold_days: num(b.hold_days ?? cur.hold_days, 0, 120),
         min_usd: num(b.min_usd ?? cur.min_usd, 0, 10000), min_inr: num(b.min_inr ?? cur.min_inr, 0, 1000000), usd_inr: num(b.usd_inr ?? cur.usd_inr, 1, 1000),
       };
+      next.promo_hosts = Array.isArray(b.promo_hosts) ? b.promo_hosts.map(x => String(x).toLowerCase().replace(/[^a-z0-9.\-]/g, '')).filter(Boolean).slice(0, 20) : cur.promo_hosts;
+      if (!next.promo_hosts.length) next.promo_hosts = ['voe'];
       next.usd_inr_auto = b.usd_inr_auto === undefined ? cur.usd_inr_auto !== false : b.usd_inr_auto !== false;
       for (const [k, v] of Object.entries(next)) if (v === null) return res.status(400).json({ error: 'Invalid value for ' + k });
       const mapOf = (obj, hi) => { const o = {}; for (const [k, v] of Object.entries(obj || {})) if (/^[A-Z]{2}$/.test(k) && Number(v) >= 0 && Number(v) <= hi) o[k] = Number(v); return o; };
@@ -202,8 +204,9 @@ module.exports = async function handler(req, res) {
     }
 
     if (b.action === 'titles_list') {
-      const r = await C.sb('partner_titles?select=tmdb_id,media_type,enabled&order=created_at.desc&limit=500');
-      return res.status(200).json({ titles: Array.isArray(r.data) ? r.data : [] });
+      const prom = await C.promotable((await S.getSettings()).promo_hosts);
+      const list = [...prom.values()].sort((a, b) => (a.enabled === b.enabled ? 0 : a.enabled ? -1 : 1) || String(a.title).localeCompare(String(b.title)));
+      return res.status(200).json({ titles: list });
     }
 
     if (b.action === 'titles_set') {
