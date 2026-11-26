@@ -292,6 +292,7 @@ nav{background:#111;border-bottom:1px solid var(--border);padding:0 22px;height:
     <button class="sbtn" id="sbModBtn" onclick="nav('moderators',this)" style="display:none"><span class="sbico">🛡️</span> Moderators</button>
     <div class="sblbl">Partner program</div>
     <button class="sbtn" onclick="nav('partner',this)"><span class="sbico">🤝</span> Partner (beta)</button>
+    <button class="sbtn" onclick="nav('settle',this)"><span class="sbico">🧾</span> Settlement &amp; Payouts</button>
     <div class="sblbl">Requests</div>
     <button class="sbtn" onclick="nav('requests',this)"><span class="sbico">📋</span> Manage Requests <span class="sbcnt" id="sbReqCnt">0</span></button>
   </aside>
@@ -574,6 +575,61 @@ nav{background:#111;border-bottom:1px solid var(--border);padding:0 22px;height:
     </div>
 
     <!-- PARTNER PROGRAM (stage 1: tracking + calibration) -->
+    <div class="panel" id="panel-settle">
+      <div class="ptit">Settlement &amp; Payouts <span style="font-size:.7rem;color:var(--muted);font-weight:600">STAGE 3</span></div>
+      <div class="psub">Every Sunday: enter the real VOE numbers → moderators save a draft → admin approves. Partners get 50% of the real money, split by their weighted counted views.</div>
+
+      <div class="fc">
+        <div class="fc-title"><div class="fc-ico">🧾</div> Weekly settlement</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+          <label style="font-size:.8rem">Week ends (Sunday) <input type="date" id="stEnd" class="fi"></label>
+          <label style="font-size:.8rem">VOE total $ <input type="number" step="0.01" id="stTotal" class="fi" style="width:120px"></label>
+          <label style="font-size:.8rem">Paid views <input type="number" id="stPaid" class="fi" style="width:110px"></label>
+          <label style="font-size:.8rem">All views <input type="number" id="stAll" class="fi" style="width:110px"></label>
+        </div>
+        <input id="stNote" class="fi" placeholder="Note (optional)" style="width:100%;max-width:520px;margin-bottom:10px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-add" onclick="stPreview()">Preview</button>
+          <button class="btn-add" style="background:#2a6" onclick="stSave()">Save draft</button>
+        </div>
+        <div id="stPrev" style="margin-top:14px;font-size:.8rem;line-height:1.7"></div>
+      </div>
+
+      <div class="fc">
+        <div class="fc-title"><div class="fc-ico">📅</div> Weeks</div>
+        <div id="stWeeks" style="font-size:.8rem">Loading…</div>
+      </div>
+
+      <div class="fc">
+        <div class="fc-title"><div class="fc-ico">💸</div> Payout requests</div>
+        <div id="stPayouts" style="font-size:.8rem">Loading…</div>
+      </div>
+
+      <div class="fc">
+        <div class="fc-title"><div class="fc-ico">👥</div> Partners</div>
+        <div id="stPartners" style="font-size:.8rem">Loading…</div>
+      </div>
+
+      <div class="fc">
+        <div class="fc-title"><div class="fc-ico">⚙️</div> Rates &amp; rules (admin only)</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <label style="font-size:.8rem">Hold days <input type="number" id="stHold" class="fi" style="width:80px"></label>
+          <label style="font-size:.8rem">Min $ (crypto) <input type="number" id="stMinUsd" class="fi" style="width:80px"></label>
+          <label style="font-size:.8rem">Min ₹ (UPI) <input type="number" id="stMinInr" class="fi" style="width:90px"></label>
+          <label style="font-size:.8rem">₹ per $ <input type="number" step="0.01" id="stInr" class="fi" style="width:90px"></label>
+          <label style="font-size:.8rem">Default weight <input type="number" id="stDefW" class="fi" style="width:90px"></label>
+        </div>
+        <div style="margin-top:10px;font-size:.8rem">Country weights = VOE tier numbers (45 / 30 / 20 / 15 / 10), e.g. <code>US=45, GB=45, IN=10</code>. Countries not listed use the default weight.<br>
+          <input id="stCW" class="fi" placeholder="US=45, GB=45, IN=10" style="width:100%;max-width:560px;margin-top:6px"></div>
+        <div style="margin-top:10px"><button class="btn-add" onclick="stSaveRules()">Save rules</button></div>
+      </div>
+
+      <div class="fc">
+        <div class="fc-title"><div class="fc-ico">📝</div> Change log</div>
+        <div id="stLog" style="font-size:.78rem;color:rgba(255,255,255,.7);line-height:1.7">Loading…</div>
+      </div>
+    </div>
+
     <div class="panel" id="panel-partner">
       <div class="ptit">Partner program <span style="font-size:.7rem;color:var(--muted);font-weight:600">BETA · Stage 2</span></div>
       <div class="psub">Tracking + calibration. Compare our qualified views with the VOE "Insights → Table" before partners join.</div>
@@ -803,6 +859,7 @@ function nav(name, btn) {
   if (name === 'moderators')  loadModerators();
   if (name === 'requests')    loadRequests();
   if (name === 'partner')     ptInit();
+  if (name === 'settle')      stInit();
   if (name === 'unavailable') { document.getElementById('unavailableResults').innerHTML=''; document.getElementById('checkStatus').textContent=''; document.getElementById('checkProgress').style.display='none'; }
 }
 
@@ -823,6 +880,60 @@ async function partnerApi(payload) {
 }
 function ptEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function ptDay(offset) { return new Date(Date.now() + offset * 864e5).toISOString().slice(0, 10); }
+
+// ── SETTLEMENT & PAYOUTS ────────────────────────────────────────────────
+let _stRole = null;
+const stM = n => '$' + (Number(n) || 0).toFixed(2);
+function stLastSunday() { const d = new Date(); d.setUTCDate(d.getUTCDate() - d.getUTCDay()); return d.toISOString().slice(0, 10); }
+async function stInit() {
+  if (!document.getElementById('stEnd').value) document.getElementById('stEnd').value = stLastSunday();
+  stWeeks(); stPayouts(); stPartners(); stLog(); stRules();
+}
+async function stRules() {
+  const c = await partnerApi({ action: 'settings_get' }); if (!c) return;
+  const v = (id, x) => document.getElementById(id).value = x;
+  v('stHold', c.hold_days); v('stMinUsd', c.min_usd); v('stMinInr', c.min_inr); v('stInr', c.usd_inr); v('stDefW', c.default_weight);
+  v('stCW', Object.entries(c.country_weights || {}).map(([k, x]) => k + '=' + x).join(', '));
+  window._stCfg = c;
+}
+async function stSaveRules() {
+  const cw = {}; document.getElementById('stCW').value.split(',').map(x => x.trim()).filter(Boolean).forEach(x => { const [k, v] = x.split('='); if (k && v) cw[k.trim().toUpperCase()] = parseFloat(v); });
+  const g = id => parseFloat(document.getElementById(id).value), c = window._stCfg || {};
+  const d = await partnerApi({ action: 'settings_set', est_rate_default: c.est_rate_default, share_pct: c.share_pct, est_rate_by_country: c.est_rate_by_country, hold_days: g('stHold'), min_usd: g('stMinUsd'), min_inr: g('stMinInr'), usd_inr: g('stInr'), default_weight: g('stDefW'), country_weights: cw });
+  if (d && d.ok) { showToast('✅ Saved'); stLog(); }
+}
+function stBody() { const g = id => document.getElementById(id).value; return { week_end: g('stEnd'), voe_total_usd: parseFloat(g('stTotal')), voe_paid_views: g('stPaid'), voe_all_views: g('stAll'), note: g('stNote') }; }
+async function stPreview() {
+  const d = await partnerApi({ action: 'settle_preview', ...stBody() }); if (!d) return;
+  const rows = d.lines.map(l => `<tr><td>${ptEsc(l.code || '')}</td><td>${ptEsc(l.name || l.email || '')}</td><td>${l.status !== 'active' ? '<b style="color:#f5c518">' + ptEsc(l.status) + '</b>' : 'active'}</td><td>${l.views}</td><td>${l.viewers}/${l.ips}</td><td>${l.flags.length ? '<b style="color:#E50914">' + l.flags.join(', ') + '</b>' : '—'}</td><td><b>${stM(l.amount_usd)}</b></td></tr>`).join('');
+  document.getElementById('stPrev').innerHTML = `Week ${d.week_start} → ${d.week_end} · counted views (all): <b>${d.total_views}</b> · partners get <b>${d.share_pct}%</b> pro-rata · partners total <b>${stM(d.partners_total)}</b> of $${(stBody().voe_total_usd || 0).toFixed(2)}${d.existing ? '<br><b style="color:#f5c518">A ' + d.existing.status + ' entry already exists for this week.</b>' : ''}
+    <table style="width:100%;margin-top:8px;border-collapse:collapse"><tr style="color:var(--muted);text-align:left"><th>Code</th><th>Partner</th><th>Status</th><th>Views</th><th>Viewers/IPs</th><th>Flags</th><th>Amount</th></tr>${rows || '<tr><td colspan="7">No partner views this week.</td></tr>'}</table>
+    <div style="color:var(--muted);margin-top:6px">Held/banned partners are shown but check them before approving. Flags = views from very few different viewers / IPs.</div>`;
+}
+async function stSave() { const d = await partnerApi({ action: 'settle_save', ...stBody() }); if (d && d.ok) { showToast('✅ Draft saved'); stWeeks(); stLog(); stPreview(); } }
+async function stWeeks() {
+  const d = await partnerApi({ action: 'settle_list' }); if (!d) return; _stRole = d.role;
+  document.getElementById('stWeeks').innerHTML = d.settlements.length ? `<table style="width:100%;border-collapse:collapse"><tr style="color:var(--muted);text-align:left"><th>Week</th><th>VOE $</th><th>Partners $</th><th>Status</th><th>VOE paid us</th><th></th></tr>${d.settlements.map(x => `<tr><td>${x.week_start} → ${x.week_end}</td><td>${stM(x.voe_total_usd)}</td><td>${stM(x.partners_total)}</td><td>${x.status === 'approved' ? '<b style="color:#46d369">approved</b>' : 'draft'}</td><td>${x.voe_paid ? '✅' : '—'}</td><td>${x.status === 'draft' ? `<button class="btn-add" style="padding:4px 12px" onclick="stApprove(${x.id})">Approve &amp; lock</button>` : `<button class="btn-add" style="padding:4px 12px;background:#444" onclick="stVoePaid(${x.id},${!x.voe_paid})">${x.voe_paid ? 'Unmark paid' : 'VOE paid us'}</button>`}</td></tr>`).join('')}</table>` : 'No weeks yet.';
+}
+async function stApprove(id) { if (!confirm('Approve and lock this week? Partners\' balances are created from it.')) return; const d = await partnerApi({ action: 'settle_approve', id }); if (d && d.ok) { showToast('✅ Approved'); stWeeks(); stLog(); } }
+async function stVoePaid(id, paid) { const d = await partnerApi({ action: 'settle_voe_paid', id, paid }); if (d && d.ok) { stWeeks(); stLog(); } }
+async function stPayouts() {
+  const d = await partnerApi({ action: 'payouts_list' }); if (!d) return;
+  const rows = d.payouts.map(p => `<tr><td>#${p.id}</td><td>${ptEsc(p.code || '')} ${ptEsc(p.name || p.email || '')}${p.partner_status !== 'active' ? ' <b style="color:#f5c518">(' + ptEsc(p.partner_status) + ')</b>' : ''}</td><td><b>${stM(p.amount_usd)}</b> ≈ ₹${Math.round(p.amount_usd * (p.usd_inr || 0))}</td><td>${ptEsc(p.method)}<br><span style="user-select:all">${ptEsc(p.address)}</span></td><td>${p.status === 'requested' ? `<button class="btn-add" style="padding:4px 12px" onclick="stPay(${p.id})">Mark paid</button> <button class="btn-add" style="padding:4px 12px;background:#444" onclick="stReject(${p.id})">Reject</button>` : ptEsc(p.status) + (p.txn_ref ? ' · ' + ptEsc(p.txn_ref) : '')}</td></tr>`).join('');
+  document.getElementById('stPayouts').innerHTML = d.payouts.length ? `<table style="width:100%;border-collapse:collapse"><tr style="color:var(--muted);text-align:left"><th>#</th><th>Partner</th><th>Amount</th><th>Send to</th><th></th></tr>${rows}</table>` : 'No requests yet.';
+}
+async function stPay(id) { const t = prompt('Transaction ID / reference (UTR or tx hash):'); if (t === null) return; const r = prompt('₹ per $ used for this payout (leave blank = saved rate):', ''); const d = await partnerApi({ action: 'payout_mark_paid', id, txn_ref: t, usd_inr: r ? parseFloat(r) : undefined }); if (d && d.ok) { showToast('✅ Marked paid'); stPayouts(); stLog(); } }
+async function stReject(id) { const n = prompt('Reason (shown to nobody, kept in log):', ''); if (n === null) return; const d = await partnerApi({ action: 'payout_reject', id, note: n }); if (d && d.ok) { showToast('Rejected'); stPayouts(); stLog(); } }
+async function stPartners() {
+  const d = await partnerApi({ action: 'partners_list' }); if (!d) return;
+  document.getElementById('stPartners').innerHTML = d.partners.length ? `<table style="width:100%;border-collapse:collapse"><tr style="color:var(--muted);text-align:left"><th>Code</th><th>Partner</th><th>Earned</th><th>Paid</th><th>Payout to</th><th>Status</th></tr>${d.partners.map(p => `<tr><td>${ptEsc(p.code)}</td><td>${ptEsc(p.name || p.email || '')}</td><td>${stM(p.earned)}</td><td>${stM(p.paid)}</td><td>${p.method ? ptEsc(p.method) : '—'}</td><td><select onchange="stStatus('${p.user_id}',this.value)" class="fi" style="padding:3px 6px">${['active', 'hold', 'banned'].map(x => `<option ${p.status === x ? 'selected' : ''}>${x}</option>`).join('')}</select></td></tr>`).join('')}</table>` : 'No partners yet.';
+}
+async function stStatus(id, status) { if (!confirm('Set this partner to ' + status + '?')) { stPartners(); return; } const d = await partnerApi({ action: 'partner_set_status', partner_id: id, status }); if (d && d.ok) { showToast('✅ Updated'); stPartners(); stLog(); } else stPartners(); }
+async function stLog() {
+  const d = await partnerApi({ action: 'settle_log' }); if (!d) return;
+  document.getElementById('stLog').innerHTML = d.log.length ? d.log.map(x => `<div>${new Date(x.created_at).toLocaleString()} · <b>${ptEsc(x.actor_name || 'staff')}</b> · ${ptEsc(x.action)}${x.detail ? ' <span style="color:var(--muted)">' + ptEsc(JSON.stringify(x.detail)).slice(0, 160) + '</span>' : ''}</div>`).join('') : 'Nothing yet.';
+}
+
 async function ptLoadSettings() {
   const d = await partnerApi({ action: 'settings_get' }); if (!d) return;
   document.getElementById('ptRate').value = d.est_rate_default;
