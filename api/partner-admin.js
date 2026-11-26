@@ -49,7 +49,10 @@ module.exports = async function handler(req, res) {
       return res.status(500).json({ error: 'Could not create a code: ' + why });
     }
 
-    if (b.action === 'settings_get') return res.status(200).json(await S.getSettings());
+    if (b.action === 'settings_get') {
+      const cfg = await S.getSettings(); const fx = await S.getUsdInr(cfg);
+      return res.status(200).json({ ...cfg, usd_inr_live: Math.round(fx.rate * 100) / 100, usd_inr_source: fx.source });
+    }
 
     if (b.action === 'settings_set') {
       if (adminOnly()) return;
@@ -60,6 +63,7 @@ module.exports = async function handler(req, res) {
         default_weight: num(b.default_weight ?? cur.default_weight, 0.01, 1000), hold_days: num(b.hold_days ?? cur.hold_days, 0, 120),
         min_usd: num(b.min_usd ?? cur.min_usd, 0, 10000), min_inr: num(b.min_inr ?? cur.min_inr, 0, 1000000), usd_inr: num(b.usd_inr ?? cur.usd_inr, 1, 1000),
       };
+      next.usd_inr_auto = b.usd_inr_auto === undefined ? cur.usd_inr_auto !== false : b.usd_inr_auto !== false;
       for (const [k, v] of Object.entries(next)) if (v === null) return res.status(400).json({ error: 'Invalid value for ' + k });
       const mapOf = (obj, hi) => { const o = {}; for (const [k, v] of Object.entries(obj || {})) if (/^[A-Z]{2}$/.test(k) && Number(v) >= 0 && Number(v) <= hi) o[k] = Number(v); return o; };
       next.est_rate_by_country = b.est_rate_by_country ? mapOf(b.est_rate_by_country, 1) : cur.est_rate_by_country;
@@ -188,7 +192,7 @@ module.exports = async function handler(req, res) {
       if (!p || p.status !== 'requested') return res.status(400).json({ error: 'Not an open request' });
       const paid = b.action === 'payout_mark_paid';
       const body = { status: paid ? 'paid' : 'rejected', decided_at: new Date().toISOString(), decided_by: user.id, txn_ref: paid ? String(b.txn_ref || '').slice(0, 120) || null : null, admin_note: String(b.note || '').slice(0, 300) || null };
-      if (paid && Number(b.usd_inr) > 0) body.usd_inr = Number(b.usd_inr);
+      if (paid) { const fx = await S.getUsdInr(await S.getSettings()); body.usd_inr = Number(b.usd_inr) > 0 ? Number(b.usd_inr) : Math.round(fx.rate * 100) / 100; }
       await C.sb(`payouts?id=eq.${id}`, { method: 'PATCH', body });
       await logIt(null, paid ? 'payout_paid' : 'payout_rejected', { id, txn_ref: body.txn_ref });
       return res.status(200).json({ ok: true });
