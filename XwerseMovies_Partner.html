@@ -219,7 +219,7 @@ table.pp td{padding:7px 8px;border-bottom:1px solid rgba(255,255,255,.05)}
   </a>
 </nav>
 <script>
-let currentUser = null, ME = null, RANGE = 7, TITLES = [], META = {};
+let currentUser = null, ME = null, RANGE = 7, TITLES = [], META = {}, WAL = null;
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const usd = n => '$' + (Number(n) || 0).toFixed(n >= 1 ? 2 : 3);
@@ -313,10 +313,42 @@ function renderDash(s) {
     <div class="pp-card"><h2>🌍 Viewer countries</h2>
       <div class="pp-muted">${s.countries.length ? s.countries.map(c => `${esc(c.country)}: ${c.views}`).join(' &nbsp;·&nbsp; ') : 'Nothing yet.'}</div>
     </div>
-    <div class="pp-card"><h2>💸 Payouts</h2>
-      <div class="pp-muted">Weekly settlement and payout details (UPI / USDT) are coming next. Your counted views are being recorded from now on.</div>
+    ${payoutCard()}
     </div>`;
   paintLinks();
+}
+
+function payoutCard() {
+  const w = WAL && WAL.wallet, r = (WAL && WAL.rules) || {};
+  if (!w) return '<div class="pp-card"><h2>💸 Payouts</h2><div class="pp-muted">Could not load your balance right now.</div></div>';
+  const open = w.payouts.some(x => x.status === 'requested');
+  const st = { requested: '⏳ In review', paid: '✅ Paid', rejected: '❌ Rejected' };
+  return `<div class="pp-card"><h2>💸 Payouts</h2>
+    <div class="pp-stats" style="grid-template-columns:repeat(3,1fr)">
+      <div class="pp-stat est"><b>${usd(w.available)}</b><span>AVAILABLE TO WITHDRAW</span></div>
+      <div class="pp-stat"><b>${usd(w.held + w.draft)}</b><span>WAITING (settlement / hold)</span></div>
+      <div class="pp-stat"><b>${usd(w.paid)}</b><span>PAID OUT</span></div>
+    </div>
+    <div class="pp-muted">Money from each week becomes available after we are paid by the ad network and a ${r.hold_days || 14}-day safety hold. Minimum payout: ₹${r.min_inr || 500} (UPI) or $${r.min_usd || 5} (USDT). The ₹ amount uses the rate on payout day. Your first payout is checked by hand.</div>
+    <div class="pp-bar" style="margin-top:14px">
+      <select id="pMethod" class="fbtn" style="padding:8px 10px"><option value="upi">UPI</option><option value="usdt_trc20">USDT · TRC20</option><option value="usdt_bep20">USDT · BEP20</option></select>
+      <input id="pAddr" class="fbtn" style="flex:1;min-width:200px;padding:8px 12px;text-align:left" placeholder="${WAL.method ? 'Saved: ' + esc(WAL.address_masked) + ' — enter new to change' : 'UPI ID (name@bank) or wallet address'}" autocomplete="off">
+      <button class="pp-btn sec" onclick="savePayout()">Save</button>
+      <button class="pp-btn" onclick="reqPayout()" ${open || WAL.status !== 'active' ? 'disabled' : ''}>Request payout</button>
+    </div>
+    ${w.payouts.length ? `<table class="pp" style="margin-top:12px"><tr><th>Date</th><th>Amount</th><th>Via</th><th>Status</th></tr>${w.payouts.map(x => `<tr><td>${esc((x.created_at || '').slice(0, 10))}</td><td>${usd(x.amount_usd)}</td><td>${esc(x.method)}</td><td>${st[x.status] || esc(x.status)}${x.txn_ref ? ' · ' + esc(x.txn_ref) : ''}</td></tr>`).join('')}</table>` : ''}
+  </div>`;
+}
+async function savePayout() {
+  const d = await api({ action: 'payout_save', method: $('pMethod').value, address: $('pAddr').value });
+  toast(d && d.ok ? '✅ Payout details saved' : '❌ ' + ((d && d.error) || 'Could not save'));
+  if (d && d.ok) { await loadDash(); }
+}
+async function reqPayout() {
+  if (!confirm('Request payout of your full available balance?')) return;
+  const d = await api({ action: 'payout_request' });
+  toast(d && d.ok ? '✅ Request sent. We will check and pay it.' : '❌ ' + ((d && d.error) || 'Could not request'));
+  await loadDash();
 }
 function paintLinks() {
   const g = $('ppLinks'); if (!g || !TITLES.length) return;
@@ -341,6 +373,7 @@ async function loadDash() {
   const s = await api({ action: 'stats', from: dayStr(from), to: dayStr(to) });
   if (!s || s.error) { $('ppRoot').innerHTML = `<div class="pp-card"><div class="pp-muted">Could not load your dashboard. ${esc((s && s.error) || '')} <button class="pp-btn sec" onclick="loadDash()">Retry</button></div></div>`; return; }
   await loadMeta(s.titles.map(x => ({ tmdb_id: x.tmdb_id, media_type: x.media_type })));
+  WAL = await api({ action: 'wallet' });
   renderDash(s);
 }
 async function init() {
