@@ -336,6 +336,7 @@ function payoutCard() {
       <button class="pp-btn sec" onclick="savePayout()">Save</button>
       <button class="pp-btn" onclick="reqPayout()" ${open || WAL.status !== 'active' ? 'disabled' : ''}>Request payout</button>
     </div>
+    ${w.weeks && w.weeks.length ? `<h2 style="margin-top:18px;font-size:.92rem">Weekly earnings</h2><table class="pp"><tr><th>Week</th><th>Amount</th><th>Status</th></tr>${w.weeks.map(x => `<tr><td>${esc(x.week_start)} → ${esc(x.week_end)}</td><td>${usd(x.amount_usd)}</td><td>${{ checking: '🔎 Being checked', approved: '✅ Approved · waiting for the ad network', confirmed: '✅ Confirmed' }[x.state] || ''}</td></tr>`).join('')}</table>` : ''}
     ${w.payouts.length ? `<table class="pp" style="margin-top:12px"><tr><th>Date</th><th>Amount</th><th>Via</th><th>Status</th></tr>${w.payouts.map(x => `<tr><td>${esc((x.created_at || '').slice(0, 10))}</td><td>${usd(x.amount_usd)}</td><td>${esc(x.method)}</td><td>${st[x.status] || esc(x.status)}${x.txn_ref ? ' · ' + esc(x.txn_ref) : ''}</td></tr>`).join('')}</table>` : ''}
   </div>`;
 }
