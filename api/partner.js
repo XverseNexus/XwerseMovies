@@ -156,15 +156,6 @@ async function track(user, b, req) {
 
 // ── partner program: join + dashboard (Stage 2) ──────────────────────────
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
-const SETTINGS_DEFAULT = { est_rate_default: 0.0007, est_rate_by_country: {}, share_pct: 50 };
-
-async function getSettings() {
-  const r = await C.sb('partner_settings?select=key,value');
-  const out = { ...SETTINGS_DEFAULT };
-  if (Array.isArray(r.data)) r.data.forEach(x => { if (x.key in out) out[x.key] = x.value; });
-  return out;
-}
-
 async function myPartner(user) {
   const r = await C.sb(`partners?user_id=eq.${user.id}&select=code,status,created_at`);
   return Array.isArray(r.data) ? r.data[0] || null : null;
@@ -211,10 +202,15 @@ async function stats(user, b) {
   const [vs, cl, cfg] = await Promise.all([
     C.sbAll(`view_events?partner_id=eq.${user.id}&qualified=eq.true&day=gte.${from}&day=lte.${to}&select=tmdb_id,media_type,country,day`),
     C.sbAll(`partner_clicks?partner_id=eq.${user.id}&created_at=gte.${from}T00:00:00Z&created_at=lte.${to}T23:59:59Z&select=result,created_at`),
-    getSettings(),
+    S.getSettings(),
   ]);
 
-  const rate = (c) => { const v = cfg.est_rate_by_country && cfg.est_rate_by_country[c]; return Number.isFinite(+v) && v !== undefined && v !== null ? +v : +cfg.est_rate_default; };
+  const lb = cfg.est_auto === false ? null : await S.learnedBase();
+  const safety = Math.min(1, Math.max(0.3, +cfg.est_safety || 0.85));
+  const rate = (c) => {
+    if (lb) return lb.base * (S.wOf(cfg, c)) * safety;            // learned from real settlements, a bit on the low side
+    const v = cfg.est_rate_by_country && cfg.est_rate_by_country[c]; return Number.isFinite(+v) && v !== undefined && v !== null ? +v : +cfg.est_rate_default;
+  };
   const share = Math.min(100, Math.max(0, +cfg.share_pct || 50)) / 100;
   const days = {}, tit = {}, cty = {};
   let est = 0;
