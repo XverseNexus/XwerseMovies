@@ -616,7 +616,9 @@ nav{background:#111;border-bottom:1px solid var(--border);padding:0 22px;height:
           <label style="font-size:.8rem">Hold days <input type="number" id="stHold" class="fi" style="width:80px"></label>
           <label style="font-size:.8rem">Min $ (crypto) <input type="number" id="stMinUsd" class="fi" style="width:80px"></label>
           <label style="font-size:.8rem">Min ₹ (UPI) <input type="number" id="stMinInr" class="fi" style="width:90px"></label>
-          <label style="font-size:.8rem">₹ per $ <input type="number" step="0.01" id="stInr" class="fi" style="width:90px"></label>
+          <label style="font-size:.8rem">₹ per $ (manual backup) <input type="number" step="0.01" id="stInr" class="fi" style="width:90px"></label>
+          <label style="font-size:.8rem"><input type="checkbox" id="stInrAuto"> Use live rate</label>
+          <span id="stInrLive" style="font-size:.78rem;color:#46d369"></span>
           <label style="font-size:.8rem">Default weight <input type="number" id="stDefW" class="fi" style="width:90px"></label>
         </div>
         <div style="margin-top:10px;font-size:.8rem">Country weights = VOE tier numbers (45 / 30 / 20 / 15 / 10), e.g. <code>US=45, GB=45, IN=10</code>. Countries not listed use the default weight.<br>
@@ -892,6 +894,8 @@ async function stInit() {
 async function stRules() {
   const c = await partnerApi({ action: 'settings_get' }); if (!c) return;
   const v = (id, x) => document.getElementById(id).value = x;
+  document.getElementById('stInrAuto').checked = c.usd_inr_auto !== false;
+  document.getElementById('stInrLive').textContent = 'Live now: ₹' + c.usd_inr_live + ' per $ (' + c.usd_inr_source + ')';
   v('stHold', c.hold_days); v('stMinUsd', c.min_usd); v('stMinInr', c.min_inr); v('stInr', c.usd_inr); v('stDefW', c.default_weight);
   v('stCW', Object.entries(c.country_weights || {}).map(([k, x]) => k + '=' + x).join(', '));
   window._stCfg = c;
@@ -899,7 +903,7 @@ async function stRules() {
 async function stSaveRules() {
   const cw = {}; document.getElementById('stCW').value.split(',').map(x => x.trim()).filter(Boolean).forEach(x => { const [k, v] = x.split('='); if (k && v) cw[k.trim().toUpperCase()] = parseFloat(v); });
   const g = id => parseFloat(document.getElementById(id).value), c = window._stCfg || {};
-  const d = await partnerApi({ action: 'settings_set', est_rate_default: c.est_rate_default, share_pct: c.share_pct, est_rate_by_country: c.est_rate_by_country, hold_days: g('stHold'), min_usd: g('stMinUsd'), min_inr: g('stMinInr'), usd_inr: g('stInr'), default_weight: g('stDefW'), country_weights: cw });
+  const d = await partnerApi({ action: 'settings_set', est_rate_default: c.est_rate_default, share_pct: c.share_pct, est_rate_by_country: c.est_rate_by_country, hold_days: g('stHold'), min_usd: g('stMinUsd'), min_inr: g('stMinInr'), usd_inr: g('stInr'), usd_inr_auto: document.getElementById('stInrAuto').checked, default_weight: g('stDefW'), country_weights: cw });
   if (d && d.ok) { showToast('✅ Saved'); stLog(); }
 }
 function stBody() { const g = id => document.getElementById(id).value; return { week_end: g('stEnd'), voe_total_usd: parseFloat(g('stTotal')), voe_paid_views: g('stPaid'), voe_all_views: g('stAll'), note: g('stNote') }; }
