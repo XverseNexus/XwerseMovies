@@ -50,8 +50,8 @@ module.exports = async function handler(req, res) {
     }
 
     if (b.action === 'settings_get') {
-      const cfg = await S.getSettings(); const fx = await S.getUsdInr(cfg);
-      return res.status(200).json({ ...cfg, usd_inr_live: Math.round(fx.rate * 100) / 100, usd_inr_source: fx.source });
+      const cfg = await S.getSettings(); const fx = await S.getUsdInr(cfg); const lb = await S.learnedBase();
+      return res.status(200).json({ ...cfg, usd_inr_live: Math.round(fx.rate * 100) / 100, usd_inr_source: fx.source, learned: lb ? { base: lb.base, weeks: lb.weeks } : null });
     }
 
     if (b.action === 'settings_set') {
@@ -65,6 +65,8 @@ module.exports = async function handler(req, res) {
       };
       next.promo_hosts = Array.isArray(b.promo_hosts) ? b.promo_hosts.map(x => String(x).toLowerCase().replace(/[^a-z0-9.\-]/g, '')).filter(Boolean).slice(0, 20) : cur.promo_hosts;
       if (!next.promo_hosts.length) next.promo_hosts = ['voe'];
+      next.est_auto = b.est_auto === undefined ? cur.est_auto !== false : b.est_auto !== false;
+      next.est_safety = num(b.est_safety ?? cur.est_safety, 0.3, 1) ?? cur.est_safety;
       next.usd_inr_auto = b.usd_inr_auto === undefined ? cur.usd_inr_auto !== false : b.usd_inr_auto !== false;
       for (const [k, v] of Object.entries(next)) if (v === null) return res.status(400).json({ error: 'Invalid value for ' + k });
       const mapOf = (obj, hi) => { const o = {}; for (const [k, v] of Object.entries(obj || {})) if (/^[A-Z]{2}$/.test(k) && Number(v) >= 0 && Number(v) <= hi) o[k] = Number(v); return o; };
@@ -112,7 +114,7 @@ module.exports = async function handler(req, res) {
       const ex = await C.sb(`settlements?week_start=eq.${c.week_start}&select=id,status`);
       const old = Array.isArray(ex.data) ? ex.data[0] : null;
       if (old && old.status === 'approved') return res.status(409).json({ error: 'This week is already approved and locked' });
-      const body = { week_start: c.week_start, week_end: c.week_end, voe_total_usd: total, voe_paid_views: parseInt(b.voe_paid_views, 10) || null, voe_all_views: parseInt(b.voe_all_views, 10) || null, share_pct: c.share_pct, total_weight: c.total_weight, note: String(b.note || '').slice(0, 300) || null, entered_by: user.id, status: 'draft', updated_at: new Date().toISOString() };
+      const body = { week_start: c.week_start, week_end: c.week_end, voe_total_usd: total, voe_paid_views: parseInt(b.voe_paid_views, 10) || null, voe_all_views: parseInt(b.voe_all_views, 10) || null, our_views: c.eligible_views, share_pct: c.share_pct, total_weight: c.total_weight, note: String(b.note || '').slice(0, 300) || null, entered_by: user.id, status: 'draft', updated_at: new Date().toISOString() };
       let sid = old && old.id;
       if (old) await C.sb(`settlements?id=eq.${old.id}`, { method: 'PATCH', body });
       else { const ins = await C.sb('settlements', { method: 'POST', prefer: 'return=representation', body }); sid = Array.isArray(ins.data) && ins.data[0] && ins.data[0].id; if (!sid) return res.status(500).json({ error: 'Could not save (' + ins.status + ')' }); }
