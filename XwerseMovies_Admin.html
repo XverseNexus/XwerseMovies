@@ -575,7 +575,7 @@ nav{background:#111;border-bottom:1px solid var(--border);padding:0 22px;height:
 
     <!-- PARTNER PROGRAM (stage 1: tracking + calibration) -->
     <div class="panel" id="panel-partner">
-      <div class="ptit">Partner program <span style="font-size:.7rem;color:var(--muted);font-weight:600">BETA · Stage 1</span></div>
+      <div class="ptit">Partner program <span style="font-size:.7rem;color:var(--muted);font-weight:600">BETA · Stage 2</span></div>
       <div class="psub">Tracking + calibration. Compare our qualified views with the VOE "Insights → Table" before partners join.</div>
 
       <div class="fc" style="margin-bottom:16px">
@@ -593,6 +593,18 @@ nav{background:#111;border-bottom:1px solid var(--border);padding:0 22px;height:
           <button class="btn-add" onclick="ptTitle(true)" style="flex-shrink:0">Enable</button>
         </div>
         <div id="ptTitles" style="font-size:.8rem"></div>
+      </div>
+
+      <div class="fc" style="margin-bottom:16px">
+        <div class="fc-title"><div class="fc-ico">💲</div> Earnings estimate (partner dashboard)</div>
+        <div style="font-size:.8rem;color:rgba(255,255,255,.55);margin-bottom:12px;line-height:1.6">Only for the live ESTIMATE partners see. Final pay comes from the weekly settlement with real Voe money. Keep it a bit LOW (Voe 10k views = $10 means about $0.001 per paid view).</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <label style="font-size:.8rem">Default $ per counted view <input id="ptRate" type="number" step="0.0001" min="0" max="1" style="width:110px"></label>
+          <label style="font-size:.8rem">Partner share % <input id="ptShare" type="number" min="1" max="100" style="width:80px"></label>
+        </div>
+        <div style="margin-top:10px;font-size:.8rem">Per country (optional), e.g. <code>US=0.004, IN=0.0003</code><br>
+          <input id="ptRateBy" type="text" placeholder="US=0.004, IN=0.0003" style="width:100%;max-width:520px;margin-top:6px"></div>
+        <div style="margin-top:10px"><button class="btn-add" onclick="ptSaveSettings()">Save</button></div>
       </div>
 
       <div class="fc">
@@ -811,6 +823,18 @@ async function partnerApi(payload) {
 }
 function ptEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function ptDay(offset) { return new Date(Date.now() + offset * 864e5).toISOString().slice(0, 10); }
+async function ptLoadSettings() {
+  const d = await partnerApi({ action: 'settings_get' }); if (!d) return;
+  document.getElementById('ptRate').value = d.est_rate_default;
+  document.getElementById('ptShare').value = d.share_pct;
+  document.getElementById('ptRateBy').value = Object.entries(d.est_rate_by_country || {}).map(([k, v]) => k + '=' + v).join(', ');
+}
+async function ptSaveSettings() {
+  const by = {};
+  document.getElementById('ptRateBy').value.split(',').map(x => x.trim()).filter(Boolean).forEach(x => { const [k, v] = x.split('='); if (k && v) by[k.trim().toUpperCase()] = parseFloat(v); });
+  const d = await partnerApi({ action: 'settings_set', est_rate_default: parseFloat(document.getElementById('ptRate').value), share_pct: parseFloat(document.getElementById('ptShare').value), est_rate_by_country: by });
+  if (d && d.ok) showToast('✅ Saved');
+}
 async function ptInit() {
   if (!document.getElementById('ptFrom').value) { document.getElementById('ptFrom').value = ptDay(-6); document.getElementById('ptTo').value = ptDay(0); }
   const d = await partnerApi({ action: 'status' });
@@ -821,6 +845,7 @@ async function ptInit() {
     '<br>VPN / proxy detection: ' + (d.vpn_check ? '<b style="color:#46d369">ON</b>' : '<b style="color:#f5c518">OFF</b> (add IPAPI_KEY in Vercel to turn it on)');
   document.getElementById('ptMake').style.display = _ptCode ? 'none' : 'inline-block';
   ptLoadTitles();
+  ptLoadSettings();
 }
 async function ptBecome() { const d = await partnerApi({ action: 'become_test_partner' }); if (d) { showToast('✅ Code: ' + d.code); ptInit(); } }
 async function ptLoadTitles() {
