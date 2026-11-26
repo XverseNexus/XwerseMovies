@@ -76,6 +76,7 @@ module.exports = async function handler(req, res) {
     }
 
     // ── weekly settlement ────────────────────────────────────────────
+    const weekDone = (d) => d < C.utcDay();        // the Sunday (UTC) must be over
     const weekEndOk = (d) => S.DAY_RE.test(d || '') && new Date(d + 'T00:00:00Z').getUTCDay() === 0;
     const withNames = async (lines) => {
       if (!lines.length) return lines;
@@ -91,6 +92,7 @@ module.exports = async function handler(req, res) {
       if (!(total >= 0 && total < 1e7)) return res.status(400).json({ error: 'Enter the Voe total in USD' });
       const cfg = await S.getSettings();
       const c = await S.compute(b.week_end, total, cfg);
+      c.finished = weekDone(b.week_end);
       c.lines = await withNames(c.lines);
       const ex = await C.sb(`settlements?week_start=eq.${c.week_start}&select=id,status,voe_total_usd,voe_paid,note`);
       c.existing = Array.isArray(ex.data) ? ex.data[0] || null : null;
@@ -102,6 +104,7 @@ module.exports = async function handler(req, res) {
       if (!weekEndOk(b.week_end)) return res.status(400).json({ error: 'Week must end on a Sunday' });
       const total = Number(b.voe_total_usd);
       if (!(total >= 0 && total < 1e7)) return res.status(400).json({ error: 'Enter the Voe total in USD' });
+      if (!weekDone(b.week_end) && !isAdmin) return res.status(400).json({ error: 'This week is not over yet (UTC). Wait until Monday.' });
       const cfg = await S.getSettings();
       const c = await S.compute(b.week_end, total, cfg);
       const ex = await C.sb(`settlements?week_start=eq.${c.week_start}&select=id,status`);
@@ -248,6 +251,7 @@ module.exports = async function handler(req, res) {
 
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
+    if (err && err.message === 'too_many_rows') return res.status(413).json({ error: 'Too many views in that week to settle in one go. Tell the developer.' });
     console.error('partner-admin error:', err);
     return res.status(500).json({ error: 'Unexpected server error' });
   }
