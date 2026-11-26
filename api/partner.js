@@ -244,9 +244,9 @@ async function walletInfo(user) {
   const p = Array.isArray(pr.data) ? pr.data[0] : null;
   if (!p) return { joined: false };
   const cfg = await S.getSettings();
-  const w = await S.wallet(user.id, cfg);
+  const [w, fx] = await Promise.all([S.wallet(user.id, cfg), S.getUsdInr(cfg)]);
   return { joined: true, status: p.status, method: p.payout_method, address_masked: maskAddr(p.payout_address),
-    wallet: w, rules: { min_usd: cfg.min_usd, min_inr: cfg.min_inr, usd_inr: cfg.usd_inr, hold_days: cfg.hold_days } };
+    wallet: w, rules: { min_usd: cfg.min_usd, min_inr: cfg.min_inr, usd_inr: Math.round(fx.rate * 100) / 100, hold_days: cfg.hold_days } };
 }
 
 async function payoutSave(user, b) {
@@ -264,7 +264,8 @@ async function payoutRequest(user) {
   if (p.status !== 'active') return { ok: false, error: 'Your account is on ' + p.status + '. Payouts are paused.' };
   if (!p.payout_method || !p.payout_address) return { ok: false, error: 'Save your payout details first' };
   const cfg = await S.getSettings();
-  const w = await S.wallet(user.id, cfg);
+  const [w, fx] = await Promise.all([S.wallet(user.id, cfg), S.getUsdInr(cfg)]);
+  cfg.usd_inr = fx.rate;
   if (w.payouts.some(x => x.status === 'requested')) return { ok: false, error: 'You already have a payout request open' };
   const amt = w.available;
   const need = p.payout_method === 'upi' ? (+cfg.min_inr / +cfg.usd_inr) : +cfg.min_usd;
