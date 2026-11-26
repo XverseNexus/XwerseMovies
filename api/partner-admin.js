@@ -167,10 +167,12 @@ module.exports = async function handler(req, res) {
     if (b.action === 'partners_list') {
       const ps = await C.sbAll('partners?select=user_id,code,status,payout_method,payout_address,created_at&order=created_at.desc&limit=500', 2000);
       const named = await withNames(ps.map(p => ({ partner_id: p.user_id })));
-      const [ls, po] = await Promise.all([C.sbAll('settlement_lines?select=partner_id,amount_usd,settlements!inner(status)'), C.sbAll('payouts?select=partner_id,amount_usd,status')]);
+      const [ls, po, ve] = await Promise.all([C.sbAll('settlement_lines?select=partner_id,amount_usd,settlements!inner(status)'), C.sbAll('payouts?select=partner_id,amount_usd,status'),
+        C.sbAll(`view_events?qualified=eq.true&partner_id=not.is.null&day=gte.${C.utcDay(new Date(Date.now() - 30 * 864e5))}&select=partner_id,day`, 100000)]);
       return res.status(200).json({ role, partners: ps.map(p => {
         const n = named.find(x => x.partner_id === p.user_id) || {};
         return { user_id: p.user_id, code: p.code, status: p.status, name: n.name, email: n.email, method: p.payout_method, address: p.payout_address, joined: p.created_at,
+          views_30d: ve.filter(v => v.partner_id === p.user_id).length, last_view: ve.filter(v => v.partner_id === p.user_id).reduce((a, v) => v.day > a ? v.day : a, ''),
           earned: Math.round(ls.filter(l => l.partner_id === p.user_id && l.settlements && l.settlements.status === 'approved').reduce((a, l) => a + +l.amount_usd, 0) * 1e4) / 1e4,
           paid: Math.round(po.filter(x => x.partner_id === p.user_id && x.status === 'paid').reduce((a, x) => a + +x.amount_usd, 0) * 1e4) / 1e4 };
       }) });
@@ -187,8 +189,18 @@ module.exports = async function handler(req, res) {
     if (b.action === 'payouts_list') {
       const f = ['requested', 'paid', 'rejected'].includes(b.status) ? `status=eq.${b.status}&` : '';
       const rows = await C.sbAll(`payouts?${f}select=*&order=id.desc&limit=200`, 400);
-      const named = await withNames([...new Set(rows.map(r => r.partner_id))].map(id => ({ partner_id: id })));
-      return res.status(200).json({ role, payouts: rows.map(r => { const n = named.find(x => x.partner_id === r.partner_id) || {}; return { ...r, code: n.code, name: n.name, email: n.email, partner_status: n.status }; }) });
+      const ids = [...new Set(rows.map(r => r.partner_id))];
+      const named = await withNames(ids.map(id => ({ partner_id: id })));
+      const paidAll = await C.sbAll('payouts?status=eq.paid&select=partner_id,amount_usd', 5000);
+      const pinfo = ids.length ? await C.sbAll(`partners?select=user_id,created_at&user_id=in.(${ids.slice(0, 80).join(',')})`) : [];
+      const lines = ids.length ? await C.sbAll(`settlement_lines?partner_id=in.(${ids.slice(0, 80).join(',')})&select=partner_id,amount_usd,settlements!inner(status)`) : [];
+      return res.status(200).json({ role, open: rows.filter(r => r.status === 'requested').length, payouts: rows.map(r => {
+        const n = named.find(x => x.partner_id === r.partner_id) || {}, pi = pinfo.find(x => x.user_id === r.partner_id) || {};
+        const mine = paidAll.filter(x => x.partner_id === r.partner_id);
+        return { ...r, code: n.code, name: n.name, email: n.email, partner_status: n.status, joined: pi.created_at,
+          prev_paid: mine.length, paid_total: Math.round(mine.reduce((a, x) => a + +x.amount_usd, 0) * 1e4) / 1e4,
+          earned_total: Math.round(lines.filter(l => l.partner_id === r.partner_id && l.settlements && l.settlements.status === 'approved').reduce((a, l) => a + +l.amount_usd, 0) * 1e4) / 1e4 };
+      }) });
     }
 
     if (b.action === 'payout_mark_paid' || b.action === 'payout_reject') {
