@@ -903,6 +903,7 @@ async function initNavAvatar(avatarElId = 'navAvatar') {
       <button class="xvm-item" onclick="window.location.href='/GoPremium'">💎 &nbsp;Go Premium</button>
       <button class="xvm-item" onclick="window.location.href='/MyPurchases'">🛒 &nbsp;My Purchases</button>
       <button class="xvm-item" onclick="window.location.href='/Plans'">💎 &nbsp;Plans</button>
+      <button class="xvm-item" onclick="window.location.href='/Partner'">🤝 &nbsp;Partner Program</button>
       <button class="xvm-item" onclick="xvSwitchProfile()">👥 &nbsp;Switch Profile</button>
       <button class="xvm-item" id="xvm-admin-btn" style="display:none" onclick="window.location.href='/Admin'">🛡️ &nbsp;Admin Panel</button>
       <button class="xvm-item" id="xvm-staff-btn" style="display:none;justify-content:space-between" onclick="Staff.toggle()" title="Staff only: ON = every paid title the admin uploaded plays for you. OFF = you use the site like a normal user.">
