@@ -90,8 +90,14 @@ async function track(user, b, req) {
     const type = b.type === 'tv' ? 'tv' : 'movie';
     const sr = await C.sb(`partner_stamps?user_id=eq.${user.id}&tmdb_id=eq.${tmdb}&media_type=eq.${type}&select=partner_id,partners(status)`);
     const st = Array.isArray(sr.data) ? sr.data[0] : null;
-    const partnerId = st && st.partners && st.partners.status === 'active' ? st.partner_id : null;
+    let partnerId = st && st.partners && st.partners.status === 'active' ? st.partner_id : null;
     const ip = C.clientIp(req);
+    // self-referral through a second account: the viewer is on a network the partner themself has used → not counted for the partner
+    if (partnerId && ip) {
+      const since30 = new Date(Date.now() - 30 * 864e5).toISOString();
+      const same = await C.sb(`view_events?user_id=eq.${partnerId}&ip_hash=eq.${C.hashIp(ip)}&started_at=gte.${since30}&select=id&limit=1`);
+      if (Array.isArray(same.data) && same.data.length) partnerId = null;
+    }
     const ins = await C.sb('view_events', { method: 'POST', prefer: 'return=representation', body: {
       user_id: user.id, tmdb_id: tmdb, media_type: type,
       season: parseInt(b.season, 10) || null, episode: parseInt(b.episode, 10) || null,
@@ -271,5 +277,6 @@ async function payoutRequest(user) {
   const need = p.payout_method === 'upi' ? (+cfg.min_inr / +cfg.usd_inr) : +cfg.min_usd;
   if (!(amt > 0) || amt + 1e-9 < need) return { ok: false, error: p.payout_method === 'upi' ? 'Minimum payout is ₹' + cfg.min_inr : 'Minimum payout is $' + cfg.min_usd };
   const ins = await C.sb('payouts', { method: 'POST', body: { partner_id: user.id, amount_usd: amt, usd_inr: cfg.usd_inr, method: p.payout_method, address: p.payout_address } });
-  return ins.ok ? { ok: true, amount_usd: amt } : { ok: false, error: 'Could not create the request, try again' };
+  if (ins.ok) return { ok: true, amount_usd: amt };
+  return { ok: false, error: ins.status === 409 ? 'You already have a payout request open' : 'Could not create the request, try again' };
 }
