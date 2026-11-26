@@ -662,6 +662,11 @@ nav{background:#111;border-bottom:1px solid var(--border);padding:0 22px;height:
           <label style="font-size:.8rem">Default $ per counted view <input id="ptRate" type="number" step="0.0001" min="0" max="1" style="width:110px"></label>
           <label style="font-size:.8rem">Partner share % <input id="ptShare" type="number" min="1" max="100" style="width:80px"></label>
         </div>
+        <div style="margin-top:12px;font-size:.8rem;line-height:1.7"><label><input type="checkbox" id="ptAuto"> <b>Learn the rate from real settlements (recommended)</b></label>
+          <span id="ptLearned" style="color:#46d369;margin-left:6px"></span><br>
+          <span style="color:var(--muted)">Once a week is approved, the dashboard estimate uses what VOE really paid per counted view (country weights applied), × safety</span>
+          <input type="number" id="ptSafety" step="0.05" min="0.3" max="1" style="width:70px;margin-left:4px">
+          <span style="color:var(--muted)">so it stays a little LOW. The manual rates below are used only until the first week is approved.</span></div>
         <div style="margin-top:10px;font-size:.8rem">Per country (optional), e.g. <code>US=0.004, IN=0.0003</code><br>
           <input id="ptRateBy" type="text" placeholder="US=0.004, IN=0.0003" style="width:100%;max-width:520px;margin-top:6px"></div>
         <div style="margin-top:10px"><button class="btn-add" onclick="ptSaveSettings()">Save</button></div>
@@ -888,6 +893,12 @@ function ptDay(offset) { return new Date(Date.now() + offset * 864e5).toISOStrin
 // ── SETTLEMENT & PAYOUTS ────────────────────────────────────────────────
 let _stRole = null;
 const stM = n => '$' + (Number(n) || 0).toFixed(2);
+function stMatch(x) {
+  if (!x.our_views || !x.voe_paid_views) return '<span style="color:var(--muted)">—</span>';
+  const r = x.our_views / x.voe_paid_views, pct = Math.round(r * 100);
+  const col = r >= 0.85 && r <= 1.15 ? '#46d369' : (r >= 0.7 && r <= 1.3 ? '#f5c518' : '#E50914');
+  return `<b style="color:${col}">${pct}%</b> <span style="color:var(--muted)">(${x.our_views} / ${x.voe_paid_views})</span>`;
+}
 function stLastSunday() { const d = new Date(); d.setUTCDate(d.getUTCDate() - d.getUTCDay()); return d.toISOString().slice(0, 10); }
 async function stInit() {
   if (!document.getElementById('stEnd').value) document.getElementById('stEnd').value = stLastSunday();
@@ -920,7 +931,15 @@ async function stPreview() {
 async function stSave() { const d = await partnerApi({ action: 'settle_save', ...stBody() }); if (d && d.ok) { showToast('✅ Draft saved'); stWeeks(); stLog(); stPreview(); } }
 async function stWeeks() {
   const d = await partnerApi({ action: 'settle_list' }); if (!d) return; _stRole = d.role;
-  document.getElementById('stWeeks').innerHTML = d.settlements.length ? `<table style="width:100%;border-collapse:collapse"><tr style="color:var(--muted);text-align:left"><th>Week</th><th>VOE $</th><th>Partners $</th><th>Status</th><th>VOE paid us</th><th></th></tr>${d.settlements.map(x => `<tr><td>${x.week_start} → ${x.week_end}</td><td>${stM(x.voe_total_usd)}</td><td>${stM(x.partners_total)}</td><td>${x.status === 'approved' ? '<b style="color:#46d369">approved</b>' : 'draft'}</td><td>${x.voe_paid ? '✅' : '—'}</td><td>${x.status === 'draft' ? `<button class="btn-add" style="padding:4px 12px" onclick="stApprove(${x.id})">Approve &amp; lock</button>` : `<button class="btn-add" style="padding:4px 12px;background:#444" onclick="stVoePaid(${x.id},${!x.voe_paid})">${x.voe_paid ? 'Unmark paid' : 'VOE paid us'}</button>`}</td></tr>`).join('')}</table>` : 'No weeks yet.';
+  const rs = d.settlements.filter(x => x.our_views && x.voe_paid_views).slice(0, 4).map(x => x.our_views / x.voe_paid_views);
+  let hl = '';
+  if (rs.length) {
+    const avg = rs.reduce((a, b) => a + b, 0) / rs.length, pc = Math.round(avg * 100);
+    hl = avg >= 0.85 && avg <= 1.15 ? `<div style="margin-bottom:10px;color:#46d369">✅ Tracking health: our counted views are <b>${pc}%</b> of VOE's paid views. Close enough, nothing to do.</div>`
+      : avg > 1.15 ? `<div style="margin-bottom:10px;color:#E50914">⚠️ Tracking health: we count <b>${pc}%</b> of VOE's paid views, more than VOE. Partners' share is spread over more views than VOE paid for; tell the developer to tighten the rules.</div>`
+      : `<div style="margin-bottom:10px;color:#f5c518">⚠️ Tracking health: we count only <b>${pc}%</b> of VOE's paid views. Rules may be too strict, or many views are untracked; tell the developer.</div>`;
+  }
+  document.getElementById('stWeeks').innerHTML = hl + (d.settlements.length ? `<table style="width:100%;border-collapse:collapse"><tr style="color:var(--muted);text-align:left"><th>Week</th><th>VOE $</th><th>Partners $</th><th>Ours vs VOE views</th><th>Status</th><th>VOE paid us</th><th></th></tr>${d.settlements.map(x => `<tr><td>${x.week_start} → ${x.week_end}</td><td>${stM(x.voe_total_usd)}</td><td>${stM(x.partners_total)}</td><td>${stMatch(x)}</td><td>${x.status === 'approved' ? '<b style="color:#46d369">approved</b>' : 'draft'}</td><td>${x.voe_paid ? '✅' : '—'}</td><td>${x.status === 'draft' ? `<button class="btn-add" style="padding:4px 12px" onclick="stApprove(${x.id})">Approve &amp; lock</button>` : `<button class="btn-add" style="padding:4px 12px;background:#444" onclick="stVoePaid(${x.id},${!x.voe_paid})">${x.voe_paid ? 'Unmark paid' : 'VOE paid us'}</button>`}</td></tr>`).join('')}</table>` : 'No weeks yet.');
 }
 async function stApprove(id) { if (!confirm('Approve and lock this week? Partners\' balances are created from it.')) return; const d = await partnerApi({ action: 'settle_approve', id }); if (d && d.ok) { showToast('✅ Approved'); stWeeks(); stLog(); } }
 async function stVoePaid(id, paid) { const d = await partnerApi({ action: 'settle_voe_paid', id, paid }); if (d && d.ok) { stWeeks(); stLog(); } }
@@ -945,12 +964,14 @@ async function ptLoadSettings() {
   const d = await partnerApi({ action: 'settings_get' }); if (!d) return;
   document.getElementById('ptRate').value = d.est_rate_default;
   document.getElementById('ptShare').value = d.share_pct;
+  document.getElementById('ptAuto').checked = d.est_auto !== false; document.getElementById('ptSafety').value = d.est_safety;
+  document.getElementById('ptLearned').textContent = d.learned ? 'Learned from ' + d.learned.weeks + ' week(s): $' + (d.learned.base * 1000).toFixed(4) + ' per 1000 weight-units' : 'Not learned yet (no approved week)';
   document.getElementById('ptRateBy').value = Object.entries(d.est_rate_by_country || {}).map(([k, v]) => k + '=' + v).join(', ');
 }
 async function ptSaveSettings() {
   const by = {};
   document.getElementById('ptRateBy').value.split(',').map(x => x.trim()).filter(Boolean).forEach(x => { const [k, v] = x.split('='); if (k && v) by[k.trim().toUpperCase()] = parseFloat(v); });
-  const d = await partnerApi({ action: 'settings_set', est_rate_default: parseFloat(document.getElementById('ptRate').value), share_pct: parseFloat(document.getElementById('ptShare').value), est_rate_by_country: by });
+  const d = await partnerApi({ action: 'settings_set', est_rate_default: parseFloat(document.getElementById('ptRate').value), share_pct: parseFloat(document.getElementById('ptShare').value), est_rate_by_country: by, est_auto: document.getElementById('ptAuto').checked, est_safety: parseFloat(document.getElementById('ptSafety').value) });
   if (d && d.ok) showToast('✅ Saved');
 }
 async function ptInit() {
