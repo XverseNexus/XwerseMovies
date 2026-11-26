@@ -171,6 +171,10 @@
       "destination": "/XwerseMovies_Plans.html"
     },
     {
+      "source": "/Partner",
+      "destination": "/XwerseMovies_Partner.html"
+    },
+    {
       "source": "/Admin",
       "destination": "/XwerseMovies_Admin.html"
     },
