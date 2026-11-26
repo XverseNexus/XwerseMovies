@@ -31,6 +31,10 @@ module.exports = async function handler(req, res) {
     const b = req.body || {};
     if (b.action === 'claim') return res.status(200).json(await claim(user, b));
     if (b.action === 'track') return res.status(200).json(await track(user, b, req));
+    if (b.action === 'me') return res.status(200).json(await me(user));
+    if (b.action === 'join') return res.status(200).json(await join(user));
+    if (b.action === 'titles') return res.status(200).json(await titles(user));
+    if (b.action === 'stats') return res.status(200).json(await stats(user, b));
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('partner error:', err);
@@ -136,4 +140,92 @@ async function track(user, b, req) {
   if (qualified) patch.qualified_at = new Date(now).toISOString();
   await C.sb(`view_events?id=eq.${id}`, { method: 'PATCH', body: patch });
   return { qualified, reason };
+}
+
+
+// ── partner program: join + dashboard (Stage 2) ──────────────────────────
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const SETTINGS_DEFAULT = { est_rate_default: 0.0007, est_rate_by_country: {}, share_pct: 50 };
+
+async function getSettings() {
+  const r = await C.sb('partner_settings?select=key,value');
+  const out = { ...SETTINGS_DEFAULT };
+  if (Array.isArray(r.data)) r.data.forEach(x => { if (x.key in out) out[x.key] = x.value; });
+  return out;
+}
+
+async function myPartner(user) {
+  const r = await C.sb(`partners?user_id=eq.${user.id}&select=code,status,created_at`);
+  return Array.isArray(r.data) ? r.data[0] || null : null;
+}
+
+async function me(user) {
+  const p = await myPartner(user);
+  return { joined: !!p, code: p ? p.code : null, status: p ? p.status : null, verified: !!user.verified };
+}
+
+async function join(user) {
+  if (!user.verified) return { ok: false, result: 'unverified' };
+  const have = await myPartner(user);
+  if (have) return { ok: true, joined: true, code: have.code, status: have.status };
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  for (let i = 0; i < 6; i++) {
+    let code = ''; for (let k = 0; k < 7; k++) code += alphabet[Math.floor(Math.random() * alphabet.length)];
+    const ins = await C.sb('partners', { method: 'POST', body: { user_id: user.id, code } });
+    if (ins.ok) return { ok: true, joined: true, code, status: 'active' };
+    if (ins.status !== 409) break;
+    const again = await myPartner(user);        // double click: the first request already created it
+    if (again) return { ok: true, joined: true, code: again.code, status: again.status };
+  }
+  return { ok: false, result: 'error' };
+}
+
+async function titles(user) {
+  const p = await myPartner(user);
+  if (!p) return { titles: [] };
+  const r = await C.sb('partner_titles?enabled=eq.true&select=tmdb_id,media_type&order=created_at.desc&limit=500');
+  return { titles: Array.isArray(r.data) ? r.data : [] };
+}
+
+// What the partner sees: only counted numbers + a rough estimate — never reasons or limits.
+async function stats(user, b) {
+  const p = await myPartner(user);
+  if (!p) return { joined: false };
+  const today = C.utcDay();
+  let to = DAY_RE.test(b.to || '') ? b.to : today;
+  let from = DAY_RE.test(b.from || '') ? b.from : C.utcDay(new Date(Date.now() - 6 * 864e5));
+  if (from > to) from = to;
+  if ((new Date(to) - new Date(from)) / 864e5 > 92) from = C.utcDay(new Date(new Date(to).getTime() - 92 * 864e5));
+
+  const [vs, cl, cfg] = await Promise.all([
+    C.sbAll(`view_events?partner_id=eq.${user.id}&qualified=eq.true&day=gte.${from}&day=lte.${to}&select=tmdb_id,media_type,country,day`),
+    C.sbAll(`partner_clicks?partner_id=eq.${user.id}&created_at=gte.${from}T00:00:00Z&created_at=lte.${to}T23:59:59Z&select=result,created_at`),
+    getSettings(),
+  ]);
+
+  const rate = (c) => { const v = cfg.est_rate_by_country && cfg.est_rate_by_country[c]; return Number.isFinite(+v) && v !== undefined && v !== null ? +v : +cfg.est_rate_default; };
+  const share = Math.min(100, Math.max(0, +cfg.share_pct || 50)) / 100;
+  const days = {}, tit = {}, cty = {};
+  let est = 0;
+  for (const v of vs) {
+    const e = rate(v.country) * share; est += e;
+    const d = days[v.day] = days[v.day] || { day: v.day, views: 0, est: 0 }; d.views++; d.est += e;
+    const k = v.media_type + ':' + v.tmdb_id;
+    const t = tit[k] = tit[k] || { tmdb_id: v.tmdb_id, media_type: v.media_type, views: 0, est: 0 }; t.views++; t.est += e;
+    const c = cty[v.country || '??'] = cty[v.country || '??'] || { country: v.country || '??', views: 0 }; c.views++;
+  }
+  const r4 = (n) => Math.round(n * 1e6) / 1e6;
+  return {
+    joined: true, code: p.code, status: p.status, from, to,
+    totals: {
+      visits: cl.length,
+      signups: cl.filter(x => x.result === 'stamped').length,
+      views: vs.length,
+      est_usd: r4(est),
+    },
+    days: Object.values(days).sort((a, b2) => a.day < b2.day ? 1 : -1).map(d => ({ ...d, est: r4(d.est) })),
+    titles: Object.values(tit).sort((a, b2) => b2.views - a.views).slice(0, 100).map(t => ({ ...t, est: r4(t.est) })),
+    countries: Object.values(cty).sort((a, b2) => b2.views - a.views).slice(0, 30),
+    share_pct: Math.round(share * 100),
+  };
 }
