@@ -44,6 +44,31 @@ module.exports = async function handler(req, res) {
       return res.status(500).json({ error: 'Could not create a code: ' + why });
     }
 
+    if (b.action === 'settings_get') {
+      const r = await C.sb('partner_settings?select=key,value');
+      const out = { est_rate_default: 0.0007, est_rate_by_country: {}, share_pct: 50 };
+      if (Array.isArray(r.data)) r.data.forEach(x => { if (x.key in out) out[x.key] = x.value; });
+      return res.status(200).json(out);
+    }
+
+    if (b.action === 'settings_set') {
+      const rows = [];
+      const def = Number(b.est_rate_default);
+      if (!(def >= 0 && def <= 1)) return res.status(400).json({ error: 'Default rate must be between 0 and 1 (USD per view)' });
+      rows.push({ key: 'est_rate_default', value: def });
+      const by = {};
+      for (const [k, v] of Object.entries(b.est_rate_by_country || {})) {
+        if (/^[A-Z]{2}$/.test(k) && Number(v) >= 0 && Number(v) <= 1) by[k] = Number(v);
+      }
+      rows.push({ key: 'est_rate_by_country', value: by });
+      const sp = Number(b.share_pct);
+      if (!(sp >= 1 && sp <= 100)) return res.status(400).json({ error: 'Share % must be 1-100' });
+      rows.push({ key: 'share_pct', value: sp });
+      const r = await C.sb('partner_settings?on_conflict=key', { method: 'POST', prefer: 'resolution=merge-duplicates', body: rows.map(x => ({ ...x, updated_at: new Date().toISOString() })) });
+      if (!r.ok) return res.status(500).json({ error: 'Could not save (' + r.status + ')' });
+      return res.status(200).json({ ok: true });
+    }
+
     if (b.action === 'titles_list') {
       const r = await C.sb('partner_titles?select=tmdb_id,media_type,enabled&order=created_at.desc&limit=500');
       return res.status(200).json({ titles: Array.isArray(r.data) ? r.data : [] });
