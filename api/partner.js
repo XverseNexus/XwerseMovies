@@ -61,8 +61,9 @@ async function claim(user, b) {
   if (partner.user_id === user.id) { await log(partner.user_id, 'self'); return { ok: false, result: 'self' }; }
   if (!user.verified) return { ok: false, result: 'unverified', keep: true };
 
-  const tr = await C.sb(`partner_titles?tmdb_id=eq.${tmdb}&media_type=eq.${type}&enabled=eq.true&select=tmdb_id`);
-  if (!(Array.isArray(tr.data) && tr.data.length)) { await log(partner.user_id, 'not_promotable'); return { ok: false, result: 'not_promotable' }; }
+  const prom = await C.promotable((await S.getSettings()).promo_hosts);
+  const pt = prom.get(type + ':' + tmdb);
+  if (!(pt && pt.enabled)) { await log(partner.user_id, 'not_promotable'); return { ok: false, result: 'not_promotable' }; }
 
   const sr = await C.sb(`partner_stamps?user_id=eq.${user.id}&tmdb_id=eq.${tmdb}&media_type=eq.${type}&select=partner_id`);
   if (Array.isArray(sr.data) && sr.data.length) { await log(partner.user_id, 'already_stamped'); return { ok: true, result: 'already_stamped' }; }
@@ -193,8 +194,8 @@ async function join(user) {
 async function titles(user) {
   const p = await myPartner(user);
   if (!p) return { titles: [] };
-  const r = await C.sb('partner_titles?enabled=eq.true&select=tmdb_id,media_type&order=created_at.desc&limit=500');
-  return { titles: Array.isArray(r.data) ? r.data : [] };
+  const prom = await C.promotable((await S.getSettings()).promo_hosts);
+  return { titles: [...prom.values()].filter(t => t.enabled).map(t => ({ tmdb_id: t.tmdb_id, media_type: t.media_type, title: t.title })) };
 }
 
 // What the partner sees: only counted numbers + a rough estimate — never reasons or limits.
