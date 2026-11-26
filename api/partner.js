@@ -14,6 +14,7 @@
 // Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY   (optional: IPAPI_KEY for VPN detection, IP_HASH_SALT)
 
 const C = require('../lib/partner-common');
+const S = require('../lib/partner-settle');
 
 const CODE_RE = /^[A-Za-z0-9]{4,16}$/;
 const MIN_SECONDS = 60;     // watched time needed
@@ -35,6 +36,9 @@ module.exports = async function handler(req, res) {
     if (b.action === 'join') return res.status(200).json(await join(user));
     if (b.action === 'titles') return res.status(200).json(await titles(user));
     if (b.action === 'stats') return res.status(200).json(await stats(user, b));
+    if (b.action === 'wallet') return res.status(200).json(await walletInfo(user));
+    if (b.action === 'payout_save') return res.status(200).json(await payoutSave(user, b));
+    if (b.action === 'payout_request') return res.status(200).json(await payoutRequest(user));
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('partner error:', err);
@@ -228,4 +232,43 @@ async function stats(user, b) {
     countries: Object.values(cty).sort((a, b2) => b2.views - a.views).slice(0, 30),
     share_pct: Math.round(share * 100),
   };
+}
+
+
+// ── payouts (Stage 3) ────────────────────────────────────────────────────
+const PAY_RE = { upi: /^[A-Za-z0-9._\-]{2,64}@[A-Za-z][A-Za-z0-9]{1,30}$/, usdt_trc20: /^T[1-9A-HJ-NP-Za-km-z]{33}$/, usdt_bep20: /^0x[a-fA-F0-9]{40}$/ };
+const maskAddr = (a) => !a ? '' : (a.length <= 10 ? a : a.slice(0, 4) + '…' + a.slice(-4));
+
+async function walletInfo(user) {
+  const pr = await C.sb(`partners?user_id=eq.${user.id}&select=code,status,payout_method,payout_address`);
+  const p = Array.isArray(pr.data) ? pr.data[0] : null;
+  if (!p) return { joined: false };
+  const cfg = await S.getSettings();
+  const w = await S.wallet(user.id, cfg);
+  return { joined: true, status: p.status, method: p.payout_method, address_masked: maskAddr(p.payout_address),
+    wallet: w, rules: { min_usd: cfg.min_usd, min_inr: cfg.min_inr, usd_inr: cfg.usd_inr, hold_days: cfg.hold_days } };
+}
+
+async function payoutSave(user, b) {
+  const method = String(b.method || ''), address = String(b.address || '').trim();
+  if (!PAY_RE[method]) return { ok: false, error: 'Choose UPI or USDT (TRC20 / BEP20)' };
+  if (!PAY_RE[method].test(address)) return { ok: false, error: method === 'upi' ? 'Enter a valid UPI ID, like name@bank' : 'That wallet address does not look right for ' + method.replace('usdt_', 'USDT ').toUpperCase() };
+  const r = await C.sb(`partners?user_id=eq.${user.id}`, { method: 'PATCH', prefer: 'return=representation', body: { payout_method: method, payout_address: address, payout_updated_at: new Date().toISOString() } });
+  return Array.isArray(r.data) && r.data.length ? { ok: true } : { ok: false, error: 'Join the Partner Program first' };
+}
+
+async function payoutRequest(user) {
+  const pr = await C.sb(`partners?user_id=eq.${user.id}&select=status,payout_method,payout_address`);
+  const p = Array.isArray(pr.data) ? pr.data[0] : null;
+  if (!p) return { ok: false, error: 'Join the Partner Program first' };
+  if (p.status !== 'active') return { ok: false, error: 'Your account is on ' + p.status + '. Payouts are paused.' };
+  if (!p.payout_method || !p.payout_address) return { ok: false, error: 'Save your payout details first' };
+  const cfg = await S.getSettings();
+  const w = await S.wallet(user.id, cfg);
+  if (w.payouts.some(x => x.status === 'requested')) return { ok: false, error: 'You already have a payout request open' };
+  const amt = w.available;
+  const need = p.payout_method === 'upi' ? (+cfg.min_inr / +cfg.usd_inr) : +cfg.min_usd;
+  if (!(amt > 0) || amt + 1e-9 < need) return { ok: false, error: p.payout_method === 'upi' ? 'Minimum payout is ₹' + cfg.min_inr : 'Minimum payout is $' + cfg.min_usd };
+  const ins = await C.sb('payouts', { method: 'POST', body: { partner_id: user.id, amount_usd: amt, usd_inr: cfg.usd_inr, method: p.payout_method, address: p.payout_address } });
+  return ins.ok ? { ok: true, amount_usd: amt } : { ok: false, error: 'Could not create the request, try again' };
 }
