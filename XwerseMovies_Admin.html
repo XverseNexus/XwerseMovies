@@ -970,7 +970,8 @@ async function stRefresh() { await stLoadWeeks(); const cur = document.getElemen
 function stHero() {
   const W = stSun(0), rec = stByEnd(W), isAdmin = ST.role === 'admin';
   const stage = !rec ? 1 : rec.status === 'draft' ? 2 : !rec.voe_paid ? 3 : 4;
-  const steps = [['1', 'Enter VOE numbers', 'Moderator'], ['2', 'Admin approves', 'Admin'], ['3', 'VOE pays us', 'Admin marks it'], ['4', 'Partners can withdraw', 'Automatic']];
+  const steps = [['1', 'Enter VOE numbers', 'Moderator', 'Enter the VOE total and views of last week, then save the draft.'], ['2', 'Admin approves', 'Admin', 'The admin checks the draft and locks the week.'], ['3', 'VOE pays us', 'Admin marks it', 'When VOE really pays you, the admin marks the week as paid.'], ['4', 'Partners can withdraw', 'Automatic', 'After VOE paid and the hold days, partners can request a payout.']];
+  ST.stage = stage; ST.rec = rec; ST.W = W;
   let next = '';
   if (stage === 1) next = `Last week (<b>${stD(addD(W, -6))} → ${stD(W)}</b>) has not been settled yet. <button class="btn-add btn-sm" onclick="stGoWeek('${W}')">Start now</button>`;
   if (stage === 2) next = isAdmin ? `Draft saved: <b>${stM(rec.voe_total_usd)}</b> from VOE, partners get <b>${stM(rec.partners_total)}</b>. Check it, then <button class="btn-add btn-sm" onclick="stApprove(${rec.id})">Approve &amp; lock</button>` : `Draft saved. <b>Tell the admin</b> to check and approve it.`;
@@ -981,7 +982,7 @@ function stHero() {
   const flagged = ST.partners.filter(p => p.status !== 'active').length;
   document.getElementById('stHero').innerHTML = `
     <div style="font-weight:800;color:#fff">This week's job &nbsp;<span style="font-weight:500;color:var(--muted);font-size:.8rem">week ${stD(addD(W, -6))} → ${stD(W)}</span></div>
-    <div class="st-steps">${steps.map((s, i) => `<div class="st-step ${i + 1 < stage ? 'done' : i + 1 === stage ? 'now' : ''}"><b>${i + 1 < stage ? '✓' : s[0]}. ${s[1]}</b>${s[2]}</div>`).join('')}</div>
+    <div class="st-steps">${steps.map((s, i) => `<div class="st-step ${i + 1 < stage ? 'done' : i + 1 === stage ? 'now' : ''}" style="cursor:pointer" onclick="stStep(${i + 1})" title="${ptEsc(s[3])}"><b>${i + 1 < stage ? '✓' : s[0]}. ${s[1]}</b>${s[2]}</div>`).join('')}</div>
     <div style="font-size:.86rem;line-height:1.8">${next}</div>
     <div class="st-chips">
       ${open ? `<span class="st-chip warn" onclick="stTab('pay')">💸 ${open} payout request${open > 1 ? 's' : ''} waiting</span>` : ''}
@@ -990,6 +991,14 @@ function stHero() {
       ${!open && !flagged && !miss.length ? '<span class="st-chip">Nothing else needs you 👍</span>' : ''}
     </div>`;
   document.getElementById('stPayCnt').innerHTML = open ? `<span class="st-badge b3">${open}</span>` : '';
+}
+function stStep(n) {
+  const stage = ST.stage, rec = ST.rec, W = ST.W, isAdmin = ST.role === 'admin';
+  if (n === 1) { stGoWeek(W); return; }
+  if (n > stage) { const why = { 2: 'Step 2 opens after the draft is saved (step 1).', 3: 'Step 3 opens after the admin approves the week (step 2).', 4: 'Step 4 happens by itself after VOE paid and the hold days (step 3).' }; showToast('ℹ️ ' + why[n]); return; }
+  if (n === 2) { if (rec && rec.status === 'draft') { if (isAdmin) stApprove(rec.id); else showToast('ℹ️ Waiting for the admin to approve. Tell the admin.'); } else { stGoWeek(W); showToast('✅ Already approved'); } return; }
+  if (n === 3) { if (rec && !rec.voe_paid) { if (isAdmin) stVoePaid(rec.id, true); else showToast('ℹ️ The admin marks this when VOE pays.'); } else showToast('✅ VOE paid this week'); return; }
+  if (n === 4) { stTab('pay'); }
 }
 const addD = (d, n) => new Date(new Date(d + 'T00:00:00Z').getTime() + n * 864e5).toISOString().slice(0, 10);
 function stGoWeek(e) { stTab('week'); stFillWeekSelect(e); stWeekChange(); document.getElementById('stTotal').focus(); }
