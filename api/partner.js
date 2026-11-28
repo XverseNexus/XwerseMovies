@@ -15,6 +15,7 @@
 
 const C = require('../lib/partner-common');
 const S = require('../lib/partner-settle');
+const Q = require('../lib/partner-quiz');
 
 const CODE_RE = /^[A-Za-z0-9]{4,16}$/;
 const MIN_SECONDS = 60;     // watched time needed
@@ -33,7 +34,8 @@ module.exports = async function handler(req, res) {
     if (b.action === 'claim') return res.status(200).json(await claim(user, b));
     if (b.action === 'track') return res.status(200).json(await track(user, b, req));
     if (b.action === 'me') return res.status(200).json(await me(user));
-    if (b.action === 'join') return res.status(200).json(await join(user));
+    if (b.action === 'quiz') return res.status(200).json(Q.getQuiz(b.lang));
+    if (b.action === 'join') return res.status(200).json(await join(user, b));
     if (b.action === 'titles') return res.status(200).json(await titles(user));
     if (b.action === 'stats') return res.status(200).json(await stats(user, b));
     if (b.action === 'wallet') return res.status(200).json(await walletInfo(user));
@@ -200,10 +202,14 @@ async function me(user) {
   return { joined: !!p, code: p ? p.code : null, status: p ? p.status : null, verified: !!user.verified };
 }
 
-async function join(user) {
+async function join(user, b) {
   if (!user.verified) return { ok: false, result: 'unverified' };
   const have = await myPartner(user);
   if (have) return { ok: true, joined: true, code: have.code, status: have.status };
+  // joining needs: the guide was read and accepted + the readiness quiz passed (graded here, answers never leave the server)
+  if (!(b && b.agree === true)) return { ok: false, result: 'not_ready', error: 'Please read and accept the guide first.' };
+  const g = Q.grade(b.answers);
+  if (!g.passed) return { ok: false, result: 'quiz_failed', correct: g.correct, total: g.total, pass: g.pass, wrong: g.wrong };
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   for (let i = 0; i < 6; i++) {
     let code = ''; for (let k = 0; k < 7; k++) code += alphabet[Math.floor(Math.random() * alphabet.length)];
