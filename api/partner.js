@@ -53,6 +53,11 @@ async function claim(user, b) {
   const type = b.type === 'tv' ? 'tv' : 'movie';
   if (!CODE_RE.test(code) || !tmdb) return { ok: false, result: 'bad_request' };
 
+  // flood guard: a normal visitor needs a handful of claims per hour
+  const hourAgo = new Date(Date.now() - 3600 * 1000).toISOString();
+  const recent = await C.sb(`partner_clicks?user_id=eq.${user.id}&created_at=gte.${hourAgo}&select=id&limit=60`);
+  if (Array.isArray(recent.data) && recent.data.length >= 60) return { ok: false, result: 'rate_limited', keep: true };
+
   const log = (partnerId, result) => C.sb('partner_clicks', { method: 'POST', body: { user_id: user.id, partner_id: partnerId || null, tmdb_id: tmdb, media_type: type, result } });
 
   const pr = await C.sb(`partners?code=eq.${code}&select=user_id,status`);
@@ -74,6 +79,17 @@ async function claim(user, b) {
   if (!watched) {
     const wh = await C.sb(`watch_history?user_id=eq.${user.id}&select=movie_id,movies!inner(tmdb_id,type)&movies.tmdb_id=eq.${tmdb}&limit=5`);
     if (wh.ok && Array.isArray(wh.data)) watched = wh.data.some(r => r.movies && String(r.movies.type || 'movie') === type);
+    else {
+      // embed failed → plain two-step check; if even that fails we do NOT guess (retry later instead of stamping a returning viewer)
+      const mv = await C.sb(`movies?tmdb_id=eq.${tmdb}&select=id,type&limit=20`);
+      if (!mv.ok || !Array.isArray(mv.data)) { console.error('claim: watch check failed', wh.status, mv.status); return { ok: false, result: 'error', keep: true }; }
+      const mids = mv.data.filter(m => String(m.type || 'movie') === type).map(m => m.id).filter(x => x !== null && x !== undefined);
+      if (mids.length) {
+        const w2 = await C.sb(`watch_history?user_id=eq.${user.id}&movie_id=in.(${mids.map(x => encodeURIComponent(x)).join(',')})&select=movie_id&limit=1`);
+        if (!w2.ok || !Array.isArray(w2.data)) { console.error('claim: watch_history failed', w2.status); return { ok: false, result: 'error', keep: true }; }
+        watched = w2.data.length > 0;
+      }
+    }
   }
   if (watched) { await log(partner.user_id, 'already_watched'); return { ok: true, result: 'already_watched' }; }
 
@@ -89,6 +105,9 @@ async function track(user, b, req) {
     const tmdb = parseInt(b.tmdb_id, 10);
     if (!tmdb) return { id: null };
     const type = b.type === 'tv' ? 'tv' : 'movie';
+    // flood guard: max 40 'start' rows per user per hour
+    const hr = await C.sb(`view_events?user_id=eq.${user.id}&started_at=gte.${new Date(Date.now() - 3600 * 1000).toISOString()}&select=id&limit=40`);
+    if (Array.isArray(hr.data) && hr.data.length >= 40) return { id: null };
     const sr = await C.sb(`partner_stamps?user_id=eq.${user.id}&tmdb_id=eq.${tmdb}&media_type=eq.${type}&select=partner_id,partners(status)`);
     const st = Array.isArray(sr.data) ? sr.data[0] : null;
     let partnerId = st && st.partners && st.partners.status === 'active' ? st.partner_id : null;
@@ -150,6 +169,21 @@ async function track(user, b, req) {
   patch.qualified = qualified; patch.reason = reason;
   if (qualified) patch.qualified_at = new Date(now).toISOString();
   await C.sb(`view_events?id=eq.${id}`, { method: 'PATCH', body: patch });
+  if (qualified) {
+    // Parallel pings can all pass the count above. Re-check in a fixed order (qualified_at, id): only the first DAILY_CAP
+    // views of this user / network keep their "qualified"; every racer computes the same ranking, so the result is consistent.
+    const since = new Date(now - 24 * 3600 * 1000).toISOString();
+    const ipH = (C.clientIp(req) ? C.hashIp(C.clientIp(req)) : ev.ip_hash);
+    const ipSet = [...new Set([ipH, ev.ip_hash].filter(Boolean))];
+    const [u2, i2] = await Promise.all([
+      C.sb(`view_events?user_id=eq.${user.id}&qualified=eq.true&qualified_at=gte.${since}&select=id&order=qualified_at.asc,id.asc&limit=50`),
+      ipSet.length ? C.sb(`view_events?ip_hash=in.(${ipSet.join(',')})&qualified=eq.true&qualified_at=gte.${since}&select=id&order=qualified_at.asc,id.asc&limit=50`) : { data: [] },
+    ]);
+    const rank = (r) => Array.isArray(r.data) ? r.data.findIndex(x => x.id === id) : -1;
+    const ru = rank(u2), ri = rank(i2);
+    const over = ru >= DAILY_CAP ? 'user_limit' : (ri >= DAILY_CAP ? 'ip_limit' : null);
+    if (over) { await C.sb(`view_events?id=eq.${id}`, { method: 'PATCH', body: { qualified: false, reason: over, qualified_at: null } }); return { qualified: false, reason: over }; }
+  }
   return { qualified, reason };
 }
 
@@ -200,8 +234,8 @@ async function stats(user, b) {
   if ((new Date(to) - new Date(from)) / 864e5 > 92) from = C.utcDay(new Date(new Date(to).getTime() - 92 * 864e5));
 
   const [vs, cl, cfg] = await Promise.all([
-    C.sbAll(`view_events?partner_id=eq.${user.id}&qualified=eq.true&day=gte.${from}&day=lte.${to}&select=tmdb_id,media_type,country,day`),
-    C.sbAll(`partner_clicks?partner_id=eq.${user.id}&created_at=gte.${from}T00:00:00Z&created_at=lte.${to}T23:59:59Z&select=result,created_at`),
+    C.sbAll(`view_events?partner_id=eq.${user.id}&qualified=eq.true&day=gte.${from}&day=lte.${to}&select=tmdb_id,media_type,country,day`, 30000, 'id.asc'),
+    C.sbAll(`partner_clicks?partner_id=eq.${user.id}&created_at=gte.${from}T00:00:00Z&created_at=lte.${to}T23:59:59Z&select=result,created_at`, 30000, 'id.asc'),
     S.getSettings(),
   ]);
 
