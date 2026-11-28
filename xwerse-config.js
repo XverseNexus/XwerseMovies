@@ -776,6 +776,33 @@ function showToast(msg, duration = 2800) {
 // ─────────────────────────────────────────────────────────
 //  AUTH GUARD  — call on every protected page
 // ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────
+//  XPrefs — per-account settings (Settings page). Cached on this device for 5 min so pages never wait on them.
+//  Table: user_settings(user_id, prefs jsonb). If the table is missing / offline, the defaults apply.
+// ─────────────────────────────────────────────────
+const XPrefs = {
+  DEF: { notif_new: true, autoplay_next: true, quality: 'auto', personalized: true },
+  _c() { try { return JSON.parse(localStorage.getItem('xv_prefs')) || {}; } catch (e) { return {}; } },
+  _w(c) { try { localStorage.setItem('xv_prefs', JSON.stringify(c)); } catch (e) {} },
+  get(key) { const p = (this._c().p) || {}; return p[key] !== undefined ? p[key] : this.DEF[key]; },
+  async load(uid, force) {
+    const c = this._c();
+    if (!force && c.uid === uid && Date.now() - (c.ts || 0) < 300000) return;
+    try {
+      const { data, error } = await getSB().from('user_settings').select('prefs').eq('user_id', uid).maybeSingle();
+      if (error) throw error;
+      this._w({ uid, ts: Date.now(), p: (data && data.prefs) || {} });
+    } catch (e) { this._w({ uid, ts: Date.now(), p: c.uid === uid ? (c.p || {}) : {} }); }
+  },
+  async save(uid, patch) {
+    const c = this._c(), merged = Object.assign({}, c.uid === uid ? (c.p || {}) : {}, patch);
+    const { error } = await getSB().from('user_settings').upsert({ user_id: uid, prefs: merged, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+    if (error) return error;
+    this._w({ uid, ts: Date.now(), p: merged });
+    return null;
+  },
+};
+
 async function requireAuth(redirectTo = '/') {
 
   const sb = getSB();
@@ -808,6 +835,7 @@ async function requireAuth(redirectTo = '/') {
   if (typeof XRef !== 'undefined' && XRef.list().length) {
     try { await Promise.race([XRef.claim().catch(() => {}), new Promise(r => setTimeout(r, 3000))]); } catch (e) {}
   }   // partner link waiting from before login? put the "thappa" on now
+  if (typeof XPrefs !== 'undefined') { try { await Promise.race([XPrefs.load(session.user.id), new Promise(r => setTimeout(r, 1500))]); } catch (e) {} }
   return session.user;
 }
 
