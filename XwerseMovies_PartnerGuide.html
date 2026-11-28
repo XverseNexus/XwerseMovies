@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XwerseMovies — Partner Program: How it works</title>
+<meta name="robots" content="noindex, nofollow">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="XwerseMovies">
+<meta property="og:title" content="Partner Program — XwerseMovies">
+<meta property="og:description" content="Share XwerseMovies titles and earn a share of real Voe ad revenue.">
+<meta property="og:image" content="https://xwersemovies.bond/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://xwersemovies.bond/PartnerGuide">
+<meta property="og:locale" content="en_IN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Partner Program — XwerseMovies">
+<meta name="twitter:description" content="Share XwerseMovies titles and earn a share of real Voe ad revenue.">
+<meta name="twitter:image" content="https://xwersemovies.bond/og-image.png">
+<script>/* SW update → auto-reload */if('serviceWorker'in navigator){var _xvR=!navigator.serviceWorker.controller;navigator.serviceWorker.addEventListener('controllerchange',function(){if(!_xvR){_xvR=true;location.reload();}});}</script>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#E50914">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="XwerseMovies">
+<script src="/vendor/supabase-js-2.119.2.umd.js"></script>
+<script src="xwerse-config.js"></script>
+<script src="xwerse-partner-guide.js"></script>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --red: #E50914; --red-dark: #B00710; --green: #46d369;
+  --bg: #141414; --bg2: #0a0a0a; --card: #1c1c1c; --card2: #242424;
+  --text: #e5e5e5; --muted: #808080; --border: rgba(255,255,255,.08);
+  --content-max: 1900px;
+  --content-pad: max(4%, calc((100% - var(--content-max)) / 2));
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;min-height:100vh;overflow-x:hidden}
+nav{position:fixed;top:0;left:0;right:0;z-index:200;height:66px;display:flex;align-items:center;padding:0 var(--content-pad);gap:24px;background:rgba(8,8,8,.97);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+.logo{font-family:'Bebas Neue',cursive;font-size:2rem;color:var(--red);letter-spacing:2px;text-decoration:none;flex-shrink:0}
+.logo span{color:#fff}
+.nav-links{display:flex;gap:2px;list-style:none}
+.nav-link{color:rgba(255,255,255,.7);text-decoration:none;font-size:.86rem;font-weight:500;padding:6px 12px;border-radius:4px;transition:all .2s;cursor:pointer;border:none;background:none;font-family:'Barlow',sans-serif}
+.nav-link:hover{color:#fff;background:rgba(255,255,255,.07)}
+.nav-link.active{color:#fff;font-weight:700}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.nav-avatar{width:30px;height:30px;border-radius:4px;background:linear-gradient(135deg,var(--red),#831010);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.78rem;cursor:pointer;color:#fff;overflow:hidden;border:2px solid transparent;transition:border-color .2s}
+.nav-avatar:hover{border-color:rgba(255,255,255,.5)}
+.nav-avatar img{width:100%;height:100%;object-fit:cover}
+.nav-bell{background:none;border:none;color:rgba(255,255,255,.72);cursor:pointer;width:34px;height:34px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:.95rem;transition:all .2s;position:relative;flex-shrink:0}
+.nav-bell:hover{background:rgba(255,255,255,.09);color:#fff}
+main{padding:88px var(--content-pad) 60px;max-width:960px;margin:0 auto}
+.page-hd{margin-bottom:24px;display:flex;align-items:flex-end;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.page-title{font-family:'Bebas Neue',cursive;font-size:clamp(1.8rem,4vw,2.6rem);color:#fff;letter-spacing:2px}
+.page-sub{font-size:.84rem;color:var(--muted);margin-top:4px}
+.btn-new-req{background:var(--red);color:#fff;border:none;padding:10px 20px;font-size:.86rem;font-weight:700;border-radius:6px;cursor:pointer;font-family:'Barlow',sans-serif;transition:background .2s;text-decoration:none;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn-new-req:hover{background:#f40612}
+.filter-bar{display:flex;align-items:center;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.fbtn{background:rgba(255,255,255,.07);border:1px solid var(--border);color:rgba(255,255,255,.68);padding:6px 16px;border-radius:20px;font-size:.78rem;cursor:pointer;font-family:'Barlow',sans-serif;transition:all .2s;white-space:nowrap}
+.fbtn:hover{background:rgba(255,255,255,.12);color:#fff}
+.fbtn.on{background:#fff;color:#000;border-color:#fff;font-weight:700}
+.empty{text-align:center;padding:70px 20px}
+.empty-ico{font-size:3.5rem;margin-bottom:16px;opacity:.28}
+.empty-title{font-size:1.1rem;font-weight:600;color:rgba(255,255,255,.4);margin-bottom:8px}
+.empty-sub{font-size:.84rem;color:var(--muted);line-height:1.6;margin-bottom:24px}
+.btn-browse{background:var(--red);color:#fff;border:none;padding:11px 28px;font-size:.88rem;font-weight:700;border-radius:4px;cursor:pointer;font-family:'Barlow',sans-serif;transition:background .2s;text-decoration:none;display:inline-block}
+.btn-browse:hover{background:#f40612}
+.skel{background:linear-gradient(90deg,#222 25%,#2a2a2a 50%,#222 75%);background-size:200% 100%;animation:sk 1.4s infinite;border-radius:8px}
+@keyframes sk{0%{background-position:200%}100%{background-position:-200%}}
+.req-list{display:flex;flex-direction:column;gap:12px}
+.req-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;display:flex;gap:14px;transition:border-color .2s}
+.req-card:hover{border-color:rgba(255,255,255,.18)}
+.req-poster{width:60px;height:88px;object-fit:cover;border-radius:6px;background:#2a2a2a;flex-shrink:0}
+.req-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.req-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.req-title{font-size:1rem;font-weight:700;color:#fff}
+.req-meta{font-size:.76rem;color:var(--muted)}
+.req-date{font-size:.68rem;color:rgba(255,255,255,.35);margin-top:2px}
+.req-badge{font-size:.68rem;font-weight:700;padding:4px 11px;border-radius:20px;white-space:nowrap;border:1px solid;flex-shrink:0}
+.req-note{font-size:.76rem;color:rgba(255,255,255,.55);margin-top:6px;line-height:1.5;background:rgba(255,255,255,.04);border-radius:6px;padding:8px 10px}
+.req-actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.req-btn{background:var(--red);color:#fff;border:none;padding:8px 16px;font-size:.78rem;font-weight:700;border-radius:5px;cursor:pointer;font-family:'Barlow',sans-serif;text-decoration:none;display:inline-flex;align-items:center;gap:5px;transition:background .2s}
+.req-btn:hover{background:#f40612}
+.req-btn.secondary{background:rgba(255,255,255,.09);color:#fff}
+.emb{margin-top:12px;border-top:1px solid rgba(255,255,255,.08);padding-top:10px}
+.emb summary{cursor:pointer;font-size:.76rem;font-weight:700;color:rgba(255,255,255,.65)}
+.emb-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:9px}
+.emb-lbl{font-size:.76rem;font-weight:700;color:#fff;min-width:56px}
+.emb-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:#fff;border-radius:5px;padding:6px 12px;font-size:.72rem;font-weight:700;cursor:pointer;font-family:'Barlow',sans-serif}
+.emb-btn:hover{background:rgba(255,255,255,.16)}
+.req-btn.secondary:hover{background:rgba(255,255,255,.16)}
+.ep-chips{display:flex;flex-wrap:wrap;gap:6px;width:100%;margin-top:8px}
+.ep-chip{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;padding:5px 11px;border-radius:4px;font-size:.72rem;font-weight:600;text-decoration:none;transition:.2s}
+.ep-chip:hover{background:var(--red);border-color:var(--red)}
+@media(max-width:640px){
+  .nav-links{display:none}
+  main{padding-bottom:calc(72px + env(safe-area-inset-bottom,0px))!important}
+  .req-card{flex-direction:row}
+  .req-poster{width:48px;height:70px}
+}
+.mob-nav{display:none}
+@media(max-width:640px){
+  .mob-nav{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:500;background:rgba(9,9,9,.97);border-top:1px solid rgba(255,255,255,.08);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);box-sizing:border-box}
+  .mnav-item{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:10px 2px 8px;text-decoration:none;color:rgba(255,255,255,.42);font-family:'Barlow',sans-serif;transition:color .18s;-webkit-tap-highlight-color:transparent;position:relative;overflow:hidden;box-sizing:border-box}
+  .mnav-item.active{color:#fff}
+  .mnav-item.active::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:20px;height:2px;background:#E50914;border-radius:0 0 3px 3px}
+  .mnav-ico{width:22px;height:22px;fill:currentColor;flex-shrink:0}
+  .mnav-avatar{width:22px;height:22px;border-radius:4px;background:linear-gradient(135deg,var(--red,#E50914),#831010);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.6rem;color:#fff;overflow:hidden;flex-shrink:0}
+  .mnav-lbl{font-size:.56rem;font-weight:600;letter-spacing:.1px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:clip}
+}
+</style>
+<script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
+<script defer src="/_vercel/insights/script.js"></script>
+<style id="navFit">
+/* Tablet / small laptop nav: the right-hand icons (Premium, Search, bell, profile) must never be pushed off screen.
+   Low-priority links drop out first; they stay reachable from the Browse page. */
+@media (min-width:641px) and (max-width:1180px){
+  nav .logo{margin-right:14px}
+  nav .nav-links{gap:0;min-width:0}
+  nav .nav-link,nav .nl{padding:6px 8px;font-size:.8rem}
+  nav .nav-right{gap:6px;flex-shrink:0}
+  nav .nav-low1{display:none}
+}
+@media (min-width:641px) and (max-width:900px){
+  nav .nav-low2{display:none}
+  nav .prem-t{display:none}
+  nav a[href="/Plans"]{padding:7px 10px!important}
+}
+@media (min-width:641px) and (max-width:740px){
+  nav .logo{font-size:1.5rem!important;letter-spacing:1px!important;margin-right:8px}
+  nav .nav-link,nav .nl{padding:6px 5px;font-size:.74rem}
+  nav .nav-right{gap:2px}
+  nav .nav-right a[href="/Plans"]{padding:7px 8px!important}
+}
+
+.pp-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
+.pp-card h2{font-size:1.02rem;font-weight:800;color:#fff;margin-bottom:6px}
+.pp-muted{color:var(--muted);font-size:.82rem;line-height:1.65}
+.pp-rules{margin:12px 0 4px 18px;font-size:.84rem;line-height:1.8;color:rgba(255,255,255,.82)}
+.pp-btn{background:var(--red);color:#fff;border:none;padding:11px 24px;font-size:.88rem;font-weight:700;border-radius:6px;cursor:pointer;font-family:'Barlow',sans-serif}
+.pp-btn:hover{background:#f40612}.pp-btn:disabled{opacity:.5;cursor:default}
+.pp-btn.sec{background:rgba(255,255,255,.09)}.pp-btn.sec:hover{background:rgba(255,255,255,.16)}
+.pp-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.pp-stat{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px}
+.pp-stat b{display:block;font-size:1.5rem;color:#fff;font-weight:800}
+.pp-stat span{font-size:.72rem;color:var(--muted);letter-spacing:.3px}
+.pp-stat.est b{color:var(--green)}
+.pp-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.pp-code{display:inline-block;background:rgba(255,255,255,.08);border:1px dashed rgba(255,255,255,.3);border-radius:6px;padding:4px 12px;font-weight:800;letter-spacing:2px;color:#fff}
+.pp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.pp-t{background:var(--card2);border-radius:8px;overflow:hidden;display:flex;flex-direction:column}
+.pp-t img{width:100%;aspect-ratio:2/3;object-fit:cover;background:#2a2a2a}
+.pp-t .n{font-size:.78rem;font-weight:700;color:#fff;padding:8px 8px 2px;line-height:1.3}
+.pp-t .m{font-size:.68rem;color:var(--muted);padding:0 8px}
+.pp-t .a{display:flex;gap:6px;padding:8px}
+.pp-t .a button{flex:1;background:rgba(255,255,255,.1);border:none;color:#fff;font-size:.7rem;font-weight:700;padding:7px 4px;border-radius:5px;cursor:pointer;font-family:'Barlow',sans-serif}
+.pp-t .a button:hover{background:var(--red)}
+table.pp{width:100%;border-collapse:collapse;font-size:.82rem}
+table.pp th{text-align:left;color:var(--muted);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--border)}
+table.pp td{padding:7px 8px;border-bottom:1px solid rgba(255,255,255,.05)}
+@media(max-width:640px){.pp-stats{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="logo" href="/Home">Xwerse<span>Movies</span></a>
+  <ul class="nav-links">
+    <li><button class="nav-link" onclick="location.href='/Home'">Home</button></li>
+    <li><button class="nav-link" onclick="location.href='/Browse#tv'">TV Shows</button></li>
+    <li><button class="nav-link" onclick="location.href='/Browse#movies'">Movies</button></li>
+    <li class="nav-low2"><button class="nav-link" onclick="location.href='/Browse#new'">New &amp; Popular</button></li>
+    <li><button class="nav-link" onclick="location.href='/MyList'">My List</button></li>
+    <li class="nav-low1"><button class="nav-link" onclick="location.href='/Browse#languages'">Browse Languages</button></li>
+  </ul>
+  <div class="nav-right">
+    <a href="/Plans" title="Premium plans" style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:20px;background:rgba(229,9,20,.16);border:1px solid rgba(229,9,20,.45);color:#fff;text-decoration:none;font-size:.8rem;font-weight:700;transition:.2s;white-space:nowrap" onmouseover="this.style.background='rgba(229,9,20,.3)'" onmouseout="this.style.background='rgba(229,9,20,.16)'">💎<span class="prem-t"> Premium</span></a>
+    <a href="/Search" title="Search" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:6px;color:rgba(255,255,255,.8);text-decoration:none;font-size:1.05rem;transition:.2s" onmouseover="this.style.background='rgba(255,255,255,.1)'" onmouseout="this.style.background=''">&#x1F50D;</a>
+    <button class="nav-bell" onclick="XvNotif.toggle()" title="Notifications">
+      🔔<span class="_xvNP-dot" style="position:absolute;top:5px;right:5px;width:7px;height:7px;background:#E50914;border-radius:50%;border:2px solid #080808;display:none;pointer-events:none"></span>
+    </button>
+    <div class="nav-avatar" id="navAvatar">U</div>
+  </div>
+</nav>
+
+<main>
+  <div class="page-hd">
+    <div>
+      <div class="page-title" id="pgTitle">Partner Program</div>
+      <div class="page-sub" id="pgSub"></div>
+    </div>
+    <a class="pp-btn" href="/Partner" style="text-decoration:none;display:inline-block" id="pgGo">Partner Program →</a>
+  </div>
+  <div class="pp-card" id="pgRoot"></div>
+</main>
+
+<!-- MOBILE BOTTOM NAV -->
+<nav class="mob-nav" aria-label="Mobile navigation">
+  <a class="mnav-item" href="/Home" aria-label="Home">
+    <svg class="mnav-ico" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+    <span class="mnav-lbl">Home</span>
+  </a>
+  <a class="mnav-item" href="/Browse#new" aria-label="New and Hot">
+    <svg class="mnav-ico" viewBox="0 0 24 24"><path d="M13.5.67s.74 2.65.74 4.8c0 2.06-1.35 3.73-3.41 3.73-2.07 0-3.63-1.67-3.63-3.73l.03-.36C5.21 7.51 4 10.62 4 14c0 4.42 3.58 8 8 8s8-3.58 8-8C20 8.61 17.41 3.8 13.5.67z"/></svg>
+    <span class="mnav-lbl">New &amp; Hot</span>
+  </a>
+  <a class="mnav-item" href="/Search" aria-label="Search">
+    <svg class="mnav-ico" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+    <span class="mnav-lbl">Search</span>
+  </a>
+  <a class="mnav-item" href="/MyList" aria-label="My List">
+    <svg class="mnav-ico" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+    <span class="mnav-lbl">My List</span>
+  </a>
+  <a class="mnav-item" href="javascript:void(0)" id="mnavProfileTab" aria-label="Profile" onclick="document.getElementById('mnavProfileAvatar').click()">
+    <div class="mnav-avatar" id="mnavProfileAvatar">U</div>
+    <span class="mnav-lbl">Profile</span>
+  </a>
+</nav>
+<script>
+let currentUser = null;
+function pgRender() {
+  const L = PG.lang();
+  document.documentElement.lang = L === 'hi' ? 'hi' : 'en';
+  document.getElementById('pgTitle').textContent = PG.t('title');
+  document.getElementById('pgSub').textContent = PG.t('sub');
+  document.getElementById('pgRoot').innerHTML = PG.langBar('pgLang') +
+    '<div class="pp-muted" style="margin-bottom:8px">' + PG.esc(PG.t('toc')) + '</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px">' +
+    PG.S.map(x => '<a class="fbtn" style="text-decoration:none" href="#sec-' + x.id + '">' + x.icon + ' ' + PG.esc(x.t[L]) + '</a>').join('') + '</div>' +
+    PG.S.map(x => PG.sectionHtml(x, L)).join('');
+}
+function pgLang(l) { PG.setLang(l); pgRender(); }
+(async () => {
+  const st = document.createElement('style'); st.textContent = PG.css; document.head.appendChild(st);
+  pgRender();
+  currentUser = await requireAuth();
+  if (!currentUser) return;
+  await initNavAvatar('navAvatar');
+  await initNavAvatar('mnavProfileAvatar');
+  if (typeof XvNotif !== 'undefined') XvNotif.init(currentUser.id);
+})();
+</script>
+</body>
+</html>
