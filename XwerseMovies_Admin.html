@@ -1082,7 +1082,7 @@ async function stSave() {
   const d = await partnerApi({ action: 'settle_save', ...b });
   if (d && d.ok) { showToast('✅ Draft saved'); await stRefresh(); stWeekChange(); }
 }
-async function stApprove(id) { if (!confirm('Approve and lock this week? Partners\' balances are created from it and it can not be changed.')) return; const d = await partnerApi({ action: 'settle_approve', id }); if (d && d.ok) { showToast('✅ Approved'); await stRefresh(); stWeekChange(); } }
+async function stApprove(id) { if (!confirm('Approve and lock this week? Partners\' balances are created from it and it can not be changed.')) return; const w0 = (ST.weeks || []).find(x => x.id === id); const d = await partnerApi({ action: 'settle_approve', id, updated_at: w0 ? w0.updated_at : '' }); if (d && d.ok) { showToast('✅ Approved'); await stRefresh(); stWeekChange(); } }
 async function stVoePaid(id, paid) { if (paid && !confirm('Has VOE really paid this week\'s money to you? Partners can withdraw after this (and the hold days).')) return; const d = await partnerApi({ action: 'settle_voe_paid', id, paid }); if (d && d.ok) { await stRefresh(); } }
 
 function stWeeks() {
