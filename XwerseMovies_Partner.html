@@ -27,6 +27,7 @@
 <meta name="apple-mobile-web-app-title" content="XwerseMovies">
 <script src="/vendor/supabase-js-2.119.2.umd.js"></script>
 <script src="xwerse-config.js"></script>
+<script src="xwerse-partner-guide.js"></script>
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -191,6 +192,7 @@ table.pp td{padding:7px 8px;border-bottom:1px solid rgba(255,255,255,.05)}
       <div class="page-title">Partner Program</div>
       <div class="page-sub">Share titles with your own link — earn 50% of the real ad revenue they bring.</div>
     </div>
+    <a class="pp-btn sec" href="/PartnerGuide" style="text-decoration:none;display:inline-block">📘 How it works</a>
   </div>
   <div id="ppRoot"><div class="skel" style="height:160px"></div></div>
 </main>
@@ -252,30 +254,64 @@ function shareT(i) {
 }
 
 // ── screens ─────────────────────────────────────────────
+// ── first-time onboarding: guide → agreement → readiness quiz → join ──
+const OB = { phase: 'read', step: 0, agree: false, quiz: null, ans: {}, result: null, busy: false };
+function ensurePgCss() { if (!document.getElementById('pgcss')) { const st = document.createElement('style'); st.id = 'pgcss'; st.textContent = PG.css + '.ob-q{margin:0 0 18px}.ob-q b{display:block;margin-bottom:8px;font-size:.95rem;color:#fff;line-height:1.5}.ob-o{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;margin-bottom:6px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:.9rem;line-height:1.5;background:rgba(255,255,255,.03)}.ob-o.on{border-color:var(--red);background:rgba(229,9,20,.12)}.ob-o input{margin-top:4px}.ob-prog{height:5px;background:rgba(255,255,255,.1);border-radius:3px;margin:8px 0 18px}.ob-prog i{display:block;height:100%;background:var(--red);border-radius:3px}.ob-nav{display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;margin-top:18px}.ob-bad{color:#f5c518;font-size:.88rem;line-height:1.7}'; document.head.appendChild(st); } }
 function renderJoin(verified) {
+  ensurePgCss();
+  if (!verified) { $('ppRoot').innerHTML = `<div class="pp-card"><h2>🤝 ${PG.esc(PG.t('onbTitle'))}</h2><div class="pp-muted" style="color:#f5c518">Please verify your email first (check your inbox), then come back here.</div></div>`; return; }
+  if (OB.phase === 'quiz') return renderQuiz();
+  const n = PG.S.length, sec = PG.S[OB.step], last = OB.step === n - 1;
   $('ppRoot').innerHTML = `
     <div class="pp-card">
-      <h2>🤝 Earn with XwerseMovies</h2>
-      <div class="pp-muted">Get your own link for each title. When people you bring watch it, you earn a share of the real ad revenue it generates.</div>
-      <ul class="pp-rules">
-        <li><b>50%</b> of the actual revenue from your viewers — not a fixed price per view.</li>
-        <li>Your link stays attached to a viewer for that title, forever, once they sign up through it.</li>
-        <li>Only new viewers count — people who already watched that title before don't.</li>
-        <li>Earnings are settled <b>weekly (Sundays)</b>. First payout is checked by us, and payouts are held 2–4 weeks until the ad network pays us.</li>
-        <li>Payout by <b>UPI</b> or <b>crypto (USDT)</b>. Minimum <b>₹500 / $5</b>.</li>
-        <li>Only genuine views count: a real watch, no VPN / proxy, no ad-blocker, no repeated self-views. Fake traffic gets the account banned and earnings cancelled.</li>
-        <li>Numbers on your dashboard are <b>estimates</b>; the final amount is fixed on settlement day.</li>
-      </ul>
-      ${verified
-        ? `<div style="margin-top:16px"><button class="pp-btn" id="joinBtn" onclick="doJoin()">Join the Partner Program</button></div>`
-        : `<div class="pp-muted" style="margin-top:14px;color:#f5c518">Please verify your email first (check your inbox), then come back here.</div>`}
+      <h2>🤝 ${PG.esc(PG.t('onbTitle'))}</h2>
+      <div class="pp-muted">${PG.esc(PG.t('onbSub'))}</div>
+      <div style="margin-top:14px">${PG.langBar('obLang')}</div>
+      <div class="pp-muted">${PG.esc(PG.t('step', { n: OB.step + 1, m: n }))}</div>
+      <div class="ob-prog"><i style="width:${Math.round((OB.step + 1) / n * 100)}%"></i></div>
+      ${PG.sectionHtml(sec, PG.lang())}
+      ${last ? `<label class="ob-o ${OB.agree ? 'on' : ''}"><input type="checkbox" ${OB.agree ? 'checked' : ''} onchange="OB.agree=this.checked;renderJoin(true)"><span>${PG.esc(PG.t('agree'))}</span></label>` : ''}
+      <div class="ob-nav">
+        <button class="pp-btn sec" ${OB.step === 0 ? 'disabled' : ''} onclick="obStep(-1)">← ${PG.esc(PG.t('back'))}</button>
+        ${last ? `<button class="pp-btn" ${OB.agree ? '' : 'disabled'} onclick="obQuiz()">${PG.esc(PG.t('startQuiz'))} →</button>` : `<button class="pp-btn" onclick="obStep(1)">${PG.esc(PG.t('next'))} →</button>`}
+      </div>
     </div>`;
 }
+function obLang(l) { PG.setLang(l); if (OB.phase === 'quiz') { obQuiz(); } else renderJoin(true); }
+function obStep(d) { OB.step = Math.max(0, Math.min(PG.S.length - 1, OB.step + d)); renderJoin(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+async function obQuiz() {
+  OB.phase = 'quiz'; OB.ans = {}; OB.result = null;
+  $('ppRoot').innerHTML = '<div class="skel" style="height:200px"></div>';
+  const q = await api({ action: 'quiz', lang: PG.lang() });
+  if (!q || q.error || !q.questions) { OB.phase = 'read'; toast('❌ ' + ((q && q.error) || 'Could not load the quiz')); renderJoin(true); return; }
+  OB.quiz = q; renderQuiz(); window.scrollTo({ top: 0 });
+}
+function obPick(id, i) { OB.ans[id] = i; renderQuiz(true); }
+function renderQuiz(keepScroll) {
+  const y = window.scrollY, q = OB.quiz, R = OB.result;
+  $('ppRoot').innerHTML = `
+    <div class="pp-card">
+      <h2>📝 ${PG.esc(PG.t('quizTitle'))}</h2>
+      <div class="pp-muted">${PG.esc(PG.t('quizSub', { n: q.total, p: q.pass }))}</div>
+      <div style="margin-top:14px">${PG.langBar('obLang')}</div>
+      ${R && !R.passed ? `<div class="ob-bad" style="margin-bottom:14px">${PG.esc(PG.t('failed', { c: R.correct, n: R.total, p: R.pass }))}<br>${(R.wrong || []).map(tp => { const idx = PG.S.findIndex(x => x.id === tp); return idx < 0 ? '' : `<button class="pp-btn sec" style="margin:6px 6px 0 0;padding:7px 12px;font-size:.8rem" onclick="OB.phase='read';OB.step=${idx};renderJoin(true);window.scrollTo(0,0)">📖 ${PG.esc(PG.S[idx].t[PG.lang()])}</button>`; }).join('')}</div>` : ''}
+      ${q.questions.map((x, n) => `<div class="ob-q"><b>${n + 1}. ${PG.esc(x.q)}</b>${x.o.map(o => `<label class="ob-o ${OB.ans[x.id] === o.i ? 'on' : ''}"><input type="radio" name="q_${x.id}" ${OB.ans[x.id] === o.i ? 'checked' : ''} onchange="obPick('${x.id}',${o.i})"><span>${PG.esc(o.t)}</span></label>`).join('')}</div>`).join('')}
+      <div class="ob-nav">
+        <button class="pp-btn sec" onclick="OB.phase='read';renderJoin(true);window.scrollTo(0,0)">← ${PG.esc(PG.t('retry'))}</button>
+        <button class="pp-btn" id="joinBtn" ${OB.busy ? 'disabled' : ''} onclick="doJoin()">${PG.esc(PG.t('submit'))}</button>
+      </div>
+    </div>`;
+  if (keepScroll) window.scrollTo(0, y);
+}
 async function doJoin() {
-  const b = $('joinBtn'); b.disabled = true; b.textContent = 'Joining…';
-  const d = await api({ action: 'join' });
-  if (d && d.ok) { toast('🎉 Welcome, partner!'); init(); return; }
-  b.disabled = false; b.textContent = 'Join the Partner Program';
+  const q = OB.quiz;
+  if (q.questions.some(x => OB.ans[x.id] === undefined)) { toast('⚠️ ' + PG.t('answered')); return; }
+  OB.busy = true; const b = $('joinBtn'); b.disabled = true; b.textContent = PG.t('joining');
+  const d = await api({ action: 'join', agree: OB.agree, answers: q.questions.map(x => ({ id: x.id, a: OB.ans[x.id] })) });
+  OB.busy = false;
+  if (d && d.ok) { toast('🎉 ' + PG.t('passed')); await init(); window.scrollTo(0, 0); return; }
+  if (d && d.result === 'quiz_failed') { OB.result = { passed: false, correct: d.correct, total: d.total, pass: d.pass, wrong: d.wrong }; renderQuiz(); window.scrollTo(0, 0); return; }
+  b.disabled = false; b.textContent = PG.t('submit');
   toast(d && d.result === 'unverified' ? '❌ Verify your email first' : '❌ ' + ((d && d.error) || 'Could not join, try again'));
 }
 
