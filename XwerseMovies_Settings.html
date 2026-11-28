@@ -274,7 +274,6 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:60px;display:flex;ali
     <button class="sb-item" onclick="showPanel('notifs',this)" id="sb-notifs"><span class="sb-ico">🔔</span> Notifications <span class="sb-badge" id="sbNBadge" style="display:none">0</span></button>
     <div class="sb-lbl">Preferences</div>
     <button class="sb-item" onclick="showPanel('playback',this)"><span class="sb-ico">▶️</span> Playback & Video</button>
-    <button class="sb-item" onclick="showPanel('language',this)"><span class="sb-ico">🌐</span> Language</button>
     <button class="sb-item" onclick="showPanel('activity',this)"><span class="sb-ico">🕐</span> Viewing Activity</button>
     <div class="sb-lbl">Security</div>
     <button class="sb-item" onclick="showPanel('security',this)"><span class="sb-ico">🔒</span> Privacy & Security</button>
@@ -287,21 +286,35 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:60px;display:flex;ali
     <!-- ACCOUNT -->
     <div class="panel active" id="panel-account">
       <div class="ptit">Account Info</div>
-      <div class="psub">Manage your personal information and password</div>
+      <div class="psub">Manage your personal information, email and password</div>
       <div class="sc open">
-        <div class="sch" onclick="toggleSC(this)"><div class="schl"><div class="sch-ico">👤</div><div><div class="sch-tit">Personal Information</div><div class="sch-sub">Name, email, phone</div></div></div><span class="sch-chev">▼</span></div>
+        <div class="sch" onclick="toggleSC(this)"><div class="schl"><div class="sch-ico">👤</div><div><div class="sch-tit">Personal Information</div><div class="sch-sub">Name and phone</div></div></div><span class="sch-chev">▼</span></div>
         <div class="scb">
-          <div class="fgrid"><div class="fwrap"><label class="flbl">First Name</label><input class="fi" id="fName" type="text"></div><div class="fwrap"><label class="flbl">Last Name</label><input class="fi" id="lName" type="text"></div></div>
-          <div class="fgrid"><div class="fwrap"><label class="flbl">Email Address</label><input class="fi" id="accEmail" type="email" disabled style="opacity:.5"></div><div class="fwrap"><label class="flbl">Phone Number</label><input class="fi" id="accPhone" type="tel" placeholder="+91 98765 43210"></div></div>
-          <div class="brow"><button class="btn-save" onclick="savePersonalInfo()">Save Changes</button><button class="btn-out" onclick="showToast('Changes cancelled')">Cancel</button></div>
+          <div class="fgrid"><div class="fwrap"><label class="flbl">First Name</label><input class="fi" id="fName" type="text" maxlength="40"></div><div class="fwrap"><label class="flbl">Last Name</label><input class="fi" id="lName" type="text" maxlength="40"></div></div>
+          <div class="fgrid"><div class="fwrap"><label class="flbl">Email Address</label><input class="fi" id="accEmail" type="email" disabled style="opacity:.5"></div><div class="fwrap"><label class="flbl">Phone Number</label><input class="fi" id="accPhone" type="tel" placeholder="+91 98765 43210" maxlength="20"></div></div>
+          <div class="brow"><button class="btn-save" onclick="savePersonalInfo()">Save Changes</button><button class="btn-out" onclick="resetPersonalInfo()">Cancel</button></div>
+        </div>
+      </div>
+      <div class="sc">
+        <div class="sch" onclick="toggleSC(this)"><div class="schl"><div class="sch-ico">✉️</div><div><div class="sch-tit">Change Email</div><div class="sch-sub">We send a confirmation link to the new address</div></div></div><span class="sch-chev">▼</span></div>
+        <div class="scb">
+          <div class="fgrid one"><div class="fwrap"><label class="flbl">New Email Address</label><input class="fi" id="newEmail" type="email" placeholder="you@example.com" autocomplete="email"></div></div>
+          <div class="brow"><button class="btn-save" onclick="changeEmail()">Send Confirmation</button></div>
         </div>
       </div>
       <div class="sc">
         <div class="sch" onclick="toggleSC(this)"><div class="schl"><div class="sch-ico">🔑</div><div><div class="sch-tit">Change Password</div><div class="sch-sub">Update your account password</div></div></div><span class="sch-chev">▼</span></div>
         <div class="scb">
-          <div class="fgrid one"><div class="fwrap"><label class="flbl">New Password</label><input class="fi" id="newPass" type="password" placeholder="Min 6 characters"></div></div>
-          <div class="fgrid one"><div class="fwrap"><label class="flbl">Confirm Password</label><input class="fi" id="confPass" type="password" placeholder="Repeat new password"></div></div>
+          <div class="fgrid one"><div class="fwrap"><label class="flbl">New Password</label><input class="fi" id="newPass" type="password" placeholder="Min 6 characters" autocomplete="new-password"></div></div>
+          <div class="fgrid one"><div class="fwrap"><label class="flbl">Confirm Password</label><input class="fi" id="confPass" type="password" placeholder="Repeat new password" autocomplete="new-password"></div></div>
           <div class="brow"><button class="btn-save" onclick="changePassword()">Update Password</button></div>
+        </div>
+      </div>
+      <div class="sc">
+        <div class="sch" onclick="toggleSC(this)"><div class="schl"><div class="sch-ico">💎</div><div><div class="sch-tit">Membership &amp; Requests</div><div class="sch-sub">XwerseMovies is free to watch; paid items are one-time</div></div></div><span class="sch-chev">▼</span></div>
+        <div class="scb">
+          <div class="tdesc" style="line-height:1.7;margin-bottom:12px">There is no monthly subscription. Free titles are free for everyone. Paid requests and premium items are one-time purchases, and everything you bought is listed under My Requests.</div>
+          <div class="brow"><button class="btn-save" onclick="location.href='/MyRequests'">My Requests</button><button class="btn-out" onclick="location.href='/Plans'">See Plans</button></div>
         </div>
       </div>
     </div>
@@ -309,12 +322,19 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:60px;display:flex;ali
     <!-- PROFILES -->
     <div class="panel" id="panel-profiles">
       <div class="ptit">Manage Profiles</div>
-      <div class="psub">Add, edit or delete viewer profiles</div>
+      <div class="psub">Add, edit or delete viewer profiles (up to 5)</div>
       <div class="prof-grid" id="profGrid"></div>
-      <div class="sc open">
+      <div class="sc open" id="profEditCard" style="display:none">
+        <div class="sch" onclick="toggleSC(this)"><div class="schl"><div class="sch-ico">✏️</div><div><div class="sch-tit">Edit Profile</div><div class="sch-sub" id="profEditSub"></div></div></div><span class="sch-chev">▼</span></div>
+        <div class="scb">
+          <div class="fgrid"><div class="fwrap"><label class="flbl">Profile Name</label><input class="fi" id="editProfName" maxlength="24"></div><div class="fwrap"><label class="flbl">Type</label><select class="fsel" id="editProfKids"><option value="false">Adult</option><option value="true">Kids</option></select></div></div>
+          <div class="brow"><button class="btn-save" onclick="saveProfileEdit()">Save Profile</button><button class="btn-out" onclick="closeProfileEdit()">Cancel</button></div>
+        </div>
+      </div>
+      <div class="sc open" id="profAddCard">
         <div class="sch" onclick="toggleSC(this)"><div class="schl"><div class="sch-ico">➕</div><div><div class="sch-tit">Add New Profile</div><div class="sch-sub">Create another viewer profile</div></div></div><span class="sch-chev">▼</span></div>
         <div class="scb">
-          <div class="fgrid"><div class="fwrap"><label class="flbl">Profile Name</label><input class="fi" id="newProfName" placeholder="e.g. Kids, Guest"></div><div class="fwrap"><label class="flbl">Type</label><select class="fsel" id="newProfKids"><option value="false">Adult</option><option value="true">Kids (restricted)</option></select></div></div>
+          <div class="fgrid"><div class="fwrap"><label class="flbl">Profile Name</label><input class="fi" id="newProfName" placeholder="e.g. Kids, Guest" maxlength="24"></div><div class="fwrap"><label class="flbl">Type</label><select class="fsel" id="newProfKids"><option value="false">Adult</option><option value="true">Kids</option></select></div></div>
           <div class="brow"><button class="btn-save" onclick="addProfile()">Create Profile</button></div>
         </div>
       </div>
@@ -323,48 +343,31 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:60px;display:flex;ali
     <!-- NOTIFICATIONS SETTINGS -->
     <div class="panel" id="panel-notifs">
       <div class="ptit">Notifications</div>
-      <div class="psub">Choose what you want to be notified about</div>
+      <div class="psub">Choose what shows up in your bell</div>
       <div class="sc open">
-        <div class="sch" onclick="toggleSC(this)"><div class="schl"><div class="sch-ico">📧</div><div><div class="sch-tit">Email Notifications</div><div class="sch-sub">What emails to receive</div></div></div><span class="sch-chev">▼</span></div>
+        <div class="sch" onclick="toggleSC(this)"><div class="schl"><div class="sch-ico">🔔</div><div><div class="sch-tit">In-app Notifications</div><div class="sch-sub">Alerts in the bell on every page</div></div></div><span class="sch-chev">▼</span></div>
         <div class="scb">
-          <div class="trow"><div class="tinfo"><div class="tlbl">New Releases</div><div class="tdesc">Emails about new movies and shows</div></div><label class="tog"><input type="checkbox" checked onchange="saveToggle(this,'New releases')"><div class="tog-trk"></div><div class="tog-th"></div></label></div>
-          <div class="trow"><div class="tinfo"><div class="tlbl">Continue Watching Reminders</div><div class="tdesc">Reminders for unfinished shows</div></div><label class="tog"><input type="checkbox" checked onchange="saveToggle(this,'Reminders')"><div class="tog-trk"></div><div class="tog-th"></div></label></div>
-          <div class="trow"><div class="tinfo"><div class="tlbl">Promotional Offers</div><div class="tdesc">Discounts and special offers</div></div><label class="tog"><input type="checkbox" onchange="saveToggle(this,'Promos')"><div class="tog-trk"></div><div class="tog-th"></div></label></div>
+          <div class="trow"><div class="tinfo"><div class="tlbl">New titles on XwerseMovies</div><div class="tdesc">Get a notification when a new movie or show is added</div></div><label class="tog"><input type="checkbox" data-pref="notif_new" onchange="savePref(this)"><div class="tog-trk"></div><div class="tog-th"></div></label></div>
+          <div class="trow"><div class="tinfo"><div class="tlbl">Requests, payments &amp; access</div><div class="tdesc">Always on. We must be able to tell you when your request is ready or a payment is confirmed.</div></div><span style="font-size:.74rem;color:var(--green);font-weight:700">ALWAYS ON</span></div>
         </div>
       </div>
       <div class="sc open">
-        <div class="sch" onclick="toggleSC(this)"><div class="schl"><div class="sch-ico">📱</div><div><div class="sch-tit">Push Notifications</div><div class="sch-sub">In-app and mobile alerts</div></div></div><span class="sch-chev">▼</span></div>
-        <div class="scb">
-          <div class="trow"><div class="tinfo"><div class="tlbl">New Episodes</div><div class="tdesc">Tumhari shows ke nayi episodes ready hone pe</div></div><label class="tog"><input type="checkbox" checked onchange="saveToggle(this,'New episodes')"><div class="tog-trk"></div><div class="tog-th"></div></label></div>
-          <div class="trow"><div class="tinfo"><div class="tlbl">Top 10 Updates</div><div class="tdesc">What is trending in India, every day</div></div><label class="tog"><input type="checkbox" checked onchange="saveToggle(this,'Top 10')"><div class="tog-trk"></div><div class="tog-th"></div></label></div>
-        </div>
+        <div class="sch" onclick="toggleSC(this)"><div class="schl"><div class="sch-ico">📜</div><div><div class="sch-tit">Your Notifications</div><div class="sch-sub">Latest 30</div></div></div><span class="sch-chev">▼</span></div>
+        <div class="scb"><div class="brow" style="margin-top:0"><button class="btn-save" onclick="toggleNP()">Open Notification Panel</button><button class="btn-out" onclick="markAllRead()">Mark All as Read</button></div></div>
       </div>
     </div>
 
     <!-- PLAYBACK -->
     <div class="panel" id="panel-playback">
-      <div class="ptit">Playback & Video</div>
-      <div class="psub">Streaming quality and autoplay settings</div>
+      <div class="ptit">Playback &amp; Video</div>
+      <div class="psub">These settings are saved to your account and apply on every device</div>
       <div class="sc open">
-        <div class="sch" onclick="toggleSC(this)"><div class="schl"><div class="sch-ico">📺</div><div><div class="sch-tit">Video Quality</div><div class="sch-sub">Choose your preferred streaming quality</div></div></div><span class="sch-chev">▼</span></div>
+        <div class="sch" onclick="toggleSC(this)"><div class="schl"><div class="sch-ico">📺</div><div><div class="sch-tit">Playback</div><div class="sch-sub">Quality and autoplay</div></div></div><span class="sch-chev">▼</span></div>
         <div class="scb">
-          <div class="fgrid one"><div class="fwrap"><label class="flbl">Streaming Quality</label><select class="fsel" onchange="showToast('Quality set: '+this.value)"><option>Auto (Recommended)</option><option selected>1080p Full HD</option><option>720p HD</option><option>480p</option></select></div></div>
-          <div class="trow"><div class="tinfo"><div class="tlbl">Autoplay Next Episode</div><div class="tdesc">Automatically play the next episode in a series</div></div><label class="tog"><input type="checkbox" checked onchange="saveToggle(this,'Autoplay')"><div class="tog-trk"></div><div class="tog-th"></div></label></div>
-          <div class="trow"><div class="tinfo"><div class="tlbl">Skip Intro Automatically</div><div class="tdesc">Auto-skip opening sequences</div></div><label class="tog"><input type="checkbox" onchange="saveToggle(this,'Skip intro')"><div class="tog-trk"></div><div class="tog-th"></div></label></div>
-          <div class="brow"><button class="btn-save" onclick="showToast('✅ Playback settings saved!')">Save Settings</button></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- LANGUAGE -->
-    <div class="panel" id="panel-language">
-      <div class="ptit">Language</div>
-      <div class="psub">Display, audio and subtitle preferences</div>
-      <div class="sc open">
-        <div class="sch" onclick="toggleSC(this)"><div class="schl"><div class="sch-ico">🌐</div><div><div class="sch-tit">Language Settings</div><div class="sch-sub">Interface and content language</div></div></div><span class="sch-chev">▼</span></div>
-        <div class="scb">
-          <div class="fgrid"><div class="fwrap"><label class="flbl">Interface Language</label><select class="fsel"><option selected>English</option></select></div><div class="fwrap"><label class="flbl">Preferred Audio</label><select class="fsel"><option>Hindi</option><option>English</option><option>Telugu</option><option>Tamil</option></select></div></div>
-          <div class="brow"><button class="btn-save" onclick="showToast('✅ Language saved!')">Save</button></div>
+          <div class="fgrid one"><div class="fwrap"><label class="flbl">Preferred Video Quality</label>
+            <select class="fsel" id="prefQuality" data-pref="quality" onchange="savePref(this)"><option value="auto">Auto (recommended, adapts to your internet)</option><option value="1080">1080p Full HD</option><option value="720">720p HD</option><option value="480">480p (saves data)</option></select>
+            <div class="tdesc" style="margin-top:6px;line-height:1.6">Applies to titles that play in our own player. Embedded players choose their own quality.</div></div></div>
+          <div class="trow"><div class="tinfo"><div class="tlbl">Autoplay next episode</div><div class="tdesc">When an episode ends in our own player, the next one starts automatically</div></div><label class="tog"><input type="checkbox" data-pref="autoplay_next" onchange="savePref(this)"><div class="tog-trk"></div><div class="tog-th"></div></label></div>
         </div>
       </div>
     </div>
@@ -372,30 +375,44 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;height:60px;display:flex;ali
     <!-- ACTIVITY -->
     <div class="panel" id="panel-activity">
       <div class="ptit">Viewing Activity</div>
-      <div class="psub">Recent watch history</div>
+      <div class="psub">What you watched recently</div>
       <div class="sc open">
-        <div class="sch" onclick="toggleSC(this)"><div class="schl"><div class="sch-ico">🕐</div><div><div class="sch-tit">Recently Watched</div><div class="sch-sub">Last 30 days</div></div></div><span class="sch-chev">▼</span></div>
-        <div class="scb" id="activityList"><div style="color:var(--muted);font-size:.82rem;text-align:center;padding:20px">Loading...</div></div>
+        <div class="sch" onclick="toggleSC(this)"><div class="schl"><div class="sch-ico">🕐</div><div><div class="sch-tit">Recently Watched</div><div class="sch-sub">Latest 20</div></div></div><span class="sch-chev">▼</span></div>
+        <div class="scb"><div id="activityList"><div style="color:var(--muted);font-size:.82rem;text-align:center;padding:20px">Loading...</div></div>
+          <div class="brow"><button class="btn-dng" onclick="clearActivity()">Clear Viewing History</button></div></div>
       </div>
     </div>
 
     <!-- SECURITY -->
     <div class="panel" id="panel-security">
-      <div class="ptit">Privacy & Security</div>
-      <div class="psub">Data and account security</div>
+      <div class="ptit">Privacy &amp; Security</div>
+      <div class="psub">Your data and your account's safety</div>
       <div class="sc open">
-        <div class="sch" onclick="toggleSC(this)"><div class="schl"><div class="sch-ico">🔒</div><div><div class="sch-tit">Security Settings</div><div class="sch-sub">Auth and privacy controls</div></div></div><span class="sch-chev">▼</span></div>
+        <div class="sch" onclick="toggleSC(this)"><div class="schl"><div class="sch-ico">🔒</div><div><div class="sch-tit">Privacy</div><div class="sch-sub">What we use to personalise your Home</div></div></div><span class="sch-chev">▼</span></div>
         <div class="scb">
-          <div class="trow"><div class="tinfo"><div class="tlbl">Personalized Recommendations</div><div class="tdesc">Improve suggestions using your watch history</div></div><label class="tog"><input type="checkbox" checked onchange="saveToggle(this,'Personalization')"><div class="tog-trk"></div><div class="tog-th"></div></label></div>
-          <div class="trow"><div class="tinfo"><div class="tlbl">Usage Analytics</div><div class="tdesc">Share anonymous data to help us improve</div></div><label class="tog"><input type="checkbox" onchange="saveToggle(this,'Analytics')"><div class="tog-trk"></div><div class="tog-th"></div></label></div>
+          <div class="trow"><div class="tinfo"><div class="tlbl">Personalized recommendations</div><div class="tdesc">Use your ratings to build "Top Picks for you" and "Because you liked…" on Home. Turn off for a generic Home.</div></div><label class="tog"><input type="checkbox" data-pref="personalized" onchange="savePref(this)"><div class="tog-trk"></div><div class="tog-th"></div></label></div>
+          <div class="tdesc" style="margin-top:10px;line-height:1.7">Read how we handle your data in our <a href="/Privacy" style="color:#fff">Privacy Policy</a>.</div>
+        </div>
+      </div>
+      <div class="sc open">
+        <div class="sch" onclick="toggleSC(this)"><div class="schl"><div class="sch-ico">🛡️</div><div><div class="sch-tit">Sessions</div><div class="sch-sub">Where you are signed in</div></div></div><span class="sch-chev">▼</span></div>
+        <div class="scb">
+          <div class="tdesc" style="line-height:1.7;margin-bottom:12px">Lost a phone or used a shared computer? Sign out everywhere. You will need to sign in again on every device, including this one.</div>
+          <div class="brow"><button class="btn-out" onclick="signOutAll()">Sign Out of All Devices</button></div>
+        </div>
+      </div>
+      <div class="sc open">
+        <div class="sch" onclick="toggleSC(this)"><div class="schl"><div class="sch-ico">📦</div><div><div class="sch-tit">Your Data</div><div class="sch-sub">Download a copy</div></div></div><span class="sch-chev">▼</span></div>
+        <div class="scb">
+          <div class="tdesc" style="line-height:1.7;margin-bottom:12px">Download everything we hold about you in one file: profile, viewer profiles, My List, viewing history, ratings, requests and notifications.</div>
+          <div class="brow"><button class="btn-save" onclick="downloadMyData()">Download My Data</button></div>
         </div>
       </div>
       <div class="dz">
         <div class="dz-title">⚠️ Danger Zone</div>
-        <div class="dz-desc">These actions are permanent and cannot be undone.</div>
+        <div class="dz-desc">Deleting your account permanently removes your profile, My List, history and progress. Paid purchases cannot be refunded by deleting.</div>
         <div style="display:flex;gap:9px;flex-wrap:wrap">
-          <button class="btn-dng" onclick="showToast('📧 Data export link sent to your email!')">Download My Data</button>
-          <button class="btn-dng" onclick="deleteAccount()">Delete Account</button>
+          <button class="btn-dng" onclick="deleteAccount()">Request Account Deletion</button>
         </div>
       </div>
     </div>
@@ -419,7 +436,7 @@ let npFilterTab  = 'all';
 (function() {
   const raw = (location.hash || '').replace('#', '');
   if (!raw) return;
-  const alias = { notifications:'notifs', 'account-info':'account', security:'security' };
+  const alias = { notifications:'notifs', 'account-info':'account', security:'security', language:'account' };
   const id    = alias[raw] || raw;
   const target = document.getElementById('panel-' + id);
   if (!target) return;
@@ -450,11 +467,13 @@ let npFilterTab  = 'all';
   await initNavAvatar('mnavProfileAvatar');   // mobile bottom-nav Profile tab
   loadActivity();
   PwdMeter.attach(document.getElementById('newPass'));
+  await XPrefs.load(currentUser.id).catch(() => {});
+  applyPrefsToUI();
 
   // Hash-based panel — #notifications (old link) and #notifs both work
   const hash = location.hash.replace('#','');
   if (hash) {
-    const alias = { 'notifications': 'notifs', 'account-info': 'account', 'security': 'security' };
+    const alias = { 'notifications': 'notifs', 'account-info': 'account', 'security': 'security', 'language': 'account' };
     showPanel(alias[hash] || hash);
   }
 })();
@@ -485,6 +504,7 @@ function loadSidebar() {
   const fn = document.getElementById('fName'); if (fn) fn.value = parts[0] || '';
   const ln = document.getElementById('lName'); if (ln) ln.value = parts.slice(1).join(' ') || '';
   const em = document.getElementById('accEmail'); if (em) em.value = email;
+  const ph = document.getElementById('accPhone'); if (ph) ph.value = userProfile?.phone || '';
 
   // FIX: Use updateUnreadBadge() to update ALL 3 badge elements (npCnt, sbNBadge, npDot)
   // Before this fix, npCnt (the count inside the notif panel header) was never updated on load
@@ -508,7 +528,7 @@ function showPanel(name, btn) {
 function buildMobNav() {
   const panels = [
     {id:'account',l:'Account'},{id:'profiles',l:'Profiles'},{id:'notifs',l:'Notifications'},
-    {id:'playback',l:'Playback'},{id:'language',l:'Language'},
+    {id:'playback',l:'Playback'},
     {id:'activity',l:'Activity'},{id:'security',l:'Security'},
   ];
   const cur = (location.hash || '').replace('#','') || 'account';
@@ -535,7 +555,8 @@ async function savePersonalInfo() {
   const updates = { name };
   if (phone) updates.phone = phone;
 
-  const { error } = await getSB().from('profiles').update(updates).eq('id', currentUser.id);
+  let { error } = await getSB().from('profiles').update(updates).eq('id', currentUser.id);
+  if (error && /phone/i.test(error.message) && updates.phone) { delete updates.phone; ({ error } = await getSB().from('profiles').update(updates).eq('id', currentUser.id)); if (!error) showToast('Name saved (phone is not available on this account)'); }
   if (error) { showToast('❌ ' + error.message); return; }
 
   document.getElementById('sbName').textContent = name;
@@ -559,32 +580,39 @@ async function changePassword() {
 // ─────────────────────────────────────────
 //  VIEWER PROFILES
 // ─────────────────────────────────────────
+const E = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let editingProf = null;
+function activeProfId() { const a = (typeof Session !== 'undefined') && Session.getProfile(); return a && a.id; }
 function buildViewerProfs() {
   const colors = ['#E50914','#2196F3','#4CAF50','#FF9800','#9C27B0'];
   const grid = document.getElementById('profGrid');
+  const act = activeProfId();
   grid.innerHTML = viewerProfs.map((vp,i) => `
-    <div class="pc">
+    <div class="pc" style="cursor:default">
       <div class="pc-av" style="background:${colors[i%colors.length]}">
-        ${vp.avatar_url?`<img src="${vp.avatar_url}" onerror="this.remove()">`:''}
-        <span style="z-index:1">${(vp.name||'U')[0].toUpperCase()}</span>
+        ${vp.avatar_url?`<img src="${E(vp.avatar_url)}" onerror="this.remove()">`:''}
+        <span style="z-index:1">${E((vp.name||'U')[0].toUpperCase())}</span>
       </div>
-      <div class="pc-name">${vp.name}</div>
-      <div class="pc-type">${vp.is_kids?'Kids':'Adult'}</div>
+      <div class="pc-name">${E(vp.name)}</div>
+      <div class="pc-type">${vp.is_kids?'Kids':'Adult'}${act===vp.id?' · Active':''}</div>
       <div class="pc-acts">
-        <button class="pc-btn" onclick="deleteProfile('${vp.id}','${vp.name}')">Delete</button>
+        <button class="pc-btn" onclick="openProfileEdit('${E(vp.id)}')">Edit</button>
+        <button class="pc-btn" onclick="deleteProfile('${E(vp.id)}')">Delete</button>
       </div>
-    </div>`).join('') + `
-    <div class="pc add" onclick="document.getElementById('newProfName').focus();document.querySelector('.sc').classList.add('open')">
+    </div>`).join('') + (viewerProfs.length < 5 ? `
+    <div class="pc add" onclick="document.getElementById('profAddCard').classList.add('open');document.getElementById('newProfName').focus()">
       <div class="pc-av" style="background:rgba(255,255,255,.06);border:2px dashed rgba(255,255,255,.18)"><span style="font-size:2rem;color:rgba(255,255,255,.26)">+</span></div>
       <div class="pc-name" style="color:var(--muted)">Add Profile</div>
-    </div>`;
+    </div>` : '');
+  document.getElementById('profAddCard').style.display = viewerProfs.length < 5 ? '' : 'none';
 }
 
 async function addProfile() {
-  const name  = document.getElementById('newProfName').value.trim();
+  const name  = document.getElementById('newProfName').value.trim().slice(0, 24);
   const isKids= document.getElementById('newProfKids').value === 'true';
   if (!name) { showToast('❌ Please enter a profile name'); return; }
   if (viewerProfs.length >= 5) { showToast('❌ Max 5 profiles allowed'); return; }
+  if (viewerProfs.some(p => (p.name || '').toLowerCase() === name.toLowerCase())) { showToast('❌ You already have a profile with this name'); return; }
   const { error } = await DB.addViewerProfile(currentUser.id, name, null, isKids);
   if (error) { showToast('❌ ' + error.message); return; }
   viewerProfs = await Auth.getViewerProfiles(currentUser.id);
@@ -593,18 +621,48 @@ async function addProfile() {
   showToast('✅ Profile "' + name + '" created!');
 }
 
-async function deleteProfile(id, name) {
+function openProfileEdit(id) {
+  const vp = viewerProfs.find(p => p.id === id); if (!vp) return;
+  editingProf = id;
+  document.getElementById('editProfName').value = vp.name || '';
+  document.getElementById('editProfKids').value = vp.is_kids ? 'true' : 'false';
+  document.getElementById('profEditSub').textContent = vp.name || '';
+  const c = document.getElementById('profEditCard'); c.style.display = ''; c.classList.add('open');
+  c.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function closeProfileEdit() { editingProf = null; document.getElementById('profEditCard').style.display = 'none'; }
+async function saveProfileEdit() {
+  const vp = viewerProfs.find(p => p.id === editingProf); if (!vp) return;
+  const name = document.getElementById('editProfName').value.trim().slice(0, 24);
+  const is_kids = document.getElementById('editProfKids').value === 'true';
+  if (!name) { showToast('❌ Please enter a profile name'); return; }
+  if (viewerProfs.some(p => p.id !== vp.id && (p.name || '').toLowerCase() === name.toLowerCase())) { showToast('❌ You already have a profile with this name'); return; }
+  const { error } = await DB.updateViewerProfile(vp.id, { name, is_kids });
+  if (error) { showToast('❌ ' + error.message); return; }
+  vp.name = name; vp.is_kids = is_kids;
+  const act = Session.getProfile();                       // keep the saved "who is watching" in sync
+  if (act && act.id === vp.id) Session.setProfile({ ...act, name, is_kids });
+  buildViewerProfs(); closeProfileEdit();
+  showToast('✅ Profile saved');
+}
+
+async function deleteProfile(id) {
+  const vp = viewerProfs.find(p => p.id === id); if (!vp) return;
+  if (viewerProfs.length <= 1) { showToast('❌ You need at least one profile'); return; }
   const ok = await xvConfirm({
     icon: '👤',
     title: 'Delete Profile',
-    message: `Delete the "${name}" profile? This cannot be undone.`,
+    message: `Delete the "${E(vp.name)}" profile? This cannot be undone.`,
     confirmText: 'Delete',
     cancelText: 'Cancel',
     danger: true,
   });
   if (!ok) return;
-  await DB.deleteViewerProfile(id);
+  const { error } = await DB.deleteViewerProfile(id);
+  if (error) { showToast('❌ ' + error.message); return; }
   viewerProfs = viewerProfs.filter(p=>p.id!==id);
+  if (activeProfId() === id) Session.clearProfile();      // deleted the profile in use → "Who's watching" next time
+  if (editingProf === id) closeProfileEdit();
   buildViewerProfs();
   showToast('🗑️ Profile deleted');
 }
@@ -614,16 +672,81 @@ async function deleteProfile(id, name) {
 // ─────────────────────────────────────────
 async function loadActivity() {
   const el = document.getElementById('activityList');
-  const hist = await DB.getHistory(currentUser.id, 20);
+  let hist = [];
+  try { hist = await DB.getHistory(currentUser.id, 20); } catch (e) {}
   if (!hist.length) { el.innerHTML='<div style="color:var(--muted);font-size:.82rem;text-align:center;padding:20px">No activity yet</div>'; return; }
   el.innerHTML = hist.map(m=>`
     <div style="display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid var(--border)">
-      <img src="${m.poster_url||''}" style="width:42px;height:60px;object-fit:cover;border-radius:4px;background:#222;flex-shrink:0" onerror="this.style.display='none'">
+      <img src="${E(m.poster_url||'')}" style="width:42px;height:60px;object-fit:cover;border-radius:4px;background:#222;flex-shrink:0" onerror="this.style.display='none'">
       <div style="flex:1;min-width:0">
-        <div style="font-size:.86rem;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.title}</div>
-        <div style="font-size:.7rem;color:var(--muted);margin-top:2px">${new Date(m.watchedAt||m.watched_at).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</div>
+        <div style="font-size:.86rem;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${E(m.title)}</div>
+        <div style="font-size:.7rem;color:var(--muted);margin-top:2px">${E(new Date(m.watchedAt||m.watched_at).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}))}</div>
       </div>
     </div>`).join('');
+}
+async function clearActivity() {
+  const ok = await xvConfirm({ icon: '🕐', title: 'Clear Viewing History', message: 'Remove your whole viewing history? Continue Watching and My List are not affected.', confirmText: 'Clear', cancelText: 'Cancel', danger: true });
+  if (!ok) return;
+  const { error } = await DB.clearHistory(currentUser.id);
+  if (error) { showToast('❌ ' + error.message); return; }
+  loadActivity(); showToast('✅ Viewing history cleared');
+}
+
+// ─────────────────────────────────────────
+//  PREFERENCES (saved to the account, work on every device)
+// ─────────────────────────────────────────
+function applyPrefsToUI() {
+  document.querySelectorAll('[data-pref]').forEach(el => {
+    const v = XPrefs.get(el.dataset.pref);
+    if (el.type === 'checkbox') el.checked = v !== false; else el.value = String(v);
+  });
+}
+async function savePref(el) {
+  const key = el.dataset.pref, val = el.type === 'checkbox' ? el.checked : el.value;
+  const err = await XPrefs.save(currentUser.id, { [key]: val });
+  if (err) { showToast('❌ Could not save. Please try again.'); applyPrefsToUI(); return; }
+  showToast('✅ Saved');
+}
+
+// ─────────────────────────────────────────
+//  ACCOUNT EXTRAS: email, sessions, data, deletion
+// ─────────────────────────────────────────
+function resetPersonalInfo() { loadSidebar(); showToast('Changes discarded'); }
+async function changeEmail() {
+  const em = document.getElementById('newEmail').value.trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) { showToast('❌ Enter a valid email address'); return; }
+  if (em === (currentUser.email || '').toLowerCase()) { showToast('❌ This is already your email'); return; }
+  const { error } = await getSB().auth.updateUser({ email: em });
+  if (error) { showToast('❌ ' + error.message); return; }
+  document.getElementById('newEmail').value = '';
+  showToast('📧 Check your inbox. Open the link we sent to confirm the new email.', 6000);
+}
+async function signOutAll() {
+  const ok = await xvConfirm({ icon: '🛡️', title: 'Sign Out Everywhere', message: 'You will be signed out on all devices, including this one.', confirmText: 'Sign Out All', cancelText: 'Cancel' });
+  if (!ok) return;
+  try { await getSB().auth.signOut({ scope: 'global' }); } catch (e) { await Auth.signOut(); }
+  try { localStorage.removeItem('xv_prefs'); } catch (e) {}
+  window.location.href = '/';
+}
+async function downloadMyData() {
+  showToast('Preparing your data…');
+  const sb = getSB(), uid = currentUser.id, out = { exported_at: new Date().toISOString(), account: { id: uid, email: currentUser.email } };
+  const grab = async (key, q) => { try { const { data, error } = await q; out[key] = error ? { error: error.message } : data; } catch (e) { out[key] = { error: String(e.message || e) }; } };
+  await Promise.all([
+    grab('profile', sb.from('profiles').select('*').eq('id', uid).maybeSingle()),
+    grab('viewer_profiles', sb.from('viewer_profiles').select('*').eq('user_id', uid)),
+    grab('my_list', sb.from('my_list').select('*').eq('user_id', uid)),
+    grab('watch_history', sb.from('watch_history').select('*').eq('user_id', uid)),
+    grab('ratings', sb.from('ratings').select('*').eq('user_id', uid)),
+    grab('requests', sb.from('requests').select('*').eq('user_id', uid)),
+    grab('notifications', sb.from('notifications').select('*').eq('user_id', uid)),
+    grab('settings', sb.from('user_settings').select('*').eq('user_id', uid).maybeSingle()),
+  ]);
+  const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'xwersemovies-my-data-' + new Date().toISOString().slice(0, 10) + '.json';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  showToast('✅ Your data file was downloaded');
 }
 
 // ─────────────────────────────────────────
@@ -648,10 +771,10 @@ function renderNotifs(tab) {
   if(!items.length){list.innerHTML=`<div style="text-align:center;padding:36px 20px;color:var(--muted);font-size:.82rem">No notifications</div>`;return;}
   list.innerHTML=items.map(n=>`
     <div class="np-item ${n.is_read?'':'unread'}" onclick="markRead(${n.id})">
-      <img class="np-thumb" src="${n.image_url||'https://ui-avatars.com/api/?name=X&background=E50914&color=fff'}" onerror="this.src='https://ui-avatars.com/api/?name=X&background=333&color=666'">
+      <img class="np-thumb" src="${E(n.image_url||'https://ui-avatars.com/api/?name=X&background=E50914&color=fff')}" onerror="this.src='https://ui-avatars.com/api/?name=X&background=333&color=666'">
       <div class="np-body">
-        <div class="np-ttl">${!n.is_read?'<span style="width:5px;height:5px;background:var(--red);border-radius:50%;display:inline-block;margin-right:5px;vertical-align:middle"></span>':''}${n.title}</div>
-        <div class="np-desc">${n.body||''}</div>
+        <div class="np-ttl">${!n.is_read?'<span style="width:5px;height:5px;background:var(--red);border-radius:50%;display:inline-block;margin-right:5px;vertical-align:middle"></span>':''}${E(n.title)}</div>
+        <div class="np-desc">${E(n.body||'')}</div>
         <div class="np-time">${timeAgo(n.created_at)}</div>
       </div>
     </div>`).join('');
@@ -730,7 +853,7 @@ async function deleteAccount() {
     icon: '⚠️',
     title: 'Delete Account',
     message: 'This action will permanently delete your account. This cannot be undone.',
-    confirmText: 'Delete Account',
+    confirmText: 'Continue',
     cancelText: 'Cancel',
     danger: true,
   });
@@ -738,19 +861,21 @@ async function deleteAccount() {
   const ok2 = await xvConfirm({
     icon: '🗑️',
     title: 'Are You Sure?',
-    message: 'Are you sure you want to delete? All your data, My List, and progress will be gone forever.',
-    confirmText: 'Yes, Delete',
+    message: 'All your data, My List and progress will be gone forever. This opens an email to our support team to confirm it is really you.',
+    confirmText: 'Yes, Request Deletion',
     cancelText: 'No, Keep It',
     danger: true,
   });
   if (!ok2) return;
-  showToast('Account deletion request sent. Support will confirm shortly.');
+  const subj = encodeURIComponent('Account deletion request');
+  const body = encodeURIComponent('Please delete my XwerseMovies account.\n\nAccount email: ' + (currentUser.email || '') + '\nUser id: ' + currentUser.id + '\n\nI understand this is permanent.');
+  window.location.href = 'mailto:vconic3@gmail.com?subject=' + subj + '&body=' + body;
+  showToast('📧 Send the email that just opened. We delete the account within 7 days and confirm by reply.', 7000);
 }
 
 // ─────────────────────────────────────────
 //  UTILS
 // ─────────────────────────────────────────
-function saveToggle(el, name) { showToast((el.checked?'✅ ':'🔕 ')+name+(el.checked?' enabled':' disabled')); }
 function timeAgo(ts){ if(!ts) return ''; const s=Math.floor((Date.now()-new Date(ts).getTime())/1000); if(s<60) return 'just now'; if(s<3600) return Math.floor(s/60)+'m ago'; if(s<86400) return Math.floor(s/3600)+'h ago'; return Math.floor(s/86400)+'d ago'; }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&npOpen) toggleNP(); });
 </script>
