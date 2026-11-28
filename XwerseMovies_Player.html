@@ -512,6 +512,16 @@ function loadDirect(m) {
       };
     }
     _plyr = new Plyr(v, opts);
+    // Settings → Playback: preferred quality (highest available that is not above the preference)
+    try {
+      const pq = typeof XPrefs !== 'undefined' ? XPrefs.get('quality') : 'auto';
+      if (pq && pq !== 'auto' && _hls && qualities && qualities.length) {
+        const want = +pq, ok = qualities.filter(h => h <= want);
+        const pick = ok.length ? Math.max.apply(null, ok) : Math.min.apply(null, qualities);
+        const idx = _hls.levels.findIndex(l => l.height === pick);
+        if (idx >= 0) { _hls.currentLevel = idx; _plyr.once('ready', () => { try { _plyr.quality = pick; } catch (e) {} }); }
+      }
+    } catch (e) {}
 
     // Title + back button follow Plyr's control bar (Netflix behaviour)
     _plyr.on('controlsshown',  () => $('playerWrap').classList.add('ui-on'));
@@ -547,6 +557,11 @@ function loadDirect(m) {
   v.addEventListener('ended', () => {
     try { localStorage.removeItem(posKey); } catch (e) {}
     syncProgress();
+    // Settings → Playback: autoplay the next episode
+    if (typeof _nextEp !== 'undefined' && _nextEp && typeof XPrefs !== 'undefined' && XPrefs.get('autoplay_next') !== false) {
+      try { showToast('▶ Playing next episode…'); } catch (e) {}
+      setTimeout(() => { try { doPlayNextEp(); } catch (e) {} }, 1200);
+    }
   });
   v.addEventListener('error', () => { if (!isHls) showError(); });
 
