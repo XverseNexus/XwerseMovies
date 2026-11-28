@@ -432,7 +432,7 @@ let _cachedRowData = null;
   Ratings.injectStyles();
   await Ratings.init(currentUser.id);
   XMatch.init(currentUser.id);
-  const topSeeds     = Ratings.getTopLikedSeeds(3);
+  const topSeeds     = (typeof XPrefs !== 'undefined' && XPrefs.get('personalized') === false) ? [] : Ratings.getTopLikedSeeds(3);   // Settings → Privacy: personalised rows can be turned off
   const dislikedKeys = Ratings.getDislikedSet();
   // With 2+ liked titles, "Top Picks" (multi-seed) is strictly richer than
   // "Because You Liked X" (single-seed) and would be near-duplicate content,
