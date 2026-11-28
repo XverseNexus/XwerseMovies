@@ -82,8 +82,14 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ notified: 0 });
     }
 
+    // Settings → Notifications: skip users who turned "New titles" off (missing table / error = nobody opted out)
+    let optedOut = new Set();
+    try {
+      const oo = await fetch(`${supabaseUrl}/rest/v1/user_settings?select=user_id&prefs-%3E%3Enotif_new=eq.false&limit=100000`, { headers: { 'apikey': supabaseServiceKey, 'Authorization': `Bearer ${supabaseServiceKey}` } });
+      if (oo.ok) { const j = await oo.json(); if (Array.isArray(j)) optedOut = new Set(j.map(x => x.user_id)); }
+    } catch (e) { /* notify everyone */ }
     const label = type === 'tv' ? 'show' : 'movie';
-    const rows = profiles.map((p) => ({
+    const rows = profiles.filter((p) => !optedOut.has(p.id)).map((p) => ({
       user_id: p.id,
       title: 'New on XwerseMovies',
       body: `${title} — a new ${label} is now available. Watch now!`,
