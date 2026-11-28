@@ -671,8 +671,8 @@ nav{background:#111;border-bottom:1px solid var(--border);padding:0 22px;height:
             <label>Default weight <input type="number" id="stDefW" class="fi" style="width:90px"></label>
           </div>
           <div class="st-row">
-            <label>₹ per $ (manual backup) <input type="number" step="0.01" id="stInr" class="fi" style="width:110px"></label>
-            <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="stInrAuto"> Use live rate</label>
+            <input type="hidden" id="stInr">
+            <input type="checkbox" id="stInrAuto" checked style="display:none">
             <span id="stInrLive" style="font-size:.78rem;color:#46d369"></span>
           </div>
           <div class="st-h">Free-host words: a title counts when its video link's domain contains one of these (e.g. <code>voe</code>). Add VOE mirror domains if you use any.</div>
@@ -703,30 +703,18 @@ nav{background:#111;border-bottom:1px solid var(--border);padding:0 22px;height:
 
       <div class="fc" style="margin-bottom:16px">
         <div class="fc-title"><div class="fc-ico">🎬</div> Promotable titles (automatic)</div>
-        <div style="font-size:.8rem;color:rgba(255,255,255,.55);margin-bottom:12px;line-height:1.6">Every <b>active movie you upload here with a free VOE link</b> is promotable automatically, including new uploads. Series, vidsrc/auto titles and paid seasons never are. Use the buttons only to switch one OFF (or to add an extra TMDB id).</div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
-          <input type="number" id="ptTid" class="fi" placeholder="Extra TMDB id (optional)" style="flex:1;min-width:150px">
-          <select id="ptType" class="fi" style="flex:0 0 130px"><option value="movie">Movie</option><option value="tv">TV show</option></select>
-          <button class="btn-add" onclick="ptTitle(true)" style="flex-shrink:0">Add</button>
-        </div>
+        <div style="font-size:.8rem;color:rgba(255,255,255,.55);margin-bottom:12px;line-height:1.6">Fully automatic: every <b>active movie with a free VOE link</b> is promotable the moment you upload it, and drops out by itself if you pause it or change its link. Series, vidsrc/auto titles and paid seasons never are. Nothing to switch here, this list is only for checking.</div>
         <div id="ptTitles" style="font-size:.8rem"></div>
       </div>
 
       <div class="fc" style="margin-bottom:16px">
         <div class="fc-title"><div class="fc-ico">💲</div> Earnings estimate (partner dashboard)</div>
-        <div style="font-size:.8rem;color:rgba(255,255,255,.55);margin-bottom:12px;line-height:1.6">Only for the live ESTIMATE partners see. Final pay comes from the weekly settlement with real Voe money. Keep it a bit LOW (Voe 10k views = $10 means about $0.001 per paid view).</div>
+        <div style="font-size:.8rem;color:rgba(255,255,255,.55);margin-bottom:12px;line-height:1.6">Automatic. The estimate partners see is learned from what VOE really paid in approved weeks (country weights applied, kept a little low for safety). Until the first week is approved a small built-in starting rate is used. Final pay always comes from the weekly settlement.</div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-          <label style="font-size:.8rem">Default $ per counted view <input id="ptRate" type="number" step="0.0001" min="0" max="1" style="width:110px"></label>
           <label style="font-size:.8rem">Partner share % <input id="ptShare" type="number" min="1" max="100" style="width:80px"></label>
+          <button class="btn-add" onclick="ptSaveSettings()">Save</button>
+          <span id="ptLearned" style="color:#46d369;font-size:.8rem"></span>
         </div>
-        <div style="margin-top:12px;font-size:.8rem;line-height:1.7"><label><input type="checkbox" id="ptAuto"> <b>Learn the rate from real settlements (recommended)</b></label>
-          <span id="ptLearned" style="color:#46d369;margin-left:6px"></span><br>
-          <span style="color:var(--muted)">Once a week is approved, the dashboard estimate uses what VOE really paid per counted view (country weights applied), × safety</span>
-          <input type="number" id="ptSafety" step="0.05" min="0.3" max="1" style="width:70px;margin-left:4px">
-          <span style="color:var(--muted)">so it stays a little LOW. The manual rates below are used only until the first week is approved.</span></div>
-        <div style="margin-top:10px;font-size:.8rem">Per country (optional), e.g. <code>US=0.004, IN=0.0003</code><br>
-          <input id="ptRateBy" type="text" placeholder="US=0.004, IN=0.0003" style="width:100%;max-width:520px;margin-top:6px"></div>
-        <div style="margin-top:10px"><button class="btn-add" onclick="ptSaveSettings()">Save</button></div>
       </div>
 
       <div class="fc">
@@ -1139,7 +1127,7 @@ async function stStatus(id, status) { if (!confirm('Set this partner to ' + stat
 async function stRules() {
   const c = await partnerApi({ action: 'settings_get' }); if (!c) return;
   const v = (id, x) => document.getElementById(id).value = x;
-  document.getElementById('stInrAuto').checked = c.usd_inr_auto !== false;
+  
   document.getElementById('stInrLive').textContent = 'Live now: ₹' + c.usd_inr_live + ' per $ (' + c.usd_inr_source + ')';
   v('stHosts', (c.promo_hosts || ['voe']).join(', '));
   v('stHold', c.hold_days); v('stMinUsd', c.min_usd); v('stMinInr', c.min_inr); v('stInr', c.usd_inr); v('stDefW', c.default_weight);
@@ -1149,7 +1137,7 @@ async function stRules() {
 async function stSaveRules() {
   const cw = {}; document.getElementById('stCW').value.split(',').map(x => x.trim()).filter(Boolean).forEach(x => { const [k, v] = x.split('='); if (k && v) cw[k.trim().toUpperCase()] = parseFloat(v); });
   const g = id => parseFloat(document.getElementById(id).value), c = window._stCfg || {};
-  const d = await partnerApi({ action: 'settings_set', est_rate_default: c.est_rate_default, share_pct: c.share_pct, est_rate_by_country: c.est_rate_by_country, hold_days: g('stHold'), min_usd: g('stMinUsd'), min_inr: g('stMinInr'), usd_inr: g('stInr'), usd_inr_auto: document.getElementById('stInrAuto').checked, promo_hosts: document.getElementById('stHosts').value.split(',').map(x => x.trim()).filter(Boolean), default_weight: g('stDefW'), country_weights: cw });
+  const d = await partnerApi({ action: 'settings_set', est_rate_default: c.est_rate_default, share_pct: c.share_pct, est_rate_by_country: c.est_rate_by_country, hold_days: g('stHold'), min_usd: g('stMinUsd'), min_inr: g('stMinInr'), usd_inr: g('stInr'), usd_inr_auto: true, promo_hosts: document.getElementById('stHosts').value.split(',').map(x => x.trim()).filter(Boolean), default_weight: g('stDefW'), country_weights: cw });
   if (d && d.ok) { showToast('✅ Saved'); stLog(); stRules(); }
 }
 async function stLog() {
@@ -1159,16 +1147,11 @@ async function stLog() {
 
 async function ptLoadSettings() {
   const d = await partnerApi({ action: 'settings_get' }); if (!d) return;
-  document.getElementById('ptRate').value = d.est_rate_default;
   document.getElementById('ptShare').value = d.share_pct;
-  document.getElementById('ptAuto').checked = d.est_auto !== false; document.getElementById('ptSafety').value = d.est_safety;
   document.getElementById('ptLearned').textContent = d.learned ? 'Learned from ' + d.learned.weeks + ' week(s): $' + (d.learned.base * 1000).toFixed(4) + ' per 1000 weight-units' : 'Not learned yet (no approved week)';
-  document.getElementById('ptRateBy').value = Object.entries(d.est_rate_by_country || {}).map(([k, v]) => k + '=' + v).join(', ');
 }
 async function ptSaveSettings() {
-  const by = {};
-  document.getElementById('ptRateBy').value.split(',').map(x => x.trim()).filter(Boolean).forEach(x => { const [k, v] = x.split('='); if (k && v) by[k.trim().toUpperCase()] = parseFloat(v); });
-  const d = await partnerApi({ action: 'settings_set', est_rate_default: parseFloat(document.getElementById('ptRate').value), share_pct: parseFloat(document.getElementById('ptShare').value), est_rate_by_country: by, est_auto: document.getElementById('ptAuto').checked, est_safety: parseFloat(document.getElementById('ptSafety').value) });
+  const d = await partnerApi({ action: 'settings_set', share_pct: parseFloat(document.getElementById('ptShare').value) });
   if (d && d.ok) showToast('✅ Saved');
 }
 async function ptInit() {
@@ -1187,24 +1170,16 @@ async function ptBecome() { const d = await partnerApi({ action: 'become_test_pa
 async function ptLoadTitles() {
   const d = await partnerApi({ action: 'titles_list' }); if (!d) return;
   const el = document.getElementById('ptTitles');
-  if (!d.titles.length) { el.innerHTML = '<div style="color:var(--muted)">No promotable titles yet. Upload a movie with a free VOE link, or add a TMDB id above.</div>'; return; }
+  if (!d.titles.length) { el.innerHTML = '<div style="color:var(--muted)">No promotable titles yet. Upload a movie with a free VOE link and it appears here by itself.</div>'; return; }
   const onN = d.titles.filter(t => t.enabled).length;
   el.innerHTML = '<div style="color:var(--muted);margin-bottom:6px">' + onN + ' titles ON · ' + (d.titles.length - onN) + ' OFF</div>' + d.titles.map(t => {
     const link = _ptCode ? location.origin + '/s/' + t.media_type + '/' + t.tmdb_id + '?ref=' + _ptCode : '';
     return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.07)">' +
       '<b>' + ptEsc(t.title || ('#' + t.tmdb_id)) + '</b> <span style="color:var(--muted)">#' + t.tmdb_id + ' · ' + t.media_type + (t.auto ? ' · auto' : ' · extra') + '</span> ' +
       '<span style="color:' + (t.enabled ? '#46d369' : '#f55') + '">' + (t.enabled ? 'ON' : 'OFF') + '</span>' +
-      '<button class="tab-btn" onclick="ptToggle(' + t.tmdb_id + ',\'' + t.media_type + '\',' + (!t.enabled) + ')">' + (t.enabled ? 'Turn off' : 'Turn on') + '</button>' +
       (link ? '<button class="tab-btn" onclick="ptCopy(this)" data-l="' + ptEsc(link) + '">Copy test link</button>' : '') + '</div>';
   }).join('');
 }
-async function ptTitle(on) {
-  const tid = parseInt(document.getElementById('ptTid').value, 10);
-  if (!tid) { showToast('❌ Enter a TMDB id'); return; }
-  const d = await partnerApi({ action: 'titles_set', tmdb_id: tid, media_type: document.getElementById('ptType').value, enabled: on });
-  if (d) { document.getElementById('ptTid').value = ''; ptLoadTitles(); }
-}
-async function ptToggle(tid, type, on) { const d = await partnerApi({ action: 'titles_set', tmdb_id: tid, media_type: type, enabled: on }); if (d) ptLoadTitles(); }
 function ptCopy(btn) { const l = btn.getAttribute('data-l'); (navigator.clipboard ? navigator.clipboard.writeText(l) : Promise.reject()).then(() => showToast('✅ Link copied'), () => prompt('Copy this link:', l)); }
 async function ptReport() {
   const d = await partnerApi({ action: 'report', from: document.getElementById('ptFrom').value, to: document.getElementById('ptTo').value, host: document.getElementById('ptHost').value.trim() });
